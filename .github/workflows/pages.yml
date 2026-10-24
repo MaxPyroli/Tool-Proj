@@ -1,0 +1,44 @@
+name: Déployer sur GitHub Pages
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Déploie uniquement la branche par défaut du dépôt.
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Écrire config.js depuis les variables du dépôt
+        if: vars.SUPABASE_URL != ''
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+          ALLOW_SIGNUP: ${{ vars.ALLOW_SIGNUP || 'true' }}
+        run: |
+          node -e '
+            const c = { supabaseUrl: process.env.SUPABASE_URL, supabaseKey: process.env.SUPABASE_KEY, allowSignup: process.env.ALLOW_SIGNUP !== "false" };
+            require("fs").writeFileSync("public/config.js", "window.TOOL_PROJ_CONFIG = " + JSON.stringify(c, null, 2) + ";\n");
+          '
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v4

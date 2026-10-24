@@ -1,4 +1,6 @@
-// Tool-Proj front-end: vanilla JS, hash router, event delegation.
+// Tool-Proj front-end: vanilla JS, hash router, event delegation. Data lives in Supabase (see data.js).
+import * as db from './data.js';
+
 const $app = document.getElementById('app');
 const sheet = document.getElementById('sheet');
 
@@ -28,7 +30,7 @@ const state = {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const isPhone = () => matchMedia('(max-width: 719px)').matches;
 const initials = (name = '?') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-const hue = (id) => (Number(id) * 67) % 360;
+const hue = (id) => [...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 const avatar = (u, cls = '') => u ? `<span class="avatar ${cls}" style="--h:${hue(u.id)}" title="${esc(u.displayName)}">${esc(initials(u.displayName))}</span>` : '';
 const parseDate = (s) => new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s.replace(' ', 'T') + 'Z');
 
@@ -58,22 +60,6 @@ const icon = {
   back: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   gear: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
 };
-
-async function api(method, url, body) {
-  let res;
-  try {
-    res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
-  } catch {
-    throw new Error('Pas de connexion. Réessaie quand tu seras en ligne.');
-  }
-  const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && !url.startsWith('/api/auth')) {
-    state.me = null;
-    render();
-  }
-  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
-  return data;
-}
 
 function toast(msg, err = false) {
   const el = document.createElement('div');
@@ -144,34 +130,49 @@ async function render() {
     if (state.pid !== r.id || !state.data) {
       state.pid = r.id; state.data = null;
       $app.innerHTML = '<div class="loading">Chargement…</div>';
-      try { state.data = await api('GET', `/api/projects/${r.id}`); }
+      try { state.data = await db.getProject(r.id, state.me.id); subscribe(r.id); }
       catch (e) { toast(e.message, true); location.hash = '#/'; return; }
     }
     return renderProject();
   }
-  state.pid = null; state.data = null;
-  try { state.projects = (await api('GET', '/api/projects')).projects; }
+  state.pid = null; state.data = null; subscribe(null);
+  try { state.projects = await db.listProjects(state.me.id); }
   catch (e) { toast(e.message, true); }
-  if (!state.me) return; // a 401 already re-rendered the login screen
   renderList();
 }
 
 async function reloadProject() {
   if (!state.pid) return;
-  state.data = await api('GET', `/api/projects/${state.pid}`);
+  state.data = await db.getProject(state.pid, state.me.id);
   renderProject();
+}
+
+// Live updates: when a teammate changes something, refresh as soon as the screen is idle.
+let unsubscribe = null, staleTimer = null;
+function subscribe(pid) {
+  unsubscribe?.(); unsubscribe = null;
+  if (pid) unsubscribe = db.subscribeProject(pid, () => { clearTimeout(staleTimer); staleTimer = setTimeout(refreshIfIdle, 400); });
+}
+async function refreshIfIdle() {
+  if (!state.pid || !state.data || document.hidden) return;
+  if (sheet.open || state.dragging || ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
+    clearTimeout(staleTimer); staleTimer = setTimeout(refreshIfIdle, 2000); // try again once idle
+    return;
+  }
+  const fresh = await db.getProject(state.pid, state.me.id);
+  if (JSON.stringify(fresh) !== JSON.stringify(state.data)) { state.data = fresh; renderProject(); }
 }
 
 // ---------- auth ----------
 
 function renderAuth() {
   const reg = state.authMode === 'register';
-  const canRegister = state.config?.allowRegistration;
+  const canRegister = db.allowSignup;
   $app.innerHTML = `
   <main class="auth">
     <div class="auth-card">
       <div class="auth-hero">
-        <a class="brand" href="#/"><img src="/icons/icon.svg" alt="">Tool-Proj</a>
+        <a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool-Proj</a>
         <h1>Tes projets d'apps, leurs idées et qui fait quoi.</h1>
         <div class="sample" aria-hidden="true">
           <div class="note c-yellow" style="--rot:-3deg">Mode hors-ligne pour l'app vélo ?</div>
@@ -181,11 +182,13 @@ function renderAuth() {
       <form class="panel stack" data-form="${reg ? 'register' : 'login'}" novalidate>
         <h2>${reg ? 'Créer un compte' : 'Connexion'}</h2>
         ${state.authError ? `<p class="error">${esc(state.authError)}</p>` : ''}
-        <label class="field"><span>Identifiant</span><input class="input" id="auth-username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required minlength="3"></label>
-        ${reg ? '<label class="field"><span>Nom affiché</span><input class="input" id="auth-name" name="displayName" autocomplete="name" placeholder="ex. Léo"></label>' : ''}
+        ${state.authInfo ? `<p class="info">${esc(state.authInfo)}</p>` : ''}
+        <label class="field"><span>Email</span><input class="input" id="auth-email" type="email" name="email" autocomplete="email" autocapitalize="none" spellcheck="false" required></label>
+        ${reg ? `<label class="field"><span>Identifiant <small class="muted">(pour qu'on t'ajoute aux projets)</small></span><input class="input" id="auth-username" name="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" placeholder="ex. leo"></label>
+        <label class="field"><span>Nom affiché</span><input class="input" id="auth-name" name="displayName" autocomplete="name" placeholder="ex. Léo"></label>` : ''}
         <label class="field"><span>Mot de passe</span><input class="input" id="auth-password" type="password" name="password" autocomplete="${reg ? 'new-password' : 'current-password'}" required minlength="${reg ? 8 : 1}"></label>
         <button class="btn primary" type="submit">${reg ? 'Créer mon compte' : 'Se connecter'}</button>
-        ${canRegister ? `<p class="small muted">${reg ? 'Déjà un compte ?' : 'Pas encore de compte ?'} <button type="button" class="link-btn" data-action="auth-toggle">${reg ? 'Se connecter' : 'Créer un compte'}</button></p>` : '<p class="small muted">Pas de compte ? Demande à un admin de t\'en créer un.</p>'}
+        ${canRegister ? `<p class="small muted">${reg ? 'Déjà un compte ?' : 'Pas encore de compte ?'} <button type="button" class="link-btn" data-action="auth-toggle">${reg ? 'Se connecter' : 'Créer un compte'}</button></p>` : '<p class="small muted">Pas de compte ? Demande à un admin de t\'inviter.</p>'}
       </form>
     </div>
   </main>`;
@@ -220,7 +223,7 @@ function renderList() {
   for (const s of Object.keys(STATUS)) counts[s] = state.projects.filter((p) => p.status === s).length;
   const shown = state.filter === 'all' ? state.projects : state.projects.filter((p) => p.status === state.filter);
   $app.innerHTML = `
-  ${topbar(`<a class="brand" href="#/"><img src="/icons/icon.svg" alt="">Tool-Proj</a><span class="grow"></span>
+  ${topbar(`<a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool-Proj</a><span class="grow"></span>
     <button class="btn primary hide-sm" data-action="new-project">+ Nouveau projet</button>`)}
   <main class="page">
     <div class="list-head">
@@ -311,8 +314,10 @@ function renderProject() {
 
   if (state.tab === 'idees' && state.boardView === 'wall') {
     const wrap = $app.querySelector('.board-wrap');
-    if (scroll) [wrap.scrollLeft, wrap.scrollTop] = scroll;
-    bindBoard(wrap);
+    if (wrap) {
+      if (scroll) [wrap.scrollLeft, wrap.scrollTop] = scroll;
+      bindBoard(wrap);
+    }
   }
   if (state.tab === 'taches') bindTaskDnD();
 }
@@ -477,7 +482,7 @@ function bindTaskDnD() {
       const t = state.data.tasks.find((x) => x.id === id);
       if (!t || t.status === col.dataset.col) return;
       const maxPos = Math.max(0, ...state.data.tasks.filter((x) => x.status === col.dataset.col).map((x) => x.position));
-      await api('PATCH', `/api/tasks/${id}`, { status: col.dataset.col, position: maxPos + 1 });
+      await db.updateTask(id, { status: col.dataset.col, position: maxPos + 1 });
       await reloadProject();
     }));
   });
@@ -548,9 +553,9 @@ function bindBoard(wrap) {
     const n = state.data.notes.find((x) => x.id === d.id);
     if (!d.moved) { if (e.type === 'pointerup' && n) noteSheet(n); return; }
     const x = parseFloat(d.el.style.left), y = parseFloat(d.el.style.top);
-    const { note } = await api('PATCH', `/api/notes/${d.id}`, { x, y, front: true });
-    Object.assign(n, note);
-    d.el.style.zIndex = note.z;
+    const row = await db.updateNote(d.id, { x, y, front: true }, state.data.notes);
+    Object.assign(n, row);
+    d.el.style.zIndex = row.z;
   });
   wrap.addEventListener('pointerup', end);
   wrap.addEventListener('pointercancel', end);
@@ -568,7 +573,7 @@ function accountSheet() {
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   openSheet(`
-    <div class="sheet-head"><div class="row">${avatar(me, 'lg')}<div><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}${me.isAdmin ? ' · administrateur' : ''}</p></div></div>
+    <div class="sheet-head"><div class="row">${avatar(me, 'lg')}<div><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div></div>
       <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
     ${!standalone ? `<div class="panel" style="background:var(--accent-soft);border-color:transparent">
       <h3>Installer l'app</h3>
@@ -584,17 +589,9 @@ function accountSheet() {
     </form>
     <details><summary class="small" style="cursor:pointer;font-weight:600">Changer de mot de passe</summary>
       <form class="stack" data-form="password" style="margin-top:12px">
-        <label class="field"><span>Mot de passe actuel</span><input class="input" id="ac-cur" type="password" name="currentPassword" autocomplete="current-password" required></label>
         <label class="field"><span>Nouveau mot de passe (8 caractères min.)</span><input class="input" id="ac-new" type="password" name="newPassword" autocomplete="new-password" minlength="8" required></label>
         <div class="row end"><button class="btn" type="submit">Changer</button></div>
       </form></details>
-    ${me.isAdmin ? `<details><summary class="small" style="cursor:pointer;font-weight:600">Créer un compte pour quelqu'un</summary>
-      <form class="stack" data-form="admin-user" style="margin-top:12px" autocomplete="off">
-        <label class="field"><span>Identifiant</span><input class="input" id="au-user" name="username" autocapitalize="none" required minlength="3"></label>
-        <label class="field"><span>Nom affiché</span><input class="input" id="au-name" name="displayName"></label>
-        <label class="field"><span>Mot de passe provisoire</span><input class="input" id="au-pass" name="password" type="text" minlength="8" required></label>
-        <div class="row end"><button class="btn" type="submit">Créer le compte</button></div>
-      </form></details>` : ''}
     <button class="btn danger" data-action="logout">Se déconnecter</button>`);
 }
 
@@ -617,7 +614,7 @@ const actions = {
   'delete-project': async () => {
     const p = state.data.project;
     if (!(await confirmSheet(`Supprimer « ${p.name} » avec ses tâches et ses post-it ? C'est définitif.`))) return;
-    await api('DELETE', `/api/projects/${p.id}`);
+    await db.deleteProject(p.id);
     toast('Projet supprimé');
     state.data = null; location.hash = '#/';
   },
@@ -625,7 +622,7 @@ const actions = {
   'open-task': (el) => taskSheet(state.data.tasks.find((t) => t.id === Number(el.dataset.id))),
   'toggle-task': async (el) => {
     const t = state.data.tasks.find((x) => x.id === Number(el.dataset.id));
-    await api('PATCH', `/api/tasks/${t.id}`, { status: t.status === 'done' ? 'todo' : 'done' });
+    await db.updateTask(t.id, { status: t.status === 'done' ? 'todo' : 'done' });
     await reloadProject();
   },
   'pick-status': (el) => {
@@ -633,7 +630,7 @@ const actions = {
     el.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === el));
   },
   'delete-task': async (el) => {
-    await api('DELETE', `/api/tasks/${el.dataset.id}`);
+    await db.deleteTask(Number(el.dataset.id));
     closeSheet(); toast('Tâche supprimée'); await reloadProject();
   },
   'board-view': (el) => { state.boardView = el.dataset.v; store.set('boardView', el.dataset.v); renderProject(); },
@@ -646,24 +643,26 @@ const actions = {
     form.querySelectorAll('[data-action="note-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
   },
   vote: async (el) => {
-    const { note } = await api('POST', `/api/notes/${el.dataset.id}/vote`);
-    Object.assign(state.data.notes.find((n) => n.id === note.id), note);
+    const note = state.data.notes.find((n) => n.id === Number(el.dataset.id));
+    await db.toggleVote(note, state.me.id);
+    note.votes += note.voted ? -1 : 1; note.voted = !note.voted;
     renderProject();
   },
   'delete-note': async (el) => {
-    await api('DELETE', `/api/notes/${el.dataset.id}`);
+    await db.deleteNote(Number(el.dataset.id));
     closeSheet(); toast('Post-it décollé'); await reloadProject();
   },
   'note-to-task': async (el) => {
-    const { task } = await api('POST', `/api/notes/${el.dataset.id}/to-task`);
-    closeSheet(); toast(`Tâche créée : ${task.title}`); await reloadProject();
+    const note = state.data.notes.find((n) => n.id === Number(el.dataset.id));
+    const title = await db.noteToTask(state.pid, note, state.data.tasks);
+    closeSheet(); toast(`Tâche créée : ${title}`); await reloadProject();
   },
   'remove-member': async (el) => {
-    const id = Number(el.dataset.id);
+    const id = el.dataset.id;
     const self = id === state.me.id;
     const m = state.data.members.find((x) => x.id === id);
     if (!(await confirmSheet(self ? 'Quitter ce projet ? Tu n\'y auras plus accès.' : `Retirer ${m.displayName} du projet ?`, self ? 'Quitter' : 'Retirer'))) return;
-    await api('DELETE', `/api/projects/${state.pid}/members/${id}`);
+    await db.removeMember(state.pid, id);
     if (self) { state.data = null; location.hash = '#/'; toast('Tu as quitté le projet'); return; }
     await reloadProject();
   },
@@ -677,71 +676,73 @@ const actions = {
     p.prompt(); await p.userChoice; state.installPrompt = null; closeSheet();
   },
   logout: async () => {
-    await api('POST', '/api/auth/logout');
-    closeSheet(); state.me = null; state.projects = []; state.data = null; state.pid = null;
+    await db.signOut();
+    closeSheet(); subscribe(null); state.me = null; state.projects = []; state.data = null; state.pid = null;
     location.hash = '#/'; render();
   },
 };
 
 const forms = {
   async login(f) {
-    try { state.me = (await api('POST', '/api/auth/login', formData(f))).user; state.authError = ''; render(); }
+    const b = formData(f);
+    try { state.me = await db.signIn(b.email, b.password); state.authError = ''; state.authInfo = ''; render(); }
     catch (e) { state.authError = e.message; renderAuth(); }
   },
   async register(f) {
-    try { state.me = (await api('POST', '/api/auth/register', formData(f))).user; state.authError = ''; toast('Bienvenue !'); render(); }
+    try {
+      const user = await db.signUp(formData(f));
+      state.authError = '';
+      if (user) { state.me = user; state.authInfo = ''; toast('Bienvenue !'); render(); }
+      else { state.authMode = 'login'; state.authInfo = 'Compte créé ! Clique sur le lien reçu par email pour le confirmer, puis connecte-toi.'; renderAuth(); }
+    }
     catch (e) { state.authError = e.message; renderAuth(); }
   },
   async 'new-project'(f) {
-    const { project } = await api('POST', '/api/projects', formData(f));
-    closeSheet(); location.hash = `#/p/${project.id}`;
+    const id = await db.createProject(formData(f));
+    closeSheet(); location.hash = `#/p/${id}`;
   },
   async 'edit-project'(f) {
     const body = formData(f);
     if (state.data.project.tasks.total) delete body.manualProgress;
-    await api('PATCH', `/api/projects/${state.pid}`, body);
+    await db.updateProject(state.pid, body);
     closeSheet(); toast('Projet mis à jour'); await reloadProject();
   },
   async 'add-task'(f) {
     const title = f.elements.title.value.trim();
     if (!title) return;
-    await api('POST', `/api/projects/${state.pid}/tasks`, { title, status: isPhone() ? state.taskCol : 'todo' });
+    await db.addTask(state.pid, { title, status: isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
     await reloadProject();
     $app.querySelector('#task-new')?.focus();
   },
   async 'edit-task'(f) {
     const b = formData(f);
-    await api('PATCH', `/api/tasks/${f.dataset.id}`, { title: b.title, status: b.status, assigneeId: b.assigneeId || null });
+    await db.updateTask(Number(f.dataset.id), { title: b.title, status: b.status, assigneeId: b.assigneeId || null });
     closeSheet(); await reloadProject();
   },
   async 'new-note'(f) {
     const b = formData(f);
     const spot = freeSpot();
-    await api('POST', `/api/projects/${state.pid}/notes`, { text: b.text, color: b.color, ...spot });
+    await db.addNote(state.pid, { text: b.text, color: b.color, ...spot }, state.data.notes);
     closeSheet(); await reloadProject();
   },
   async 'edit-note'(f) {
     const b = formData(f);
-    await api('PATCH', `/api/notes/${f.dataset.id}`, { text: b.text, color: b.color });
+    await db.updateNote(Number(f.dataset.id), { text: b.text, color: b.color }, state.data.notes);
     closeSheet(); await reloadProject();
   },
   async 'add-member'(f) {
     const b = formData(f);
     if (!b.username.trim()) return;
-    await api('POST', `/api/projects/${state.pid}/members`, { username: b.username.trim().replace(/^@/, ''), role: b.role });
+    await db.addMember(state.pid, b.username.trim().replace(/^@/, ''), b.role);
     toast('Ajouté au projet'); await reloadProject();
   },
   async profile(f) {
-    state.me = (await api('PATCH', '/api/me', formData(f))).user;
+    state.me = await db.updateProfile(state.me.id, formData(f).displayName);
     toast('Nom mis à jour'); closeSheet(); render();
   },
   async password(f) {
-    await api('PATCH', '/api/me', formData(f));
+    await db.changePassword(formData(f).newPassword);
     toast('Mot de passe changé'); closeSheet();
-  },
-  async 'admin-user'(f) {
-    const { user } = await api('POST', '/api/admin/users', formData(f));
-    toast(`Compte @${user.username} créé`); f.reset();
   },
 };
 
@@ -768,7 +769,7 @@ for (const root of [$app, sheet]) {
 $app.addEventListener('change', run(async (e) => {
   const el = e.target.closest('[data-change="role"]');
   if (!el) return;
-  try { await api('PATCH', `/api/projects/${state.pid}/members/${el.dataset.id}`, { role: el.value }); toast('Rôle mis à jour'); }
+  try { await db.setRole(state.pid, el.dataset.id, el.value); toast('Rôle mis à jour'); }
   finally { await reloadProject(); }
 }));
 
@@ -781,29 +782,32 @@ $app.addEventListener('input', (e) => {
   const box = $app.querySelector('#member-suggest');
   if (term.length < 2) { box.innerHTML = ''; return; }
   searchTimer = setTimeout(run(async () => {
-    const { users } = await api('GET', `/api/users?q=${encodeURIComponent(term)}`);
+    const users = await db.searchUsers(term);
     const ids = new Set(state.data.members.map((m) => m.id));
     box.innerHTML = users.filter((u) => !ids.has(u.id)).map((u) => `<button type="button" data-action="pick-member" data-v="${esc(u.username)}">${avatar(u)}<span><b>${esc(u.displayName)}</b> <span class="muted small">@${esc(u.username)}</span></span></button>`).join('');
   }), 250);
 });
 
-// Keep the project in sync with teammates: refresh quietly every 15 s while visible and idle.
-setInterval(run(async () => {
-  if (!state.pid || !state.data || document.hidden || sheet.open || state.dragging) return;
-  if ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
-  const fresh = await api('GET', `/api/projects/${state.pid}`);
-  if (JSON.stringify(fresh) !== JSON.stringify(state.data)) { state.data = fresh; renderProject(); }
-}), 15000);
+// Safety net in case a live update was missed (phone asleep, network change).
+setInterval(run(refreshIfIdle), 30000);
+document.addEventListener('visibilitychange', run(async () => { if (!document.hidden) await refreshIfIdle(); }));
 
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ---------- boot ----------
 
 (async function boot() {
   applyTheme();
+  if (!db.configured) {
+    $app.innerHTML = `<main class="auth"><div class="auth-card panel stack">
+      <h1>Presque prêt</h1>
+      <p>Il manque la connexion à Supabase. Renseigne l'URL du projet et la clé publique dans <code>config.js</code>
+      (ou dans les variables du dépôt GitHub), puis recharge la page. Tout est expliqué dans le README.</p></div></main>`;
+    return;
+  }
   $app.innerHTML = '<div class="loading">Chargement…</div>';
-  try { state.config = await api('GET', '/api/config'); } catch { state.config = { allowRegistration: true }; }
-  try { state.me = (await api('GET', '/api/me')).user; } catch { state.me = null; }
+  db.onSignedOut(() => { if (state.me) { state.me = null; subscribe(null); render(); } });
+  try { state.me = await db.currentUser(); } catch (e) { state.me = null; toast(e.message, true); }
   render();
 })();

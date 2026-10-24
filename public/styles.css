@@ -390,3 +390,5 @@ dialog#sheet::backdrop { background: rgb(10 14 20 / .45); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.info { color: var(--accent); background: var(--accent-soft); padding: 10px 12px; border-radius: 10px; font-size: .9rem; }
+code { font-size: .9em; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line); }
