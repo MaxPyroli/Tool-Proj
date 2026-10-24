@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so it opens instantly and works as an installed app.
 // Supabase calls always go to the network (data must stay fresh and shared).
-const CACHE = 'tool-proj-v4';
+const CACHE = 'tool-proj-v5';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'data.js', 'config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 const CACHEABLE_HOSTS = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 

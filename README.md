@@ -12,10 +12,13 @@ Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur
   - *Membre* : ajoute et gère les tâches et les post-it.
   - Un projet garde toujours au moins un admin.
 - **Avancement** calculé à partir des tâches terminées (ou réglé à la main tant qu'il n'y a pas de tâches).
-- **Tâches** en 3 colonnes (À faire, En cours, Fait), avec assignation. Glisser-déposer sur ordinateur, onglets sur mobile.
-- **Mur de post-it** : post-it de couleur qu'on déplace librement (souris ou doigt), vue « Grille » triée par votes, 👍 pour voter, bouton « En faire une tâche ».
+- **Tâches organisées** :
+  - **grands chantiers** pour les grosses idées (titre, longue description, avancement propre), rangés en *Maintenant / Ensuite / Plus tard / Terminé* ;
+  - **éléments** de type *Tâche*, *Bug* ou *Amélioration*, avec titre, description, statut, priorité (haute / normale / basse), personne assignée, rattachés ou non à un chantier ;
+  - trois affichages : **Feuille de route** (les chantiers), **Liste** (par chantier, triée par priorité, filtres Bugs / Améliorations / À moi), **Tableau** (À faire / En cours / Fait). Glisser-déposer sur ordinateur.
+- **Mur de post-it** pour le brouillon : notes de couleur qu'on déplace librement (souris ou doigt), vue « Grille » triée par votes, 👍 pour voter, et « Transformer en… » chantier, tâche, bug ou amélioration quand l'idée est mûre.
 - **Temps réel** : les changements des autres apparaissent tout seuls.
-- **Aperçu** : jauge d'avancement, idées les plus votées, activité récente. Thème clair / sombre / auto.
+- **Aperçu** : jauge d'avancement, chantiers en cours, bugs ouverts, idées les plus votées, activité récente. Thème clair / sombre / auto.
 
 Les droits sont vérifiés **dans la base** (règles RLS de Postgres) : même en bricolant le navigateur, personne ne peut lire ou modifier un projet dont il n'est pas membre.
 
@@ -73,6 +76,11 @@ Une clé d'accès est liée à un appareil (ou synchronisée par iCloud / Google
 
 Pour inviter quelqu'un : **Authentication → Users → Add user → Send invitation**, entre son email.
 La personne clique sur le lien reçu, choisit son nom et son identifiant, crée sa clé d'accès. Ajoute-la ensuite à tes projets depuis l'onglet **Équipe** avec son identifiant.
+
+## Mettre à jour
+
+Quand une nouvelle version touche la base (c'est indiqué dans le commit), relance tout [`supabase/schema.sql`](supabase/schema.sql) dans **SQL Editor**.
+Le script ajoute ce qui manque sans rien effacer. Si tu oublies, l'app affiche « La base Supabase n'est pas à jour ».
 
 ## Installer sur le téléphone
 

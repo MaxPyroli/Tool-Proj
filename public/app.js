@@ -21,7 +21,8 @@ const state = {
   me: null, authStep: 'email', authEmail: '', authError: '', authInfo: '',
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
-  taskCol: 'todo', boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
+  taskCol: 'todo', roadmapCol: 'now', taskView: store.get('taskView', 'list'), taskFilter: 'all', showDone: false,
+  boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
 
@@ -346,7 +347,8 @@ function renderProject() {
   <main class="page" style="--pc:${esc(p.color)}">
     ${{ apercu: viewOverview, taches: viewTasks, idees: viewNotes, equipe: viewTeam }[state.tab](d)}
   </main>
-  ${state.tab === 'idees' ? '<button class="fab hide-lg" data-action="new-note">+ Post-it</button>' : ''}`;
+  ${state.tab === 'idees' ? '<button class="fab hide-lg" data-action="new-note">+ Post-it</button>' : ''}
+  ${state.tab === 'taches' ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`;
 
   if (state.tab === 'idees' && state.boardView === 'wall') {
     const wrap = $app.querySelector('.board-wrap');
@@ -362,6 +364,8 @@ function viewOverview(d) {
   const p = d.project;
   const top = [...d.notes].filter((n) => n.votes > 0).sort((a, b) => b.votes - a.votes).slice(0, 3);
   const todo = d.tasks.filter((t) => t.status === 'todo').length;
+  const bugs = d.tasks.filter((t) => t.type === 'bug' && t.status !== 'done').length;
+  const now = d.epics.filter((e) => e.horizon === 'now').sort(sortEpics);
   return `
   <div class="overview">
     <section class="panel">
@@ -380,11 +384,19 @@ function viewOverview(d) {
         <div><span class="label">À faire</span><strong class="num">${todo}</strong></div>
         <div><span class="label">En cours</span><strong class="num">${p.tasks.doing}</strong></div>
         <div><span class="label">Fait</span><strong class="num">${p.tasks.done}</strong></div>
+        <div class="${bugs ? 'warn' : ''}"><span class="label">Bugs ouverts</span><strong class="num">${bugs}</strong></div>
       </div>
       ${p.description ? `<div class="stack" style="gap:6px"><span class="label">Description</span><p class="description">${esc(p.description)}</p></div>`
         : p.role === 'admin' ? '<p class="muted small">Pas encore de description. <button class="link-btn" data-action="edit-project">En ajouter une</button></p>' : ''}
     </section>
     <div class="stack" style="gap:16px">
+      <section class="panel">
+        <div class="row between"><h3>Chantiers en cours</h3><button class="link-btn small" data-action="goto-roadmap">Feuille de route</button></div>
+        ${now.length ? `<div class="stack" style="gap:12px">${now.map((e) => { const pr = epicProgress(d, e.id); return `
+          <button class="now-epic" data-action="open-epic" data-id="${e.id}"><span class="row between"><b>${esc(e.title)}</b><span class="small muted num">${pr.done}/${pr.total}</span></span>
+          <span class="progress"><i style="width:${pr.pct}%"></i></span></button>`; }).join('')}</div>`
+          : '<p class="muted small">Aucun chantier dans « Maintenant ». Range tes grandes idées dans la feuille de route.</p>'}
+      </section>
       <section class="panel">
         <div class="row between"><h3>Idées les plus votées</h3><a class="small" href="#/p/${p.id}/idees">Voir le mur</a></div>
         ${top.length ? `<div class="top-ideas">${top.map((n) => `<button class="mini-note c-${n.color}" data-action="open-note" data-id="${n.id}"><span>${esc(n.text.split('\n')[0] || 'Post-it vide')}</span><span class="num">👍 ${n.votes}</span></button>`).join('')}</div>`
@@ -395,30 +407,6 @@ function viewOverview(d) {
         ${d.activity.length ? `<ul class="feed">${d.activity.slice(0, 12).map((a) => `<li><span class="grow"><b>${esc(a.user || 'Quelqu\'un')}</b> ${esc(a.message)}<time>${timeAgo(a.createdAt)}</time></span></li>`).join('')}</ul>` : '<p class="muted small">Rien pour le moment.</p>'}
       </section>
     </div>
-  </div>`;
-}
-
-function viewTasks(d) {
-  const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
-  const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s)]);
-  const draggable = matchMedia('(pointer: fine)').matches;
-  return `
-  <form class="quick-add" data-form="add-task">
-    <input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche${isPhone() ? ` (${TASK[state.taskCol].toLowerCase()})` : ''}…" autocomplete="off" enterkeyhint="done">
-    <button class="btn primary" type="submit">Ajouter</button>
-  </form>
-  <div class="seg hide-lg" role="tablist">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
-  <div class="columns">
-    ${cols.map(([s, list]) => `
-      <section class="col ${state.taskCol === s ? 'shown' : ''}" data-col="${s}" aria-label="${TASK[s]}">
-        <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR[s]}"></span>${TASK[s]}</h3><span class="muted num small">${list.length}</span></div>
-        ${list.length ? list.map((t) => `
-          <div class="task ${t.status === 'done' ? 'is-done' : ''}" data-action="open-task" data-id="${t.id}" ${draggable ? 'draggable="true"' : ''}>
-            <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? '✓' : t.status === 'doing' ? '●' : ''}</button>
-            <span class="t-title">${esc(t.title)}</span>
-            ${avatar(byId[t.assigneeId])}
-          </div>`).join('') : `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
-      </section>`).join('')}
   </div>`;
 }
 
@@ -486,39 +474,229 @@ function viewTeam(d) {
 
 // ---------- tasks ----------
 
+// ---------- tasks: chantiers + items (tâche / bug / amélioration), three views ----------
+
+const TYPES = { task: 'Tâche', bug: 'Bug', improvement: 'Amélioration' };
+const PRIORITY = { high: 'Haute', normal: 'Normale', low: 'Basse' };
+const HORIZON = { now: 'Maintenant', next: 'Ensuite', later: 'Plus tard', done: 'Terminé' };
+const STATUS_ORDER = { doing: 0, todo: 1, done: 2 };
+const PRIO_ORDER = { high: 0, normal: 1, low: 2 };
+const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
+
+const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ${t.type}">${TYPES[t.type]}</span>`);
+const prioTag = (t) => (t.priority === 'high' ? '<span class="prio high" title="Priorité haute">Prioritaire</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
+const sortItems = (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
+const sortEpics = (a, b) => HORIZON_ORDER[a.horizon] - HORIZON_ORDER[b.horizon] || a.position - b.position;
+
+function epicProgress(d, epicId) {
+  const items = d.tasks.filter((t) => t.epicId === epicId);
+  const done = items.filter((t) => t.status === 'done').length;
+  return { items, done, total: items.length, pct: items.length ? Math.round((done / items.length) * 100) : 0 };
+}
+
+function matchesFilter(t) {
+  const f = state.taskFilter;
+  return f === 'all' || (f === 'mine' ? t.assigneeId === state.me.id : t.type === f);
+}
+
+function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
+  return `
+  <div class="task ${t.status === 'done' ? 'is-done' : ''}" data-action="open-task" data-id="${t.id}" ${draggable ? 'draggable="true" data-drag="task"' : ''}>
+    <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? '✓' : t.status === 'doing' ? '●' : ''}</button>
+    <div class="t-main">
+      <span class="t-title">${esc(t.title)}</span>
+      ${typeTag(t) || prioTag(t) || t.description || showEpic ? `<span class="t-meta">${typeTag(t)}${prioTag(t)}${t.description ? '<span class="has-desc" title="A une description">≡ détails</span>' : ''}${showEpic ? `<span class="t-epic">${esc(showEpic)}</span>` : ''}</span>` : ''}
+    </div>
+    ${avatar(byId[t.assigneeId])}
+  </div>`;
+}
+
+function viewTasks(d) {
+  const view = state.taskView;
+  const open = d.tasks.filter((t) => t.status !== 'done');
+  const filters = [['all', 'Tout', open.length], ['bug', 'Bugs', open.filter((t) => t.type === 'bug').length],
+    ['improvement', 'Améliorations', open.filter((t) => t.type === 'improvement').length], ['task', 'Tâches', open.filter((t) => t.type === 'task').length],
+    ['mine', 'À moi', open.filter((t) => t.assigneeId === state.me.id).length]];
+  return `
+  <div class="task-tools">
+    <div class="seg views" role="tablist" aria-label="Affichage">
+      ${[['roadmap', 'Feuille de route'], ['list', 'Liste'], ['board', 'Tableau']].map(([k, l]) => `<button data-action="task-view" data-v="${k}" aria-pressed="${view === k}">${l}</button>`).join('')}
+    </div>
+    <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
+  </div>
+  ${view !== 'roadmap' ? `<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>` : ''}
+  ${{ roadmap: viewRoadmap, list: viewList, board: viewBoard }[view](d)}`;
+}
+
+function viewRoadmap(d) {
+  const draggable = matchMedia('(pointer: fine)').matches;
+  const cols = ['now', 'next', 'later'].map((h) => [h, d.epics.filter((e) => e.horizon === h).sort(sortEpics)]);
+  const done = d.epics.filter((e) => e.horizon === 'done');
+  const loose = d.tasks.filter((t) => !t.epicId && t.status !== 'done').length;
+  if (!d.epics.length) {
+    return `<div class="empty"><div class="big">🗺️</div><p>Aucun grand chantier pour l'instant.<br>Un chantier regroupe une grosse idée et toutes ses tâches, bugs et améliorations.</p>
+      <button class="btn primary" data-action="new-epic">Créer un chantier</button></div>`;
+  }
+  const card = (e) => {
+    const pr = epicProgress(d, e.id);
+    const bugs = pr.items.filter((t) => t.type === 'bug' && t.status !== 'done').length;
+    return `<article class="epic-card" data-action="open-epic" data-id="${e.id}" ${draggable ? 'draggable="true" data-drag="epic"' : ''}>
+      <h3>${esc(e.title)}</h3>
+      ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ''}
+      <div class="progress"><i style="width:${pr.pct}%"></i></div>
+      <div class="row between small muted"><span class="num">${pr.total ? `${pr.done}/${pr.total} fait${pr.done > 1 ? 's' : ''}` : 'Aucun élément'}</span>${bugs ? `<span class="type-tag bug">${bugs} bug${bugs > 1 ? 's' : ''}</span>` : ''}</div>
+    </article>`;
+  };
+  return `
+  <div class="seg hide-lg">${cols.map(([h, list]) => `<button data-action="roadmap-col" data-v="${h}" aria-pressed="${state.roadmapCol === h}">${HORIZON[h]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
+  <div class="columns">
+    ${cols.map(([h, list]) => `
+      <section class="col ${state.roadmapCol === h ? 'shown' : ''}" data-drop-horizon="${h}" aria-label="${HORIZON[h]}">
+        <div class="col-head"><h3><span class="dot" style="--c:var(--h-${h})"></span>${HORIZON[h]}</h3><span class="muted num small">${list.length}</span></div>
+        ${list.map(card).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Glisse un chantier ici.' : 'Aucun chantier.'}</p>`}
+      </section>`).join('')}
+  </div>
+  ${done.length ? `<details class="done-epics"><summary>${done.length} chantier${done.length > 1 ? 's' : ''} terminé${done.length > 1 ? 's' : ''}</summary><div class="stack" style="gap:8px;margin-top:10px">${done.map(card).join('')}</div></details>` : ''}
+  ${loose ? `<p class="small muted" style="margin-top:14px">${loose} élément${loose > 1 ? 's' : ''} ouvert${loose > 1 ? 's' : ''} hors chantier. <button class="link-btn" data-action="task-view" data-v="list">Voir la liste</button></p>` : ''}`;
+}
+
+function viewList(d) {
+  const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
+  const items = d.tasks.filter(matchesFilter);
+  const groups = [...d.epics].sort(sortEpics).map((e) => [e, items.filter((t) => t.epicId === e.id)]);
+  groups.push([null, items.filter((t) => !t.epicId)]);
+  const filtering = state.taskFilter !== 'all';
+  const doneCount = items.filter((t) => t.status === 'done').length;
+  const shown = groups.filter(([e, list]) => (filtering ? list.some((t) => state.showDone || t.status !== 'done')
+    : e ? (e.horizon !== 'done' || state.showDone || list.some((t) => t.status !== 'done')) : list.length));
+  return `
+  <form class="quick-add" data-form="add-task">
+    <input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche rapide…" autocomplete="off" enterkeyhint="done">
+    <button class="btn primary" type="submit">Ajouter</button>
+  </form>
+  ${shown.length ? shown.map(([e, list]) => {
+    const visible = list.filter((t) => state.showDone || t.status !== 'done').sort(sortItems);
+    const pr = e ? epicProgress(d, e.id) : null;
+    return `<section class="group">
+      <header class="group-head">
+        ${e ? `<button class="group-title" data-action="open-epic" data-id="${e.id}"><h3>${esc(e.title)}</h3><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
+          <span class="small muted num">${pr.done}/${pr.total}</span>` : '<h3 class="group-title">Hors chantier</h3>'}
+        <button class="btn sm ghost" data-action="new-item" ${e ? `data-epic="${e.id}"` : ''} aria-label="Ajouter dans ${e ? esc(e.title) : 'hors chantier'}">+ Ajouter</button>
+      </header>
+      ${visible.length ? `<div class="items">${visible.map((t) => taskRow(t, byId)).join('')}</div>` : `<p class="col-empty">${list.length ? 'Tout est fait.' : 'Rien ici pour le moment.'}</p>`}
+    </section>`;
+  }).join('') : `<div class="empty"><p>${filtering ? 'Rien ne correspond à ce filtre.' : 'Aucune tâche pour le moment. Ajoute la première au-dessus.'}</p></div>`}
+  ${doneCount ? `<button class="link-btn" data-action="toggle-done">${state.showDone ? 'Masquer' : 'Afficher'} les ${doneCount} élément${doneCount > 1 ? 's' : ''} terminé${doneCount > 1 ? 's' : ''}</button>` : ''}`;
+}
+
+function viewBoard(d) {
+  const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
+  const epicName = Object.fromEntries(d.epics.map((e) => [e.id, e.title]));
+  const draggable = matchMedia('(pointer: fine)').matches;
+  const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s && matchesFilter(t)).sort(sortItems)]);
+  return `
+  <form class="quick-add" data-form="add-task">
+    <input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche${isPhone() ? ` (${TASK[state.taskCol].toLowerCase()})` : ''}…" autocomplete="off" enterkeyhint="done">
+    <button class="btn primary" type="submit">Ajouter</button>
+  </form>
+  <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
+  <div class="columns">
+    ${cols.map(([s, list]) => `
+      <section class="col ${state.taskCol === s ? 'shown' : ''}" data-drop-status="${s}" aria-label="${TASK[s]}">
+        <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR[s]}"></span>${TASK[s]}</h3><span class="muted num small">${list.length}</span></div>
+        ${list.map((t) => taskRow(t, byId, { draggable, showEpic: epicName[t.epicId] })).join('') || `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
+      </section>`).join('')}
+  </div>`;
+}
+
+const segField = (name, options, value, label) => `
+  <div class="field"><span>${label}</span>
+    <div class="seg" style="margin:0" data-seg="${name}">${Object.entries(options).map(([k, l]) => `<button type="button" data-action="pick-seg" data-v="${k}" aria-pressed="${k === value}">${l}</button>`).join('')}</div>
+    <input type="hidden" name="${name}" value="${value}"></div>`;
+
+/** Create or edit an item (tâche, bug, amélioration). */
 function taskSheet(t) {
   const d = state.data;
+  const isNew = !t.id;
+  t = { title: '', description: '', status: 'todo', type: 'task', priority: 'normal', epicId: null, assigneeId: null, ...t };
   openSheet(`
-    <form class="stack" data-form="edit-task" data-id="${t.id}">
-      <div class="sheet-head"><h2 id="sheet-title">Tâche</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
-      <label class="field"><span>Intitulé</span><textarea class="input" id="tf-title" name="title" maxlength="200" required style="min-height:70px">${esc(t.title)}</textarea></label>
-      <div class="field"><span>Statut</span>
-        <div class="seg" style="margin:0">${Object.entries(TASK).map(([k, l]) => `<button type="button" data-action="pick-status" data-v="${k}" aria-pressed="${k === t.status}">${l}</button>`).join('')}</div>
-        <input type="hidden" name="status" value="${t.status}"></div>
+    <form class="stack" data-form="${isNew ? 'new-task' : 'edit-task'}" data-id="${t.id || ''}">
+      <div class="sheet-head"><h2 id="sheet-title">${isNew ? `Nouveau${t.type === 'improvement' ? 'elle amélioration' : t.type === 'bug' ? ' bug' : 'elle tâche'}` : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      ${segField('type', TYPES, t.type, 'Type')}
+      <label class="field"><span>Titre</span><input class="input" id="tf-title" name="title" maxlength="200" required value="${esc(t.title)}" placeholder="${t.type === 'bug' ? 'ex. Crash quand on ouvre la carte' : 'ex. Écran de connexion'}" autofocus></label>
+      <label class="field"><span>Description <small class="muted">(facultatif)</small></span><textarea class="input" id="tf-desc" name="description" maxlength="5000" placeholder="${t.type === 'bug' ? 'Comment le reproduire, sur quel appareil…' : 'Détails, étapes, liens…'}">${esc(t.description)}</textarea></label>
+      ${segField('status', TASK, t.status, 'Statut')}
+      ${segField('priority', PRIORITY, t.priority, 'Priorité')}
+      <label class="field"><span>Chantier</span><select class="input" id="tf-epic" name="epicId"><option value="">Hors chantier</option>
+        ${[...d.epics].sort(sortEpics).map((e) => `<option value="${e.id}" ${e.id === t.epicId ? 'selected' : ''}>${esc(e.title)}${e.horizon === 'done' ? ' (terminé)' : ''}</option>`).join('')}</select></label>
       <label class="field"><span>Assignée à</span><select class="input" id="tf-assignee" name="assigneeId"><option value="">Personne</option>
         ${d.members.map((m) => `<option value="${m.id}" ${m.id === t.assigneeId ? 'selected' : ''}>${esc(m.displayName)}</option>`).join('')}</select></label>
-      <p class="small muted">Créée ${timeAgo(t.createdAt)}${t.doneAt ? ` · terminée ${timeAgo(t.doneAt)}` : ''}</p>
-      <div class="row between"><button type="button" class="btn danger" data-action="delete-task" data-id="${t.id}">Supprimer</button><button class="btn primary" type="submit">Enregistrer</button></div>
+      ${isNew ? '' : `<p class="small muted">Créée ${timeAgo(t.createdAt)}${t.doneAt ? ` · terminée ${timeAgo(t.doneAt)}` : ''}</p>`}
+      <div class="row ${isNew ? 'end' : 'between'}">${isNew ? '' : `<button type="button" class="btn danger" data-action="delete-task" data-id="${t.id}">Supprimer</button>`}<button class="btn primary" type="submit">${isNew ? 'Ajouter' : 'Enregistrer'}</button></div>
     </form>`);
 }
 
+/** Create or edit a grand chantier. */
+function epicSheet(e) {
+  const d = state.data;
+  const isNew = !e.id;
+  e = { title: '', description: '', horizon: state.taskView === 'roadmap' && isPhone() ? state.roadmapCol : 'next', ...e };
+  const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
+  const items = isNew ? [] : d.tasks.filter((t) => t.epicId === e.id).sort(sortItems);
+  openSheet(`
+    <form class="stack" data-form="${isNew ? 'new-epic' : 'edit-epic'}" data-id="${e.id || ''}">
+      <div class="sheet-head"><h2 id="sheet-title">${isNew ? 'Nouveau chantier' : 'Chantier'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      <label class="field"><span>Titre</span><input class="input" id="ef-title" name="title" maxlength="200" required value="${esc(e.title)}" placeholder="ex. Mode hors-ligne" autofocus></label>
+      <label class="field"><span>Description</span><textarea class="input" id="ef-desc" name="description" maxlength="5000" style="min-height:130px" placeholder="L'idée, pourquoi, les grandes étapes…&#10;- point 1&#10;- point 2">${esc(e.description)}</textarea></label>
+      ${segField('horizon', HORIZON, e.horizon, 'Quand ?')}
+      ${isNew ? '' : `<div class="stack" style="gap:8px">
+        <div class="row between"><h3>${items.length} élément${items.length > 1 ? 's' : ''}</h3><button type="button" class="btn sm" data-action="new-item" data-epic="${e.id}">+ Ajouter</button></div>
+        ${items.length ? `<div class="items">${items.map((t) => taskRow(t, byId)).join('')}</div>` : '<p class="small muted">Ajoute les tâches, bugs et améliorations de ce chantier.</p>'}
+      </div>`}
+      <div class="row ${isNew ? 'end' : 'between'}">${isNew ? '' : `<button type="button" class="btn danger" data-action="delete-epic" data-id="${e.id}">Supprimer</button>`}<button class="btn primary" type="submit">${isNew ? 'Créer le chantier' : 'Enregistrer'}</button></div>
+    </form>`);
+}
+
+/** "Ajouter" without context: pick what to create. */
+function chooserSheet({ title = 'Ajouter', action = 'choose-new', noteId = '' } = {}) {
+  const choices = [
+    ['epic', 'Grand chantier', 'Une grosse idée qui regroupera plusieurs tâches.'],
+    ['task', 'Tâche', 'Quelque chose à faire.'],
+    ['bug', 'Bug', 'Un problème à corriger.'],
+    ['improvement', 'Amélioration', "Rendre mieux ce qui existe déjà."],
+  ];
+  openSheet(`
+    <div class="sheet-head"><h2 id="sheet-title">${title}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+    <div class="chooser">${choices.map(([k, l, hint]) => `<button class="choice ${k}" data-action="${action}" data-v="${k}" data-id="${noteId}"><strong>${l}</strong><span>${hint}</span></button>`).join('')}</div>`);
+}
+
+/** Desktop drag and drop: items between status columns, chantiers between horizons. */
 function bindTaskDnD() {
   if (!matchMedia('(pointer: fine)').matches) return;
-  let dragId = null;
-  $app.querySelectorAll('.task[draggable]').forEach((el) => {
-    el.addEventListener('dragstart', (e) => { dragId = el.dataset.id; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragId); });
+  let drag = null;
+  $app.querySelectorAll('[data-drag]').forEach((el) => {
+    el.addEventListener('dragstart', (e) => { drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
   });
-  $app.querySelectorAll('.col').forEach((col) => {
-    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drop'); });
+  $app.querySelectorAll('[data-drop-status], [data-drop-horizon]').forEach((col) => {
+    const accepts = col.dataset.dropStatus ? 'task' : 'epic';
+    col.addEventListener('dragover', (e) => { if (drag?.kind === accepts) { e.preventDefault(); col.classList.add('drop'); } });
     col.addEventListener('dragleave', () => col.classList.remove('drop'));
     col.addEventListener('drop', run(async (e) => {
       e.preventDefault(); col.classList.remove('drop');
-      const id = Number(dragId || e.dataTransfer.getData('text/plain'));
-      const t = state.data.tasks.find((x) => x.id === id);
-      if (!t || t.status === col.dataset.col) return;
-      const maxPos = Math.max(0, ...state.data.tasks.filter((x) => x.status === col.dataset.col).map((x) => x.position));
-      await db.updateTask(id, { status: col.dataset.col, position: maxPos + 1 });
+      if (!drag || drag.kind !== accepts) return;
+      const { id } = drag; drag = null;
+      if (accepts === 'task') {
+        const t = state.data.tasks.find((x) => x.id === id);
+        if (!t || t.status === col.dataset.dropStatus) return;
+        const maxPos = Math.max(0, ...state.data.tasks.map((x) => x.position));
+        await db.updateTask(id, { status: col.dataset.dropStatus, position: maxPos + 1 });
+      } else {
+        const ep = state.data.epics.find((x) => x.id === id);
+        if (!ep || ep.horizon === col.dataset.dropHorizon) return;
+        const maxPos = Math.max(0, ...state.data.epics.map((x) => x.position));
+        await db.updateEpic(id, { horizon: col.dataset.dropHorizon, position: maxPos + 1 });
+      }
       await reloadProject();
     }));
   });
@@ -537,7 +715,7 @@ function noteSheet(n) {
       ${isNew ? '' : `<p class="small muted">Par ${esc(n.author || 'un ancien membre')} · ${timeAgo(n.createdAt)} · 👍 ${n.votes}</p>`}
       <div class="row between">
         ${isNew ? '<span></span>' : `<div class="row"><button type="button" class="btn danger" data-action="delete-note" data-id="${n.id}">Supprimer</button>
-          <button type="button" class="btn" data-action="note-to-task" data-id="${n.id}">→ En faire une tâche</button></div>`}
+          <button type="button" class="btn" data-action="note-convert" data-id="${n.id}">Transformer en…</button></div>`}
         <button class="btn primary" type="submit">${isNew ? 'Coller' : 'Enregistrer'}</button>
       </div>
     </form>`);
@@ -690,19 +868,47 @@ const actions = {
     state.data = null; location.hash = '#/';
   },
   'task-col': (el) => { state.taskCol = el.dataset.v; renderProject(); },
+  'roadmap-col': (el) => { state.roadmapCol = el.dataset.v; renderProject(); },
+  'task-view': (el) => { state.taskView = el.dataset.v; store.set('taskView', el.dataset.v); renderProject(); },
+  'goto-roadmap': () => { state.taskView = 'roadmap'; store.set('taskView', 'roadmap'); location.hash = `#/p/${state.pid}/taches`; },
+  'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
+  'toggle-done': () => { state.showDone = !state.showDone; renderProject(); },
+  'new-item': (el) => {
+    if (el.dataset.epic) return taskSheet({ epicId: Number(el.dataset.epic) });
+    if (state.taskView === 'roadmap') return epicSheet({});
+    chooserSheet();
+  },
+  'new-epic': () => epicSheet({}),
+  'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: state.taskView === 'board' && isPhone() ? state.taskCol : 'todo' })),
+  'open-epic': (el) => epicSheet(state.data.epics.find((e) => e.id === Number(el.dataset.id))),
+  'delete-epic': async (el) => {
+    const e = state.data.epics.find((x) => x.id === Number(el.dataset.id));
+    if (!(await confirmSheet(`Supprimer le chantier « ${e.title} » ? Ses tâches sont gardées, hors chantier.`))) return;
+    await db.deleteEpic(e.id);
+    toast('Chantier supprimé'); await reloadProject();
+  },
+  'pick-seg': (el) => {
+    const seg = el.closest('[data-seg]');
+    el.closest('form').elements[seg.dataset.seg].value = el.dataset.v;
+    seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === el));
+  },
+  'note-convert': (el) => chooserSheet({ title: 'Transformer le post-it en…', action: 'note-convert-to', noteId: el.dataset.id }),
+  'note-convert-to': async (el) => {
+    const note = state.data.notes.find((n) => n.id === Number(el.dataset.id));
+    const title = await db.convertNote(state.pid, note, el.dataset.v, state.data);
+    closeSheet();
+    toast(`${el.dataset.v === 'epic' ? 'Chantier' : TYPES[el.dataset.v]} créé${el.dataset.v === 'improvement' ? 'e' : ''} : ${title}`);
+    await reloadProject();
+  },
   'open-task': (el) => taskSheet(state.data.tasks.find((t) => t.id === Number(el.dataset.id))),
   'toggle-task': async (el) => {
     const t = state.data.tasks.find((x) => x.id === Number(el.dataset.id));
     await db.updateTask(t.id, { status: t.status === 'done' ? 'todo' : 'done' });
     await reloadProject();
   },
-  'pick-status': (el) => {
-    el.closest('form').elements.status.value = el.dataset.v;
-    el.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === el));
-  },
   'delete-task': async (el) => {
     await db.deleteTask(Number(el.dataset.id));
-    closeSheet(); toast('Tâche supprimée'); await reloadProject();
+    closeSheet(); toast('Supprimé'); await reloadProject();
   },
   'board-view': (el) => { state.boardView = el.dataset.v; store.set('boardView', el.dataset.v); renderProject(); },
   'new-note': () => noteSheet({ text: '', color: ['yellow', 'pink', 'blue', 'green', 'orange', 'purple'][Math.floor(Math.random() * 6)], ...freeSpot() }),
@@ -722,11 +928,6 @@ const actions = {
   'delete-note': async (el) => {
     await db.deleteNote(Number(el.dataset.id));
     closeSheet(); toast('Post-it décollé'); await reloadProject();
-  },
-  'note-to-task': async (el) => {
-    const note = state.data.notes.find((n) => n.id === Number(el.dataset.id));
-    const title = await db.noteToTask(state.pid, note, state.data.tasks);
-    closeSheet(); toast(`Tâche créée : ${title}`); await reloadProject();
   },
   'remove-member': async (el) => {
     const id = el.dataset.id;
@@ -783,13 +984,24 @@ const forms = {
   async 'add-task'(f) {
     const title = f.elements.title.value.trim();
     if (!title) return;
-    await db.addTask(state.pid, { title, status: isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
+    await db.addTask(state.pid, { title, status: state.taskView === 'board' && isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
     await reloadProject();
     $app.querySelector('#task-new')?.focus();
   },
+  async 'new-task'(f) {
+    await db.addTask(state.pid, formData(f), state.data.tasks);
+    closeSheet(); toast('Ajouté'); await reloadProject();
+  },
   async 'edit-task'(f) {
-    const b = formData(f);
-    await db.updateTask(Number(f.dataset.id), { title: b.title, status: b.status, assigneeId: b.assigneeId || null });
+    await db.updateTask(Number(f.dataset.id), formData(f));
+    closeSheet(); await reloadProject();
+  },
+  async 'new-epic'(f) {
+    await db.addEpic(state.pid, formData(f), state.data.epics);
+    closeSheet(); toast('Chantier créé'); await reloadProject();
+  },
+  async 'edit-epic'(f) {
+    await db.updateEpic(Number(f.dataset.id), formData(f));
     closeSheet(); await reloadProject();
   },
   async 'new-note'(f) {

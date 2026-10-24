@@ -58,6 +58,16 @@ select pg_temp.expect_error(format('update notes set color = ''red'' where id = 
 update profiles set display_name = 'Pirate' where id = '00000000-0000-0000-0000-00000000000a';
 update profiles set display_name = 'Bobby' where id = auth.uid();
 
+-- ===== Chantiers =====
+insert into epics (project_id, title, horizon) values (:pid, 'Mode hors-ligne', 'now') returning id as eid \gset
+insert into tasks (project_id, title, type, priority, epic_id, description) values (:pid, 'Crash au démarrage', 'bug', 'high', :eid, 'Sur Android 14');
+select pg_temp.expect_error(format('insert into tasks (project_id, title, type) values (%s, ''x'', ''epic'')', :pid), 'check constraint');
+select pg_temp.expect_error(format('insert into tasks (project_id, title, priority) values (%s, ''x'', ''urgent'')', :pid), 'check constraint');
+do $$ begin
+  assert exists (select 1 from activity where message = 'a ajouté le bug « Crash au démarrage »'), 'activité bug';
+  assert exists (select 1 from activity where message = 'a créé le chantier « Mode hors-ligne »'), 'activité chantier';
+end $$;
+
 -- ===== Eve, extérieure =====
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
 do $$ begin
@@ -67,6 +77,11 @@ do $$ begin
 end $$;
 select pg_temp.expect_error(format('insert into notes (project_id, text) values (%s, ''x'')', :pid), 'row-level security');
 select pg_temp.expect_error(format('insert into tasks (project_id, title) values (%s, ''x'')', :pid), 'row-level security');
+select pg_temp.expect_error(format('insert into epics (project_id, title) values (%s, ''x'')', :pid), 'row-level security');
+do $$ begin assert (select count(*) from epics) = 0, 'eve ne voit pas les chantiers'; end $$;
+-- un chantier d'un autre projet ne peut pas être utilisé
+select create_project('Projet Eve') as epid \gset
+select pg_temp.expect_error(format('insert into tasks (project_id, title, epic_id) values (%s, ''x'', %s)', :epid, :eid), 'autre projet');
 delete from projects;
 select pg_temp.expect_error(format('insert into note_votes (note_id) values (%s)', :nid), 'row-level security');
 
@@ -80,7 +95,7 @@ reset role;
 do $$ begin
   assert (select display_name from profiles where username = 'alice') = 'Alice', 'bob ne renomme pas alice';
   assert (select display_name from profiles where username = 'bob') = 'Bobby', 'bob se renomme';
-  assert (select count(*) from projects) = 1, 'eve ne supprime pas';
+  assert (select count(*) from projects where name = 'App vélo') = 1, 'eve ne supprime pas';
   assert (select count(*) from note_votes) = 1;
   assert exists (select 1 from activity where message = 'a terminé « Login »');
   assert exists (select 1 from activity where message like 'a ajouté bob (membre)');
@@ -92,9 +107,11 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b
 delete from memberships where user_id = auth.uid();
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
 do $$ begin assert (select assignee_id from tasks where title = 'Carte') is null, 'désassignée'; end $$;
+delete from epics;
+do $$ begin assert (select epic_id from tasks where title = 'Crash au démarrage') is null, 'chantier supprimé → tâche gardée'; end $$;
 delete from projects;
 reset role;
-do $$ begin assert (select count(*) from projects) = 0 and (select count(*) from memberships) = 0, 'projet supprimé'; end $$;
+do $$ begin assert (select count(*) from projects where name <> 'Projet Eve') = 0 and (select count(*) from memberships m join projects p on p.id = m.project_id where p.name <> 'Projet Eve') = 0, 'projet supprimé'; end $$;
 -- suppression d'un compte admin unique
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000d', 'zoe@ex.fr');
 set role authenticated;

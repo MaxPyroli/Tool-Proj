@@ -10,6 +10,7 @@ const sb = configured ? createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: {
 
 // Translate Supabase / Postgres errors into messages people can act on.
 const MESSAGES = [
+  [/PGRST20[45]|42P01|42703|schema cache|does not exist.*(epics|description|priority)|relation "public\.epics"/i, "La base Supabase n'est pas à jour : relance le script supabase/schema.sql dans le SQL Editor (tes données sont conservées)."],
   [/email_provider_disabled|Email logins are disabled/i, 'La connexion par email est désactivée dans Supabase (Authentication → Sign In / Providers → Email).'],
   [/Signups not allowed|otp_disabled/i, "Aucun compte avec cet email. Demande à un admin de t'inviter."],
   [/expired|invalid.*(token|otp|link)|(token|otp|link).*invalid/i, 'Ce code ou ce lien a expiré ou a déjà servi. Demande-en un nouveau.'],
@@ -137,7 +138,11 @@ export async function listProjects(me) {
   return rows.map((p) => summary(p, me));
 }
 
-const taskDto = (t) => ({ id: t.id, title: t.title, status: t.status, position: t.position, assigneeId: t.assignee_id, createdAt: t.created_at, doneAt: t.done_at });
+const taskDto = (t) => ({
+  id: t.id, title: t.title, description: t.description ?? '', status: t.status, type: t.type ?? 'task', priority: t.priority ?? 'normal',
+  epicId: t.epic_id ?? null, position: t.position, assigneeId: t.assignee_id, createdAt: t.created_at, doneAt: t.done_at,
+});
+const epicDto = (e) => ({ id: e.id, title: e.title, description: e.description, horizon: e.horizon, position: e.position, createdAt: e.created_at });
 const noteDto = (n, me) => ({
   id: n.id, text: n.text, color: n.color, x: n.x, y: n.y, z: n.z, createdBy: n.created_by,
   author: n.author?.display_name ?? null, createdAt: n.created_at, updatedAt: n.updated_at,
@@ -145,9 +150,10 @@ const noteDto = (n, me) => ({
 });
 
 export async function getProject(id, me) {
-  const [p, tasks, notes, activity] = await Promise.all([
+  const [p, tasks, epics, notes, activity] = await Promise.all([
     sb.from('projects').select(PROJECT_SELECT).eq('id', id).maybeSingle().then(ok),
     sb.from('tasks').select('*').eq('project_id', id).order('position').order('id').then(ok),
+    sb.from('epics').select('*').eq('project_id', id).order('position').order('id').then(ok),
     sb.from('notes').select('*, author:profiles!notes_created_by_fkey(display_name), note_votes(user_id)').eq('project_id', id).order('z').order('id').then(ok),
     sb.from('activity').select('id, message, created_at, profiles(display_name)').eq('project_id', id).order('id', { ascending: false }).limit(30).then(ok),
   ]);
@@ -157,6 +163,7 @@ export async function getProject(id, me) {
     project,
     members: project.members,
     tasks: tasks.map(taskDto),
+    epics: epics.map(epicDto),
     notes: notes.map((n) => noteDto(n, me)),
     activity: activity.map((a) => ({ id: a.id, message: a.message, createdAt: a.created_at, user: a.profiles?.display_name })),
   };
@@ -202,19 +209,25 @@ export async function searchUsers(term) {
 
 // ---------- tasks ----------
 
-export async function addTask(pid, { title, status = 'todo' }, tasks) {
-  const position = Math.max(0, ...tasks.map((t) => t.position)) + 1;
-  ok(await sb.from('tasks').insert({ project_id: pid, title: title.trim().slice(0, 200), status, position }));
-}
-
-export async function updateTask(id, f) {
+function taskRow(f) {
   const row = {};
-  if (f.title !== undefined) row.title = f.title.trim();
+  if (f.title !== undefined) { row.title = f.title.trim().slice(0, 200); if (!row.title) throw new Error('Donne un titre.'); }
+  if (f.description !== undefined) row.description = f.description.trim().slice(0, 5000);
   if (f.status !== undefined) row.status = f.status;
+  if (f.type !== undefined) row.type = f.type;
+  if (f.priority !== undefined) row.priority = f.priority;
   if (f.position !== undefined) row.position = f.position;
   if (f.assigneeId !== undefined) row.assignee_id = f.assigneeId || null;
-  ok(await sb.from('tasks').update(row).eq('id', id));
+  if (f.epicId !== undefined) row.epic_id = f.epicId ? Number(f.epicId) : null;
+  return row;
 }
+
+export async function addTask(pid, f, tasks) {
+  const position = Math.max(0, ...tasks.map((t) => t.position)) + 1;
+  ok(await sb.from('tasks').insert({ project_id: pid, status: 'todo', position, ...taskRow(f) }));
+}
+
+export async function updateTask(id, f) { ok(await sb.from('tasks').update(taskRow(f)).eq('id', id)); }
 
 export async function deleteTask(id) { ok(await sb.from('tasks').delete().eq('id', id)); }
 
@@ -246,9 +259,32 @@ export async function toggleVote(note, me) {
 }
 
 /** Turns an idea into a task; the post-it stays on the wall. */
-export async function noteToTask(pid, note, tasks) {
-  const title = note.text.split('\n')[0].trim().slice(0, 200) || 'Idée sans titre';
-  await addTask(pid, { title }, tasks);
+// ---------- epics (grands chantiers) ----------
+
+function epicRow(f) {
+  const row = {};
+  if (f.title !== undefined) { row.title = f.title.trim().slice(0, 200); if (!row.title) throw new Error('Donne un titre au chantier.'); }
+  if (f.description !== undefined) row.description = f.description.trim().slice(0, 5000);
+  if (f.horizon !== undefined) row.horizon = f.horizon;
+  if (f.position !== undefined) row.position = f.position;
+  return row;
+}
+
+export async function addEpic(pid, f, epics) {
+  const position = Math.max(0, ...epics.map((e) => e.position)) + 1;
+  return ok(await sb.from('epics').insert({ project_id: pid, horizon: 'next', position, ...epicRow(f) }).select('id').single()).id;
+}
+export async function updateEpic(id, f) { ok(await sb.from('epics').update(epicRow(f)).eq('id', id)); }
+export async function deleteEpic(id) { ok(await sb.from('epics').delete().eq('id', id)); }
+
+/** Turns a post-it into a chantier or an item (task, bug, improvement), then removes it from the wall. */
+export async function convertNote(pid, note, kind, data) {
+  const [first, ...rest] = note.text.trim().split('\n');
+  const title = (first || '').trim().slice(0, 200) || 'Idée sans titre';
+  const description = rest.join('\n').trim();
+  if (kind === 'epic') await addEpic(pid, { title, description }, data.epics);
+  else await addTask(pid, { title, description, type: kind }, data.tasks);
+  await deleteNote(note.id);
   return title;
 }
 
@@ -257,7 +293,7 @@ export async function noteToTask(pid, note, tasks) {
 /** Calls onChange whenever teammates change something in the project. Returns an unsubscribe function. */
 export function subscribeProject(pid, onChange) {
   const ch = sb.channel(`project-${pid}`);
-  for (const table of ['tasks', 'notes', 'memberships']) {
+  for (const table of ['tasks', 'epics', 'notes', 'memberships']) {
     ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `project_id=eq.${pid}` }, onChange);
   }
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'projects', filter: `id=eq.${pid}` }, onChange);

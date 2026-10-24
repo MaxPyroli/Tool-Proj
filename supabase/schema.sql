@@ -48,6 +48,37 @@ create table if not exists public.tasks (
 );
 create index if not exists tasks_project_idx on public.tasks (project_id);
 
+-- Grands chantiers : les grosses idées, qui regroupent des tâches, bugs et améliorations.
+create table if not exists public.epics (
+  id bigint generated always as identity primary key,
+  project_id bigint not null references public.projects (id) on delete cascade,
+  title text not null check (char_length(title) between 1 and 200),
+  description text not null default '' check (char_length(description) <= 5000),
+  horizon text not null default 'next' check (horizon in ('now', 'next', 'later', 'done')),
+  position double precision not null default 0,
+  created_by uuid default auth.uid() references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists epics_project_idx on public.epics (project_id);
+
+-- Tâches v2 : description, type, priorité, chantier (ajoutés sans toucher aux données existantes).
+alter table public.tasks add column if not exists description text not null default '';
+alter table public.tasks add column if not exists type text not null default 'task';
+alter table public.tasks add column if not exists priority text not null default 'normal';
+alter table public.tasks add column if not exists epic_id bigint references public.epics (id) on delete set null;
+create index if not exists tasks_epic_idx on public.tasks (epic_id);
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tasks_type_check') then
+    alter table public.tasks add constraint tasks_type_check check (type in ('task', 'bug', 'improvement'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'tasks_priority_check') then
+    alter table public.tasks add constraint tasks_priority_check check (priority in ('high', 'normal', 'low'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'tasks_description_check') then
+    alter table public.tasks add constraint tasks_description_check check (char_length(description) <= 5000);
+  end if;
+end $$;
+
 create table if not exists public.notes (
   id bigint generated always as identity primary key,
   project_id bigint not null references public.projects (id) on delete cascade,
@@ -197,6 +228,10 @@ begin
   if tg_op = 'UPDATE' and new.project_id <> old.project_id then
     raise exception 'Une tâche ne peut pas changer de projet';
   end if;
+  if new.epic_id is not null and not exists (
+    select 1 from public.epics where id = new.epic_id and project_id = new.project_id) then
+    raise exception 'Ce chantier appartient à un autre projet';
+  end if;
   if new.status = 'done' then new.done_at := coalesce(case when tg_op = 'UPDATE' then old.done_at end, now());
   else new.done_at := null; end if;
   return new;
@@ -218,9 +253,11 @@ create or replace function public.tasks_log()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'INSERT' then
-    perform public.log_activity(new.project_id, format('a ajouté la tâche « %s »', new.title));
+    perform public.log_activity(new.project_id, format('a ajouté %s « %s »',
+      case new.type when 'bug' then 'le bug' when 'improvement' then 'l''amélioration' else 'la tâche' end, new.title));
   elsif tg_op = 'DELETE' then
-    perform public.log_activity(old.project_id, format('a supprimé la tâche « %s »', old.title));
+    perform public.log_activity(old.project_id, format('a supprimé %s « %s »',
+      case old.type when 'bug' then 'le bug' when 'improvement' then 'l''amélioration' else 'la tâche' end, old.title));
   elsif new.status <> old.status then
     perform public.log_activity(new.project_id, format('%s « %s »',
       case new.status when 'todo' then 'a remis à faire' when 'doing' then 'a commencé' else 'a terminé' end, new.title));
@@ -229,6 +266,31 @@ begin
 end $$;
 drop trigger if exists tasks_log on public.tasks;
 create trigger tasks_log after insert or update or delete on public.tasks for each row execute function public.tasks_log();
+
+create or replace function public.epics_before_update()
+returns trigger language plpgsql as $$
+begin
+  if new.project_id <> old.project_id then raise exception 'Un chantier ne peut pas changer de projet'; end if;
+  return new;
+end $$;
+drop trigger if exists epics_before_update on public.epics;
+create trigger epics_before_update before update on public.epics for each row execute function public.epics_before_update();
+
+create or replace function public.epics_log()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' then
+    perform public.log_activity(new.project_id, format('a créé le chantier « %s »', new.title));
+  elsif tg_op = 'DELETE' then
+    perform public.log_activity(old.project_id, format('a supprimé le chantier « %s »', old.title));
+  elsif new.horizon <> old.horizon then
+    perform public.log_activity(new.project_id, format('a passé le chantier « %s » en %s', new.title,
+      case new.horizon when 'now' then '« Maintenant »' when 'next' then '« Ensuite »' when 'later' then '« Plus tard »' else '« Terminé »' end));
+  end if;
+  return null;
+end $$;
+drop trigger if exists epics_log on public.epics;
+create trigger epics_log after insert or update or delete on public.epics for each row execute function public.epics_log();
 
 create or replace function public.notes_log()
 returns trigger language plpgsql security definer set search_path = '' as $$
@@ -286,6 +348,7 @@ alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
 alter table public.memberships enable row level security;
 alter table public.tasks enable row level security;
+alter table public.epics enable row level security;
 alter table public.notes enable row level security;
 alter table public.note_votes enable row level security;
 alter table public.activity enable row level security;
@@ -315,6 +378,8 @@ create policy "memberships_delete" on public.memberships for delete to authentic
 -- Tâches et post-it : tout membre du projet.
 drop policy if exists "tasks_all" on public.tasks;
 create policy "tasks_all" on public.tasks for all to authenticated using (public.is_member(project_id)) with check (public.is_member(project_id));
+drop policy if exists "epics_all" on public.epics;
+create policy "epics_all" on public.epics for all to authenticated using (public.is_member(project_id)) with check (public.is_member(project_id));
 drop policy if exists "notes_all" on public.notes;
 create policy "notes_all" on public.notes for all to authenticated using (public.is_member(project_id)) with check (public.is_member(project_id));
 
@@ -335,7 +400,7 @@ create policy "activity_select" on public.activity for select to authenticated u
 grant select, update on public.profiles to authenticated;
 grant select, update, delete on public.projects to authenticated;
 grant select, update, delete on public.memberships to authenticated;
-grant select, insert, update, delete on public.tasks, public.notes, public.note_votes to authenticated;
+grant select, insert, update, delete on public.tasks, public.epics, public.notes, public.note_votes to authenticated;
 grant select on public.activity to authenticated;
 revoke insert on public.projects, public.memberships, public.activity from authenticated, anon;
 grant execute on function public.create_project(text, text, text, text, text), public.add_member(bigint, text, text),
@@ -349,7 +414,7 @@ do $$
 declare t text;
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    foreach t in array array['projects', 'memberships', 'tasks', 'notes', 'note_votes'] loop
+    foreach t in array array['projects', 'memberships', 'tasks', 'epics', 'notes', 'note_votes'] loop
       if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
         execute format('alter publication supabase_realtime add table public.%I', t);
       end if;
