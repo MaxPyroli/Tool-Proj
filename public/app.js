@@ -1,4 +1,4 @@
-// Tool-Proj front-end: vanilla JS, hash router, event delegation. Data lives in Supabase (see data.js).
+// Tool Proj front-end: vanilla JS, hash router, event delegation. Data lives in Supabase (see data.js).
 import * as db from './data.js';
 
 const $app = document.getElementById('app');
@@ -173,7 +173,7 @@ function renderAuth() {
   <main class="auth">
     <div class="auth-card">
       <div class="auth-hero">
-        <a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool-Proj</a>
+        <a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool Proj</a>
         <h1>Tes projets d'apps, leurs idées et qui fait quoi.</h1>
         <div class="sample" aria-hidden="true">
           <div class="note c-yellow" style="--rot:-3deg">Mode hors-ligne pour l'app vélo ?</div>
@@ -259,7 +259,7 @@ function renderList() {
   for (const s of Object.keys(STATUS)) counts[s] = state.projects.filter((p) => p.status === s).length;
   const shown = state.filter === 'all' ? state.projects : state.projects.filter((p) => p.status === state.filter);
   $app.innerHTML = `
-  ${topbar(`<a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool-Proj</a><span class="grow"></span>
+  ${topbar(`<a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool Proj</a><span class="grow"></span>
     <button class="btn primary hide-sm" data-action="new-project">+ Nouveau projet</button>`)}
   <main class="page">
     <div class="list-head">
@@ -613,7 +613,7 @@ function accountSheet() {
       <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
     ${!standalone ? `<div class="panel" style="background:var(--accent-soft);border-color:transparent">
       <h3>Installer l'app</h3>
-      ${state.installPrompt ? '<p class="small">Ajoute Tool-Proj à ton écran d\'accueil pour l\'ouvrir comme une vraie app.</p><button class="btn primary" data-action="install">Installer</button>'
+      ${state.installPrompt ? '<p class="small">Ajoute Tool Proj à ton écran d\'accueil pour l\'ouvrir comme une vraie app.</p><button class="btn primary" data-action="install">Installer</button>'
         : ios ? '<p class="small">Sur iPhone : touche <b>Partager</b> dans Safari, puis <b>Sur l\'écran d\'accueil</b>.</p>'
           : '<p class="small">Dans le menu du navigateur, choisis <b>Installer l\'application</b> ou <b>Ajouter à l\'écran d\'accueil</b>.</p>'}
     </div>` : ''}

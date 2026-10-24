@@ -17,4 +17,4 @@ http.createServer((req, res) => {
     if (err) { res.writeHead(404).end('Introuvable'); return; }
     res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }).end(body);
   });
-}).listen(port, () => console.log(`Tool-Proj : http://localhost:${port}`));
+}).listen(port, () => console.log(`Tool Proj : http://localhost:${port}`));

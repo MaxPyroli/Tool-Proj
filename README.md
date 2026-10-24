@@ -1,4 +1,4 @@
-# Tool-Proj
+# Tool Proj
 
 Petite app web pour suivre ses projets d'applications : avancement, tâches, **post-it d'idées** et équipe.
 Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur **GitHub Pages**, les comptes et les données sur **Supabase**.
@@ -49,13 +49,13 @@ Variante sans variables : remplis directement `public/config.js` et pousse.
 
 **Emails (obligatoire)** : Supabase → **Authentication → Emails → Templates**.
 Remplace le contenu des modèles **Magic link** et **Confirm signup** par ceux de [`supabase/templates/`](supabase/templates/)
-(sujets proposés : « Ton lien de connexion à Tool-Proj » et « Bienvenue sur Tool-Proj »).
+(sujets proposés : « Ton lien de connexion à Tool Proj » et « Bienvenue sur Tool Proj »).
 Ils sont en français et contiennent le lien **et un code**. Le code est indispensable pour l'app installée sur iPhone : là-bas, un lien s'ouvre dans Safari et pas dans l'app.
 
 **Clés d'accès** : Supabase → **Authentication → Passkeys** → active-les avec :
 - *Relying Party ID* : `maxpyroli.github.io`
 - *Origins* : `https://maxpyroli.github.io`
-- *Display name* : `Tool-Proj`
+- *Display name* : `Tool Proj`
 
 Ne change plus le *Relying Party ID* ensuite : les clés déjà créées ne marcheraient plus.
 
@@ -68,7 +68,7 @@ Une clé d'accès est liée à un appareil (ou synchronisée par iCloud / Google
 
 1. Supabase → **Authentication → Sign In / Providers** → décoche **Allow new users to sign up**.
    Laisse le fournisseur **Email** activé : il sert à la connexion de ceux qui ont déjà un compte.
-2. Supabase → **Authentication → Emails → Templates → Invite user** : colle [`supabase/templates/invite.html`](supabase/templates/invite.html) (sujet : « Tu es invité sur Tool-Proj »).
+2. Supabase → **Authentication → Emails → Templates → Invite user** : colle [`supabase/templates/invite.html`](supabase/templates/invite.html) (sujet : « Tu es invité sur Tool Proj »).
 3. GitHub → variable `ALLOW_SIGNUP` = `false`, puis relance le déploiement : l'écran de connexion dira « Demande à un admin de t'inviter ».
 
 Pour inviter quelqu'un : **Authentication → Users → Add user → Send invitation**, entre son email.

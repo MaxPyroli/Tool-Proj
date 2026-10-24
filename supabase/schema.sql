@@ -1,4 +1,4 @@
--- Tool-Proj : schéma Supabase.
+-- Tool Proj : schéma Supabase.
 -- À coller dans Supabase → SQL Editor → New query → Run.
 -- Le script peut être relancé sans risque (il ne supprime aucune donnée).
 

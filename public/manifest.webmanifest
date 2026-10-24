@@ -1,6 +1,6 @@
 {
-  "name": "Tool-Proj — suivi de projets",
-  "short_name": "Tool-Proj",
+  "name": "Tool Proj — suivi de projets",
+  "short_name": "Tool Proj",
   "description": "Suivi de projets d'applications : avancement, tâches, post-it d'idées et équipe.",
   "lang": "fr",
   "start_url": "./",
