@@ -64,12 +64,15 @@ Ne change plus le *Relying Party ID* ensuite : les clés déjà créées ne marc
 Ouvre l'adresse, entre ton email, clique sur le lien reçu (ou tape le code). Choisis ton nom et ton identifiant, puis accepte de créer une clé d'accès : les fois suivantes, tu entres en un geste.
 Une clé d'accès est liée à un appareil (ou synchronisée par iCloud / Google). Sur un nouvel appareil, connecte-toi une fois par email puis ajoute une clé depuis **Mon compte**.
 
-## Fermer les inscriptions
+## Inscription sur invitation uniquement
 
-Une fois l'équipe inscrite :
-- Supabase → **Authentication → Sign In / Providers** → décoche **Allow new users to sign up** ;
-- pour ajouter quelqu'un ensuite : **Authentication → Users → Invite user** ;
-- mets la variable `ALLOW_SIGNUP` à `false` pour adapter le texte de l'écran de connexion.
+1. Supabase → **Authentication → Sign In / Providers** → décoche **Allow new users to sign up**.
+   Laisse le fournisseur **Email** activé : il sert à la connexion de ceux qui ont déjà un compte.
+2. Supabase → **Authentication → Emails → Templates → Invite user** : colle [`supabase/templates/invite.html`](supabase/templates/invite.html) (sujet : « Tu es invité sur Tool-Proj »).
+3. GitHub → variable `ALLOW_SIGNUP` = `false`, puis relance le déploiement : l'écran de connexion dira « Demande à un admin de t'inviter ».
+
+Pour inviter quelqu'un : **Authentication → Users → Add user → Send invitation**, entre son email.
+La personne clique sur le lien reçu, choisit son nom et son identifiant, crée sa clé d'accès. Ajoute-la ensuite à tes projets depuis l'onglet **Équipe** avec son identifiant.
 
 ## Installer sur le téléphone
 

@@ -10,6 +10,7 @@ const sb = configured ? createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: {
 
 // Translate Supabase / Postgres errors into messages people can act on.
 const MESSAGES = [
+  [/email_provider_disabled|Email logins are disabled/i, 'La connexion par email est désactivée dans Supabase (Authentication → Sign In / Providers → Email).'],
   [/Signups not allowed|otp_disabled/i, "Aucun compte avec cet email. Demande à un admin de t'inviter."],
   [/expired|invalid.*(token|otp|link)|(token|otp|link).*invalid/i, 'Ce code ou ce lien a expiré ou a déjà servi. Demande-en un nouveau.'],
   [/only request this after|over_email_send_rate_limit|rate limit/i, "Trop d'emails demandés. Attends un peu avant de réessayer."],
