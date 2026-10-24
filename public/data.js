@@ -37,7 +37,11 @@ const ok = ({ data, error }) => { if (error) fail(error); return data; };
 /** Message to show when the user arrives from an email link that no longer works. */
 export const urlAuthError = hashParams.get('error_description') ? translate({ code: hashParams.get('error_code'), message: hashParams.get('error_description') }) : '';
 
-const profileDto = (p, user) => p && { id: p.id, username: p.username, displayName: p.display_name, onboarded: user?.user_metadata?.onboarded === true };
+const profileDto = (p, user) => p && {
+  id: p.id, username: p.username, displayName: p.display_name,
+  avatarEmoji: p.avatar_emoji || '', avatarColor: p.avatar_color || '',
+  onboarded: user?.user_metadata?.onboarded === true,
+};
 
 export async function currentUser() {
   const { data: { session } } = await sb.auth.getSession();
@@ -93,9 +97,11 @@ export async function signOut() { await sb.auth.signOut(); }
 
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
 
-export async function updateProfile(userId, { displayName, username }) {
+export async function updateProfile(userId, { displayName, username, avatarEmoji, avatarColor }) {
   const row = { display_name: (displayName || '').trim() };
   if (!row.display_name) throw new Error('Choisis un nom affiché.');
+  if (avatarEmoji !== undefined) row.avatar_emoji = avatarEmoji || null;
+  if (avatarColor !== undefined) row.avatar_color = avatarColor || null;
   if (username !== undefined) {
     row.username = username.trim().toLowerCase().replace(/^@/, '');
     if (!USERNAME_RE.test(row.username)) throw new Error('Identifiant : 3 à 32 caractères, lettres minuscules, chiffres, . _ - uniquement.');
@@ -117,21 +123,24 @@ export async function completeOnboarding(userId, fields) {
 function summary(p, me) {
   const tasks = p.tasks || [];
   const total = tasks.length, done = tasks.filter((t) => t.status === 'done').length;
-  const members = (p.memberships || []).map((m) => ({ id: m.user_id, role: m.role, displayName: m.profiles?.display_name ?? '?', username: m.profiles?.username ?? '' }))
+  const members = (p.memberships || []).map((m) => ({
+    id: m.user_id, role: m.role, displayName: m.profiles?.display_name ?? '?', username: m.profiles?.username ?? '',
+    avatarEmoji: m.profiles?.avatar_emoji || '', avatarColor: m.profiles?.avatar_color || '',
+  }))
     .sort((a, b) => (a.role === b.role ? a.displayName.localeCompare(b.displayName) : a.role === 'admin' ? -1 : 1));
   return {
     id: p.id, name: p.name, description: p.description, emoji: p.emoji, color: p.color, status: p.status,
     repoUrl: p.repo_url, dueDate: p.due_date, createdAt: p.created_at, updatedAt: p.updated_at,
     role: members.find((m) => m.id === me)?.role ?? null,
     manualProgress: p.manual_progress,
-    progress: total ? Math.round((done / total) * 100) : p.manual_progress,
+    progress: p.manual_progress, // set by admins: upcoming tasks shouldn't make the project look less advanced
     tasks: { total, done, doing: tasks.filter((t) => t.status === 'doing').length },
     noteCount: p.notes?.[0]?.count ?? 0,
     members,
   };
 }
 
-const PROJECT_SELECT = '*, memberships(role, user_id, profiles(username, display_name)), tasks(status), notes(count)';
+const PROJECT_SELECT = '*, memberships(role, user_id, profiles(*)), tasks(status), notes(count)';
 
 export async function listProjects(me) {
   const rows = ok(await sb.from('projects').select(PROJECT_SELECT).order('updated_at', { ascending: false }));
@@ -204,7 +213,7 @@ export async function removeMember(pid, userId) { ok(await sb.from('memberships'
 export async function searchUsers(term) {
   const q = term.replace(/[%_,()]/g, '');
   const rows = ok(await sb.from('profiles').select('*').or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).order('display_name').limit(10));
-  return rows.map(profileDto);
+  return rows.map((r) => profileDto(r));
 }
 
 // ---------- tasks ----------

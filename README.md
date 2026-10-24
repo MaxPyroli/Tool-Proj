@@ -11,7 +11,8 @@ Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur
   - *Admin* : modifie le projet, ajoute ou retire des personnes, change les rôles, supprime le projet.
   - *Membre* : ajoute et gère les tâches et les post-it.
   - Un projet garde toujours au moins un admin.
-- **Avancement** calculé à partir des tâches terminées (ou réglé à la main tant qu'il n'y a pas de tâches).
+- **Avancement** estimé par les admins (curseur dans l'aperçu), plus un indicateur automatique pour les chantiers « Maintenant ».
+- **Avatars** : chacun choisit son emoji et sa couleur (ou garde ses initiales).
 - **Tâches organisées** :
   - **grands chantiers** pour les grosses idées (titre, longue description, avancement propre), rangés en *Maintenant / Ensuite / Plus tard / Terminé* ;
   - **éléments** de type *Tâche*, *Bug* ou *Amélioration*, avec titre, description, statut, priorité (haute / normale / basse), personne assignée, rattachés ou non à un chantier ;

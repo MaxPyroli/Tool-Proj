@@ -48,6 +48,18 @@ create table if not exists public.tasks (
 );
 create index if not exists tasks_project_idx on public.tasks (project_id);
 
+-- Avatars : emoji et couleur choisis par chacun (vides = initiales).
+alter table public.profiles add column if not exists avatar_emoji text;
+alter table public.profiles add column if not exists avatar_color text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'profiles_avatar_emoji_check') then
+    alter table public.profiles add constraint profiles_avatar_emoji_check check (avatar_emoji is null or char_length(avatar_emoji) between 1 and 16);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'profiles_avatar_color_check') then
+    alter table public.profiles add constraint profiles_avatar_color_check check (avatar_color is null or avatar_color ~ '^#[0-9a-fA-F]{6}$');
+  end if;
+end $$;
+
 -- Grands chantiers : les grosses idées, qui regroupent des tâches, bugs et améliorations.
 create table if not exists public.epics (
   id bigint generated always as identity primary key,

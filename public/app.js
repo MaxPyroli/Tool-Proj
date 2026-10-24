@@ -32,7 +32,41 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const isPhone = () => matchMedia('(max-width: 719px)').matches;
 const initials = (name = '?') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const hue = (id) => [...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-const avatar = (u, cls = '') => u ? `<span class="avatar ${cls}" style="--h:${hue(u.id)}" title="${esc(u.displayName)}">${esc(initials(u.displayName))}</span>` : '';
+// Profile picture: the emoji and colour each person picked, or their initials.
+const AVATAR_EMOJIS = ['🦊', '🐼', '🐸', '🐙', '🦄', '🐱', '🐶', '🐻', '🐨', '🐯', '🦁', '🐵', '🐧', '🦉', '🐢', '🐳', '🦖', '🐝', '👾', '🤖', '👻', '🧙', '🥷', '🧑‍🚀', '🌵', '🍕', '🍩', '🚀', '⚡', '🌈', '🎧', '🎮', '🎸', '🍀', '🔥', '💎'];
+const AVATAR_COLORS = ['#ffd8a8', '#ffc9c9', '#fcc2d7', '#eebefa', '#d0bfff', '#a5d8ff', '#99e9f2', '#96f2d7', '#b2f2bb', '#ffec99', '#dee2e6'];
+const avatar = (u, cls = '') => {
+  if (!u) return '';
+  const style = u.avatarColor ? `--h:${hue(u.id)};background:${u.avatarColor};color:#1b2130` : `--h:${hue(u.id)}`;
+  return `<span class="avatar ${cls}${u.avatarEmoji ? ' emoji' : ''}" style="${style}" title="${esc(u.displayName)}">${esc(u.avatarEmoji || initials(u.displayName))}</span>`;
+};
+
+/** Emoji + colour picker, used on the welcome screen and in Mon compte. */
+function avatarPicker(me) {
+  return `
+  <div class="field avatar-picker"><span>Ton icône</span>
+    <div class="row" style="gap:14px;align-items:center">
+      <span id="av-preview">${avatar(me, 'xl')}</span>
+      <p class="small muted grow">Choisis un emoji et une couleur. Sans emoji, ce sont tes initiales.</p>
+    </div>
+    <div class="emoji-grid" role="radiogroup" aria-label="Emoji">
+      <button type="button" class="emoji-opt initials" data-action="pick-avatar-emoji" data-v="" aria-pressed="${!me.avatarEmoji}" aria-label="Initiales">${esc(initials(me.displayName))}</button>
+      ${AVATAR_EMOJIS.map((e) => `<button type="button" class="emoji-opt" data-action="pick-avatar-emoji" data-v="${e}" aria-pressed="${me.avatarEmoji === e}">${e}</button>`).join('')}
+    </div>
+    <div class="swatches" role="radiogroup" aria-label="Couleur">
+      <button type="button" class="swatch auto" data-action="pick-avatar-color" data-v="" aria-pressed="${!me.avatarColor}" aria-label="Couleur automatique" style="--note:hsl(${hue(me.id)} 55% 85%)">A</button>
+      ${AVATAR_COLORS.map((c) => `<button type="button" class="swatch" data-action="pick-avatar-color" data-v="${c}" aria-pressed="${me.avatarColor === c}" aria-label="Couleur ${c}" style="--note:${c}"></button>`).join('')}
+    </div>
+    <input type="hidden" name="avatarEmoji" value="${esc(me.avatarEmoji)}"><input type="hidden" name="avatarColor" value="${esc(me.avatarColor)}">
+  </div>`;
+}
+
+function refreshAvatarPreview(form) {
+  const f = form.elements;
+  const u = { ...state.me, displayName: f.displayName?.value || state.me.displayName, avatarEmoji: f.avatarEmoji.value, avatarColor: f.avatarColor.value };
+  form.querySelector('#av-preview').innerHTML = avatar(u, 'xl');
+  form.querySelector('.emoji-opt.initials').textContent = initials(u.displayName);
+}
 const parseDate = (s) => new Date(/Z|[+-]\d\d:?\d\d$/.test(s) ? s : s.replace(' ', 'T') + 'Z');
 
 function timeAgo(s) {
@@ -99,6 +133,10 @@ function closeSheet() {
 }
 sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
 sheet.addEventListener('close', () => { sheetCleanup?.(); sheetCleanup = null; });
+sheet.addEventListener('input', (e) => {
+  const form = e.target.form;
+  if (e.target.name === 'displayName' && form?.elements.avatarEmoji) refreshAvatarPreview(form);
+});
 
 function confirmSheet(message, okLabel = 'Supprimer') {
   return new Promise((resolve) => {
@@ -217,6 +255,7 @@ function welcomeSheet() {
       <label class="field"><span>Nom affiché</span><input class="input" id="wf-name" name="displayName" value="${esc(me.displayName)}" maxlength="60" required autocomplete="name"></label>
       <label class="field"><span>Identifiant <small class="muted">(sert à t'ajouter aux projets)</small></span>
         <input class="input" id="wf-user" name="username" value="${esc(me.username)}" maxlength="32" required autocapitalize="none" spellcheck="false"></label>
+      ${avatarPicker(me)}
       <div class="row end"><button class="btn primary" type="submit">Continuer</button></div>
     </form>`);
 }
@@ -245,11 +284,11 @@ function projectCard(p) {
     </div>
     ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
     <div class="pcard-progress">
-      <div class="row between small"><span class="muted">${p.tasks.total ? `${p.tasks.done}/${p.tasks.total} tâches` : 'Avancement'}</span><strong class="num">${p.progress} %</strong></div>
+      <div class="row between small"><span class="muted">Avancement</span><strong class="num">${p.progress} %</strong></div>
       <div class="progress"><i style="width:${p.progress}%"></i></div>
     </div>
     <div class="pcard-foot">
-      <div class="stats"><span>${p.noteCount} post-it</span><span>${timeAgo(p.updatedAt)}</span></div>
+      <div class="stats"><span>${p.tasks.total - p.tasks.done} à faire</span><span>${p.noteCount} post-it</span><span>${timeAgo(p.updatedAt)}</span></div>
       <div class="avatars">${p.members.slice(0, 4).map((m) => avatar(m)).join('')}</div>
     </div>
   </a>`;
@@ -304,9 +343,9 @@ function projectForm(p) {
       ${editing ? `
         <label class="field"><span>Échéance</span><input class="input" id="pf-due" type="date" name="dueDate" value="${esc(p.dueDate || '')}"></label>
         <label class="field"><span>Lien (dépôt, maquette, store…)</span><input class="input" id="pf-repo" type="url" name="repoUrl" value="${esc(p.repoUrl)}" placeholder="https://github.com/…"></label>
-        <label class="field"><span>Avancement manuel : <b class="num" id="pf-prog-v">${p.manualProgress} %</b></span>
-          <input type="range" id="pf-prog" name="manualProgress" min="0" max="100" step="5" value="${p.manualProgress}" ${p.tasks.total ? 'disabled' : ''}>
-          <small class="muted">${p.tasks.total ? "Calculé automatiquement à partir des tâches." : "Utilisé tant que le projet n'a pas de tâches."}</small></label>` : ''}
+        <label class="field"><span>Avancement : <b class="num" id="pf-prog-v">${p.manualProgress} %</b></span>
+          <input type="range" id="pf-prog" name="manualProgress" min="0" max="100" step="5" value="${p.manualProgress}">
+          <small class="muted">Ton estimation de l'avancement global. Les tâches ajoutées ne la changent pas.</small></label>` : ''}
       <div class="row ${editing ? 'between' : 'end'}">
         ${editing ? '<button type="button" class="btn danger" data-action="delete-project">Supprimer le projet</button>' : ''}
         <button class="btn primary" type="submit">${editing ? 'Enregistrer' : 'Créer le projet'}</button>
@@ -366,6 +405,9 @@ function viewOverview(d) {
   const todo = d.tasks.filter((t) => t.status === 'todo').length;
   const bugs = d.tasks.filter((t) => t.type === 'bug' && t.status !== 'done').length;
   const now = d.epics.filter((e) => e.horizon === 'now').sort(sortEpics);
+  const nowItems = d.tasks.filter((t) => now.some((e) => e.id === t.epicId));
+  const nowDone = nowItems.filter((t) => t.status === 'done').length;
+  const nowPr = { done: nowDone, total: nowItems.length, pct: nowItems.length ? Math.round((nowDone / nowItems.length) * 100) : 0 };
   return `
   <div class="overview">
     <section class="panel">
@@ -373,7 +415,11 @@ function viewOverview(d) {
         <div class="ring" style="--p:${p.progress}" role="img" aria-label="Avancement ${p.progress} %"><div><div><strong class="num">${p.progress}%</strong><small>avancement</small></div></div></div>
         <div class="stack grow" style="gap:8px">
           <div class="row"><span class="pill ${p.status}">${STATUS[p.status]}</span><span class="role ${p.role}">${p.role === 'admin' ? 'tu es admin' : 'tu es membre'}</span></div>
-          <p class="muted small">${p.tasks.total ? `${p.tasks.done} tâche${p.tasks.done > 1 ? 's' : ''} terminée${p.tasks.done > 1 ? 's' : ''} sur ${p.tasks.total}` : 'Avancement réglé à la main (aucune tâche pour le moment).'}</p>
+          ${p.role === 'admin' ? `<label class="prog-edit"><span class="small muted">Ajuster l'avancement</span>
+            <input type="range" id="ov-prog" min="0" max="100" step="5" value="${p.progress}" data-change="progress" aria-label="Avancement du projet"></label>`
+            : '<p class="muted small">Avancement estimé par les admins du projet.</p>'}
+          ${nowPr.total ? `<div class="now-progress"><div class="row between small"><span class="muted">Chantiers « Maintenant »</span><span class="num"><b>${nowPr.done}/${nowPr.total}</b> faits · ${nowPr.pct} %</span></div>
+            <div class="progress"><i style="width:${nowPr.pct}%"></i></div></div>` : ''}
           <div class="meta">
             ${p.dueDate ? `<span>📅 ${esc(dueLabel(p.dueDate))}</span>` : ''}
             ${p.repoUrl ? `<a href="${esc(p.repoUrl)}" target="_blank" rel="noopener">🔗 ${esc(p.repoUrl.replace(/^https?:\/\//, ''))}</a>` : ''}
@@ -800,7 +846,8 @@ function accountSheet() {
     <form class="stack" data-form="profile">
       <label class="field"><span>Nom affiché</span><input class="input" id="ac-name" name="displayName" value="${esc(me.displayName)}" maxlength="60" required></label>
       <label class="field"><span>Identifiant</span><input class="input" id="ac-user" name="username" value="${esc(me.username)}" maxlength="32" required autocapitalize="none" spellcheck="false"></label>
-      <div class="row end"><button class="btn" type="submit">Enregistrer</button></div>
+      ${avatarPicker(me)}
+      <div class="row end"><button class="btn primary" type="submit">Enregistrer</button></div>
     </form>
     ${db.passkeysSupported() ? `<section class="stack" style="gap:10px">
       <h3>Clés d'accès</h3>
@@ -886,6 +933,18 @@ const actions = {
     if (!(await confirmSheet(`Supprimer le chantier « ${e.title} » ? Ses tâches sont gardées, hors chantier.`))) return;
     await db.deleteEpic(e.id);
     toast('Chantier supprimé'); await reloadProject();
+  },
+  'pick-avatar-emoji': (el) => {
+    const form = el.closest('form');
+    form.elements.avatarEmoji.value = el.dataset.v;
+    form.querySelectorAll('.emoji-opt').forEach((b) => b.setAttribute('aria-pressed', b === el));
+    refreshAvatarPreview(form);
+  },
+  'pick-avatar-color': (el) => {
+    const form = el.closest('form');
+    form.elements.avatarColor.value = el.dataset.v;
+    form.querySelectorAll('[data-action="pick-avatar-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
+    refreshAvatarPreview(form);
   },
   'pick-seg': (el) => {
     const seg = el.closest('[data-seg]');
@@ -977,7 +1036,6 @@ const forms = {
   },
   async 'edit-project'(f) {
     const body = formData(f);
-    if (state.data.project.tasks.total) delete body.manualProgress;
     await db.updateProject(state.pid, body);
     closeSheet(); toast('Projet mis à jour'); await reloadProject();
   },
@@ -1048,11 +1106,24 @@ for (const root of [$app, sheet]) {
 }
 
 $app.addEventListener('change', run(async (e) => {
+  if (e.target.dataset.change === 'progress') {
+    await db.updateProject(state.pid, { manualProgress: e.target.value });
+    toast(`Avancement : ${e.target.value} %`); await reloadProject();
+    return;
+  }
   const el = e.target.closest('[data-change="role"]');
   if (!el) return;
   try { await db.setRole(state.pid, el.dataset.id, el.value); toast('Rôle mis à jour'); }
   finally { await reloadProject(); }
 }));
+
+// Move the ring while the admin drags the progress slider.
+$app.addEventListener('input', (e) => {
+  if (e.target.id !== 'ov-prog') return;
+  const ring = $app.querySelector('.ring');
+  ring.style.setProperty('--p', e.target.value);
+  ring.querySelector('strong').textContent = `${e.target.value}%`;
+});
 
 // Member search suggestions.
 let searchTimer;

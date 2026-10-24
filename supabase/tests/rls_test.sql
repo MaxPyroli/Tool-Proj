@@ -57,6 +57,8 @@ select pg_temp.expect_error(format('insert into note_votes (note_id, user_id) va
 select pg_temp.expect_error(format('update notes set color = ''red'' where id = %s', :nid), 'check constraint');
 update profiles set display_name = 'Pirate' where id = '00000000-0000-0000-0000-00000000000a';
 update profiles set display_name = 'Bobby' where id = auth.uid();
+update profiles set avatar_emoji = '🦊', avatar_color = '#ffd8a8' where id = auth.uid();
+select pg_temp.expect_error($$update profiles set avatar_color = 'rouge' where id = auth.uid()$$, 'check constraint');
 
 -- ===== Chantiers =====
 insert into epics (project_id, title, horizon) values (:pid, 'Mode hors-ligne', 'now') returning id as eid \gset
@@ -95,6 +97,7 @@ reset role;
 do $$ begin
   assert (select display_name from profiles where username = 'alice') = 'Alice', 'bob ne renomme pas alice';
   assert (select display_name from profiles where username = 'bob') = 'Bobby', 'bob se renomme';
+  assert (select avatar_emoji from profiles where username = 'bob') = '🦊', 'bob choisit son avatar';
   assert (select count(*) from projects where name = 'App vélo') = 1, 'eve ne supprime pas';
   assert (select count(*) from note_votes) = 1;
   assert exists (select 1 from activity where message = 'a terminé « Login »');

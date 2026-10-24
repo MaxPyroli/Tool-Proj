@@ -463,3 +463,20 @@ h3.group-title { cursor: default; color: var(--muted); }
 .now-epic b { overflow-wrap: anywhere; }
 .views button { white-space: nowrap; }
 @media (max-width: 719px) { .views button { font-size: .86rem; padding: 0 4px; } }
+
+/* ---------- avatars ---------- */
+.avatar.emoji { font-size: 1rem; line-height: 1; }
+.avatar.lg.emoji { font-size: 1.35rem; }
+.avatar.xl { width: 64px; height: 64px; font-size: 1.3rem; border-width: 3px; }
+.avatar.xl.emoji { font-size: 2.1rem; }
+.emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.emoji-opt { height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 1.4rem; cursor: pointer; padding: 0; line-height: 1; }
+.emoji-opt.initials { font-size: .85rem; font-weight: 700; color: var(--muted); }
+.emoji-opt[aria-pressed="true"] { outline: 3px solid var(--accent); outline-offset: 1px; background: var(--accent-soft); }
+.avatar-picker .swatches { gap: 8px; }
+.avatar-picker .swatch { width: 34px; height: 34px; border-radius: 50%; }
+.avatar-picker .swatch.auto { font-size: .75rem; font-weight: 700; color: #1b2130; }
+
+.prog-edit { display: grid; gap: 4px; max-width: 320px; }
+.prog-edit input { width: 100%; accent-color: var(--accent); }
+.now-progress { display: grid; gap: 6px; max-width: 320px; }
