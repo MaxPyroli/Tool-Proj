@@ -18,7 +18,7 @@ const store = {
 };
 
 const state = {
-  me: null, config: null, authMode: 'login', authError: '',
+  me: null, authStep: 'email', authEmail: '', authError: '', authInfo: '',
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   taskCol: 'todo', boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
@@ -53,6 +53,7 @@ function dueLabel(d) {
 }
 
 const icon = {
+  key: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M17 6l3 3M14.5 8.5l2 2"/></svg>',
   overview: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   tasks: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 7 2 2 4-4M4 17l2 2 4-4M13 7h8M13 17h8"/></svg>',
   notes: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v11l-5 5H4z"/><path d="M15 20v-5h5"/></svg>',
@@ -166,8 +167,8 @@ async function refreshIfIdle() {
 // ---------- auth ----------
 
 function renderAuth() {
-  const reg = state.authMode === 'register';
-  const canRegister = db.allowSignup;
+  const codeStep = state.authStep === 'code';
+  const passkeys = db.passkeysSupported();
   $app.innerHTML = `
   <main class="auth">
     <div class="auth-card">
@@ -179,19 +180,54 @@ function renderAuth() {
           <div class="note c-pink" style="--rot:2deg">Refaire l'écran d'accueil</div>
         </div>
       </div>
-      <form class="panel stack" data-form="${reg ? 'register' : 'login'}" novalidate>
-        <h2>${reg ? 'Créer un compte' : 'Connexion'}</h2>
-        ${state.authError ? `<p class="error">${esc(state.authError)}</p>` : ''}
+      <div class="panel stack">
+        ${state.authError ? `<p class="error" role="alert">${esc(state.authError)}</p>` : ''}
         ${state.authInfo ? `<p class="info">${esc(state.authInfo)}</p>` : ''}
-        <label class="field"><span>Email</span><input class="input" id="auth-email" type="email" name="email" autocomplete="email" autocapitalize="none" spellcheck="false" required></label>
-        ${reg ? `<label class="field"><span>Identifiant <small class="muted">(pour qu'on t'ajoute aux projets)</small></span><input class="input" id="auth-username" name="username" autocapitalize="none" spellcheck="false" required minlength="3" maxlength="32" placeholder="ex. leo"></label>
-        <label class="field"><span>Nom affiché</span><input class="input" id="auth-name" name="displayName" autocomplete="name" placeholder="ex. Léo"></label>` : ''}
-        <label class="field"><span>Mot de passe</span><input class="input" id="auth-password" type="password" name="password" autocomplete="${reg ? 'new-password' : 'current-password'}" required minlength="${reg ? 8 : 1}"></label>
-        <button class="btn primary" type="submit">${reg ? 'Créer mon compte' : 'Se connecter'}</button>
-        ${canRegister ? `<p class="small muted">${reg ? 'Déjà un compte ?' : 'Pas encore de compte ?'} <button type="button" class="link-btn" data-action="auth-toggle">${reg ? 'Se connecter' : 'Créer un compte'}</button></p>` : '<p class="small muted">Pas de compte ? Demande à un admin de t\'inviter.</p>'}
-      </form>
+        ${codeStep ? `
+        <form class="stack" data-form="email-code" novalidate>
+          <h2>Regarde tes emails</h2>
+          <p>On a envoyé un lien de connexion à <b>${esc(state.authEmail)}</b>. Ouvre-le sur cet appareil, ou tape ici le code qu'il contient.</p>
+          <label class="field"><span>Code reçu par email</span>
+            <input class="input code-input" id="auth-code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="12" placeholder="123456" required></label>
+          <button class="btn primary" type="submit">Se connecter</button>
+          <div class="row between small"><button type="button" class="link-btn" data-action="auth-resend">Renvoyer l'email</button><button type="button" class="link-btn" data-action="auth-back">Changer d'adresse</button></div>
+        </form>` : `
+        <form class="stack" data-form="email-link" novalidate>
+          <h2>Connexion</h2>
+          <label class="field"><span>Email</span><input class="input" id="auth-email" type="email" name="email" value="${esc(state.authEmail)}" autocomplete="email" autocapitalize="none" spellcheck="false" required></label>
+          <button class="btn primary" type="submit">Recevoir un lien de connexion</button>
+        </form>
+        ${passkeys ? `<div class="or" aria-hidden="true">ou</div>
+        <button class="btn" type="button" data-action="passkey-login">${icon.key} Utiliser une clé d'accès</button>` : ''}
+        <p class="small muted">Pas de mot de passe ici. ${db.allowSignup ? 'Première visite ? Le lien reçu par email crée ton compte.' : "Pas de compte ? Demande à un admin de t'inviter."}${passkeys ? " Une fois connecté, tu pourras créer une clé d'accès pour entrer en un geste (Face ID, empreinte…)." : ''}</p>`}
+      </div>
     </div>
   </main>`;
+  if (codeStep && !isPhone()) $app.querySelector('#auth-code')?.focus();
+}
+
+/** First sign-in: pick a name and username, then offer a passkey. */
+function welcomeSheet() {
+  const me = state.me;
+  openSheet(`
+    <form class="stack" data-form="welcome">
+      <h2 id="sheet-title">Bienvenue !</h2>
+      <p class="muted">Choisis comment ton équipe te verra.</p>
+      <label class="field"><span>Nom affiché</span><input class="input" id="wf-name" name="displayName" value="${esc(me.displayName)}" maxlength="60" required autocomplete="name"></label>
+      <label class="field"><span>Identifiant <small class="muted">(sert à t'ajouter aux projets)</small></span>
+        <input class="input" id="wf-user" name="username" value="${esc(me.username)}" maxlength="32" required autocapitalize="none" spellcheck="false"></label>
+      <div class="row end"><button class="btn primary" type="submit">Continuer</button></div>
+    </form>`);
+}
+
+function passkeyOfferSheet() {
+  openSheet(`
+    <div class="stack">
+      <div class="key-badge" aria-hidden="true">${icon.key}</div>
+      <h2 id="sheet-title">Créer une clé d'accès ?</h2>
+      <p>La prochaine fois, tu entreras en un geste avec Face ID, ton empreinte ou le code de cet appareil, sans attendre d'email.</p>
+      <div class="row end"><button class="btn ghost" data-action="close">Plus tard</button><button class="btn primary" data-action="passkey-add" data-then="close">Créer la clé</button></div>
+    </div>`);
 }
 
 // ---------- projects list ----------
@@ -585,14 +621,31 @@ function accountSheet() {
       ${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([k, l]) => `<button type="button" data-action="theme" data-v="${k}" aria-pressed="${theme === k}">${l}</button>`).join('')}</div></div>
     <form class="stack" data-form="profile">
       <label class="field"><span>Nom affiché</span><input class="input" id="ac-name" name="displayName" value="${esc(me.displayName)}" maxlength="60" required></label>
-      <div class="row end"><button class="btn" type="submit">Enregistrer le nom</button></div>
+      <label class="field"><span>Identifiant</span><input class="input" id="ac-user" name="username" value="${esc(me.username)}" maxlength="32" required autocapitalize="none" spellcheck="false"></label>
+      <div class="row end"><button class="btn" type="submit">Enregistrer</button></div>
     </form>
-    <details><summary class="small" style="cursor:pointer;font-weight:600">Changer de mot de passe</summary>
-      <form class="stack" data-form="password" style="margin-top:12px">
-        <label class="field"><span>Nouveau mot de passe (8 caractères min.)</span><input class="input" id="ac-new" type="password" name="newPassword" autocomplete="new-password" minlength="8" required></label>
-        <div class="row end"><button class="btn" type="submit">Changer</button></div>
-      </form></details>
-    <button class="btn danger" data-action="logout">Se déconnecter</button>`);
+    ${db.passkeysSupported() ? `<section class="stack" style="gap:10px">
+      <h3>Clés d'accès</h3>
+      <p class="small muted">Pour te connecter avec Face ID, ton empreinte ou le code de l'appareil. Crée une clé sur chaque appareil que tu utilises.</p>
+      <div class="passkeys" id="pk-list"><p class="small muted">Chargement…</p></div>
+      <button class="btn" data-action="passkey-add">${icon.key} Ajouter une clé sur cet appareil</button>
+    </section>` : ''}
+    <button class="btn danger" data-action="logout">Se déconnecter</button>`, () => { if (db.passkeysSupported()) loadPasskeys(); });
+}
+
+async function loadPasskeys() {
+  const box = sheet.querySelector('#pk-list');
+  if (!box) return;
+  try {
+    const keys = await db.listPasskeys();
+    box.innerHTML = keys.length ? keys.map((k) => `
+      <div class="passkey">${icon.key}<div class="grow"><strong>${esc(k.friendly_name || "Clé d'accès")}</strong>
+        <span class="small muted">Créée ${timeAgo(k.created_at)}${k.last_used_at ? ` · utilisée ${timeAgo(k.last_used_at)}` : ''}</span></div>
+        <button class="btn sm ghost" data-action="passkey-delete" data-id="${esc(k.id)}" aria-label="Supprimer cette clé">Supprimer</button></div>`).join('')
+      : '<p class="small muted">Aucune clé pour le moment.</p>';
+  } catch (e) {
+    box.innerHTML = `<p class="small muted">${esc(e.message)}</p>`;
+  }
 }
 
 // ---------- actions (event delegation) ----------
@@ -600,7 +653,25 @@ function accountSheet() {
 const formData = (form) => Object.fromEntries(new FormData(form));
 
 const actions = {
-  'auth-toggle': () => { state.authMode = state.authMode === 'login' ? 'register' : 'login'; state.authError = ''; renderAuth(); },
+  'auth-back': () => { state.authStep = 'email'; state.authError = ''; state.authInfo = ''; renderAuth(); },
+  'auth-resend': async () => {
+    try { await db.sendEmailLink(state.authEmail); state.authError = ''; state.authInfo = 'Nouvel email envoyé.'; }
+    catch (e) { state.authError = e.message; state.authInfo = ''; }
+    renderAuth();
+  },
+  'passkey-login': async () => {
+    try { state.me = await db.signInWithPasskey(); signedIn(); }
+    catch (e) { state.authError = e.message; state.authInfo = ''; renderAuth(); }
+  },
+  'passkey-add': async (el) => {
+    await db.addPasskey();
+    toast("Clé d'accès créée");
+    if (el.dataset.then === 'close') closeSheet(); else loadPasskeys();
+  },
+  'passkey-delete': async (el) => {
+    await db.deletePasskey(el.dataset.id);
+    toast('Clé supprimée'); loadPasskeys();
+  },
   close: closeSheet,
   account: accountSheet,
   filter: (el) => { state.filter = el.dataset.v; renderList(); },
@@ -677,25 +748,27 @@ const actions = {
   },
   logout: async () => {
     await db.signOut();
-    closeSheet(); subscribe(null); state.me = null; state.projects = []; state.data = null; state.pid = null;
+    closeSheet(); subscribe(null); state.me = null; state.authStep = 'email'; state.projects = []; state.data = null; state.pid = null;
     location.hash = '#/'; render();
   },
 };
 
 const forms = {
-  async login(f) {
-    const b = formData(f);
-    try { state.me = await db.signIn(b.email, b.password); state.authError = ''; state.authInfo = ''; render(); }
-    catch (e) { state.authError = e.message; renderAuth(); }
+  async 'email-link'(f) {
+    const email = formData(f).email.trim();
+    state.authEmail = email;
+    try { await db.sendEmailLink(email); state.authStep = 'code'; state.authError = ''; state.authInfo = ''; }
+    catch (e) { state.authError = e.message; }
+    renderAuth();
   },
-  async register(f) {
-    try {
-      const user = await db.signUp(formData(f));
-      state.authError = '';
-      if (user) { state.me = user; state.authInfo = ''; toast('Bienvenue !'); render(); }
-      else { state.authMode = 'login'; state.authInfo = 'Compte créé ! Clique sur le lien reçu par email pour le confirmer, puis connecte-toi.'; renderAuth(); }
-    }
-    catch (e) { state.authError = e.message; renderAuth(); }
+  async 'email-code'(f) {
+    try { state.me = await db.verifyEmailCode(state.authEmail, formData(f).code); signedIn(); }
+    catch (e) { state.authError = e.message; state.authInfo = ''; renderAuth(); }
+  },
+  async welcome(f) {
+    state.me = await db.completeOnboarding(state.me.id, formData(f));
+    render();
+    if (db.passkeysSupported()) passkeyOfferSheet(); else closeSheet();
   },
   async 'new-project'(f) {
     const id = await db.createProject(formData(f));
@@ -737,12 +810,8 @@ const forms = {
     toast('Ajouté au projet'); await reloadProject();
   },
   async profile(f) {
-    state.me = await db.updateProfile(state.me.id, formData(f).displayName);
-    toast('Nom mis à jour'); closeSheet(); render();
-  },
-  async password(f) {
-    await db.changePassword(formData(f).newPassword);
-    toast('Mot de passe changé'); closeSheet();
+    state.me = await db.updateProfile(state.me.id, formData(f));
+    toast('Profil mis à jour'); closeSheet(); render();
   },
 };
 
@@ -795,6 +864,13 @@ document.addEventListener('visibilitychange', run(async () => { if (!document.hi
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
+function signedIn() {
+  state.authError = ''; state.authInfo = ''; state.authStep = 'email';
+  if (location.href.endsWith('#')) history.replaceState(null, '', location.pathname + location.search);
+  render();
+  if (state.me && !state.me.onboarded) welcomeSheet();
+}
+
 // ---------- boot ----------
 
 (async function boot() {
@@ -807,7 +883,12 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
     return;
   }
   $app.innerHTML = '<div class="loading">Chargement…</div>';
-  db.onSignedOut(() => { if (state.me) { state.me = null; subscribe(null); render(); } });
+  // Signing in from another tab (email link) or signing out elsewhere updates this tab too.
+  db.onAuth(run(async (event) => {
+    if (event === 'SIGNED_OUT' && state.me) { state.me = null; subscribe(null); render(); }
+    if (event === 'SIGNED_IN' && !state.me) { state.me = await db.currentUser(); if (state.me) signedIn(); }
+  }));
   try { state.me = await db.currentUser(); } catch (e) { state.me = null; toast(e.message, true); }
-  render();
+  if (db.urlAuthError && !state.me) state.authError = db.urlAuthError;
+  if (state.me) signedIn(); else render();
 })();

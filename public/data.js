@@ -4,69 +4,110 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const cfg = window.TOOL_PROJ_CONFIG || {};
 export const configured = !!(cfg.supabaseUrl && cfg.supabaseKey);
 export const allowSignup = cfg.allowSignup !== false;
-const sb = configured ? createClient(cfg.supabaseUrl, cfg.supabaseKey) : null;
+// An expired or reused email link comes back with the error in the URL hash; read it before Supabase clears it.
+const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+const sb = configured ? createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { flowType: 'implicit' } }) : null;
 
 // Translate Supabase / Postgres errors into messages people can act on.
 const MESSAGES = [
-  [/Invalid login credentials/i, 'Email ou mot de passe incorrect.'],
-  [/Email not confirmed/i, "Ton email n'est pas encore confirmé : clique sur le lien reçu par mail."],
-  [/User already registered/i, 'Un compte existe déjà avec cet email.'],
-  [/Password should be at least/i, 'Mot de passe : 8 caractères minimum.'],
-  [/Signups not allowed/i, 'Les inscriptions sont fermées. Demande à un admin de t\'inviter.'],
-  [/rate limit/i, 'Trop de tentatives. Réessaie dans quelques minutes.'],
+  [/Signups not allowed|otp_disabled/i, "Aucun compte avec cet email. Demande à un admin de t'inviter."],
+  [/expired|invalid.*(token|otp|link)|(token|otp|link).*invalid/i, 'Ce code ou ce lien a expiré ou a déjà servi. Demande-en un nouveau.'],
+  [/only request this after|over_email_send_rate_limit|rate limit/i, "Trop d'emails demandés. Attends un peu avant de réessayer."],
+  [/passkey_disabled|Passkeys are disabled/i, "Les clés d'accès ne sont pas activées dans Supabase (voir le README)."],
+  [/CEREMONY_ABORTED|NotAllowedError|not allowed|timed out|cancel/i, "Clé d'accès annulée, ou aucune clé pour ce site sur cet appareil."],
+  [/passkey.*not found|credential.*not found|webauthn_credential/i, "Cette clé d'accès n'est plus reconnue. Connecte-toi par email puis recrée-la."],
+  [/duplicate key.*username|profiles_username_key/i, 'Cet identifiant est déjà pris.'],
+  [/profiles_username_check/i, 'Identifiant : 3 à 32 caractères, lettres minuscules, chiffres, . _ - uniquement.'],
   [/row-level security|permission denied/i, "Tu n'as pas les droits pour faire ça."],
   [/violates check constraint/i, 'Valeur invalide.'],
   [/Failed to fetch|NetworkError|Load failed/i, 'Pas de connexion. Réessaie quand tu seras en ligne.'],
 ];
-function fail(error) {
-  const raw = error?.message || String(error);
+function translate(error) {
+  const raw = [error?.code, error?.name, error?.message || String(error)].filter(Boolean).join(' ');
   const known = MESSAGES.find(([re]) => re.test(raw));
-  throw new Error(known ? known[1] : raw);
+  return known ? known[1] : error?.message || String(error);
 }
+function fail(error) { throw new Error(translate(error)); }
 const ok = ({ data, error }) => { if (error) fail(error); return data; };
 
-// ---------- auth ----------
+// ---------- auth (no passwords: email link / code, or passkey) ----------
 
-const profileDto = (p) => p && { id: p.id, username: p.username, displayName: p.display_name };
+/** Message to show when the user arrives from an email link that no longer works. */
+export const urlAuthError = hashParams.get('error_description') ? translate({ code: hashParams.get('error_code'), message: hashParams.get('error_description') }) : '';
+
+const profileDto = (p, user) => p && { id: p.id, username: p.username, displayName: p.display_name, onboarded: user?.user_metadata?.onboarded === true };
 
 export async function currentUser() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return null;
   const p = ok(await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle());
-  return profileDto(p);
+  return profileDto(p, session.user);
 }
 
-export function onSignedOut(cb) {
-  sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') cb(); });
+/** Notifies sign-in / sign-out, including from another tab (e.g. the email link opened in a new tab). */
+export function onAuth(cb) {
+  sb.auth.onAuthStateChange((event) => { if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') setTimeout(() => cb(event), 0); });
 }
 
-export async function signIn(email, password) {
-  ok(await sb.auth.signInWithPassword({ email: email.trim(), password }));
+const redirectTo = () => location.origin + location.pathname;
+
+/** Emails a sign-in link (and a code, if the email template includes it). Creates the account on first use. */
+export async function sendEmailLink(email) {
+  email = (email || '').trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Adresse email invalide.');
+  ok(await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: allowSignup, emailRedirectTo: redirectTo() } }));
+}
+
+export async function verifyEmailCode(email, code) {
+  ok(await sb.auth.verifyOtp({ email: email.trim(), token: code.replace(/\s/g, ''), type: 'email' }));
   return currentUser();
 }
 
-/** Returns the user, or null when Supabase asks to confirm the email first. */
-export async function signUp({ email, password, username, displayName }) {
-  username = (username || '').trim().toLowerCase().replace(/^@/, '');
-  if (!/^[a-z0-9._-]{3,32}$/.test(username)) throw new Error('Identifiant : 3 à 32 caractères, lettres, chiffres, . _ - uniquement.');
-  if ((password || '').length < 8) throw new Error('Mot de passe : 8 caractères minimum.');
-  if (!ok(await sb.rpc('username_available', { name: username }))) throw new Error('Cet identifiant est déjà pris.');
-  const data = ok(await sb.auth.signUp({
-    email: email.trim(), password,
-    options: { data: { username, display_name: (displayName || '').trim() || username }, emailRedirectTo: location.origin + location.pathname },
-  }));
-  return data.session ? currentUser() : null;
+export const passkeysSupported = () => !!window.PublicKeyCredential && window.isSecureContext;
+
+export async function signInWithPasskey() {
+  ok(await sb.auth.signInWithPasskey());
+  return currentUser();
 }
+
+function deviceName() {
+  const ua = navigator.userAgent;
+  const device = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android'
+    : /Mac OS X/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : 'Appareil';
+  const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+  return browser ? `${device} · ${browser}` : device;
+}
+
+/** Creates a passkey for the signed-in user on this device. */
+export async function addPasskey() {
+  const created = ok(await sb.auth.registerPasskey());
+  if (created?.id) await sb.auth.passkey.update({ passkeyId: created.id, friendlyName: deviceName() }).catch(() => {});
+}
+
+export async function listPasskeys() { return ok(await sb.auth.passkey.list()) || []; }
+export async function deletePasskey(id) { ok(await sb.auth.passkey.delete({ passkeyId: id })); }
 
 export async function signOut() { await sb.auth.signOut(); }
 
-export async function updateProfile(userId, displayName) {
-  return profileDto(ok(await sb.from('profiles').update({ display_name: displayName.trim() }).eq('id', userId).select().single()));
+const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
+
+export async function updateProfile(userId, { displayName, username }) {
+  const row = { display_name: (displayName || '').trim() };
+  if (!row.display_name) throw new Error('Choisis un nom affiché.');
+  if (username !== undefined) {
+    row.username = username.trim().toLowerCase().replace(/^@/, '');
+    if (!USERNAME_RE.test(row.username)) throw new Error('Identifiant : 3 à 32 caractères, lettres minuscules, chiffres, . _ - uniquement.');
+  }
+  const p = ok(await sb.from('profiles').update(row).eq('id', userId).select().single());
+  const { data: { user } } = await sb.auth.getUser();
+  return profileDto(p, user);
 }
 
-export async function changePassword(password) {
-  if ((password || '').length < 8) throw new Error('Mot de passe : 8 caractères minimum.');
-  ok(await sb.auth.updateUser({ password }));
+/** Saves the first-login choices (name, username) and remembers that the welcome step is done. */
+export async function completeOnboarding(userId, fields) {
+  await updateProfile(userId, fields);
+  ok(await sb.auth.updateUser({ data: { onboarded: true } }));
+  return currentUser();
 }
 
 // ---------- projects ----------

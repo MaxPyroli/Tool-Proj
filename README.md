@@ -5,7 +5,7 @@ Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur
 
 ## Fonctionnalités
 
-- **Comptes personnels** (email + mot de passe, avec un identifiant pour être ajouté aux projets).
+- **Connexion sans mot de passe** : lien ou code reçu par email, ou **clé d'accès** (Face ID, empreinte, code de l'appareil). Chaque compte a un identifiant pour être ajouté aux projets.
 - **Projets** avec icône, couleur, statut (Idée, En cours, En pause, Terminé), description, échéance et lien.
 - **Rôles par projet** :
   - *Admin* : modifie le projet, ajoute ou retire des personnes, change les rôles, supprime le projet.
@@ -45,16 +45,31 @@ Les droits sont vérifiés **dans la base** (règles RLS de Postgres) : même en
 
 Variante sans variables : remplis directement `public/config.js` et pousse.
 
-### 3. Créer ton compte
+### 3. Connexion sans mot de passe
 
-Ouvre l'adresse, clique **Créer un compte**, confirme l'email reçu, connecte-toi. C'est prêt.
+**Emails (obligatoire)** : Supabase → **Authentication → Emails → Templates**.
+Remplace le contenu des modèles **Magic link** et **Confirm signup** par ceux de [`supabase/templates/`](supabase/templates/)
+(sujets proposés : « Ton lien de connexion à Tool-Proj » et « Bienvenue sur Tool-Proj »).
+Ils sont en français et contiennent le lien **et un code**. Le code est indispensable pour l'app installée sur iPhone : là-bas, un lien s'ouvre dans Safari et pas dans l'app.
+
+**Clés d'accès** : Supabase → **Authentication → Passkeys** → active-les avec :
+- *Relying Party ID* : `maxpyroli.github.io`
+- *Origins* : `https://maxpyroli.github.io`
+- *Display name* : `Tool-Proj`
+
+Ne change plus le *Relying Party ID* ensuite : les clés déjà créées ne marcheraient plus.
+
+### 4. Créer ton compte
+
+Ouvre l'adresse, entre ton email, clique sur le lien reçu (ou tape le code). Choisis ton nom et ton identifiant, puis accepte de créer une clé d'accès : les fois suivantes, tu entres en un geste.
+Une clé d'accès est liée à un appareil (ou synchronisée par iCloud / Google). Sur un nouvel appareil, connecte-toi une fois par email puis ajoute une clé depuis **Mon compte**.
 
 ## Fermer les inscriptions
 
 Une fois l'équipe inscrite :
 - Supabase → **Authentication → Sign In / Providers** → décoche **Allow new users to sign up** ;
 - pour ajouter quelqu'un ensuite : **Authentication → Users → Invite user** ;
-- mets la variable `ALLOW_SIGNUP` à `false` pour cacher le lien dans l'app.
+- mets la variable `ALLOW_SIGNUP` à `false` pour adapter le texte de l'écran de connexion.
 
 ## Installer sur le téléphone
 
@@ -64,7 +79,7 @@ Une fois l'équipe inscrite :
 ## Limites de l'offre gratuite
 
 - Supabase **met en pause** un projet gratuit après une semaine sans aucune activité. Il suffit de le relancer depuis le tableau de bord, les données sont conservées.
-- Les emails de confirmation de Supabase sont limités (quelques-uns par heure). Ça suffit pour une petite équipe. Sinon, on peut désactiver la confirmation des emails (**Authentication → Sign In / Providers → Email → Confirm email**).
+- Le service d'email intégré à Supabase n'envoie que **quelques emails par heure** pour tout le projet. Avec les clés d'accès, on n'a besoin d'un email qu'à la première connexion sur chaque appareil, donc ça suffit pour une petite équipe. Sinon, branche un service d'envoi gratuit (Resend, Brevo…) dans **Authentication → Emails → SMTP Settings**.
 
 ## Développement
 
@@ -84,6 +99,7 @@ public/                    l'app (HTML/CSS/JS, sans étape de build) : c'est ce 
   config.js                URL + clé publique Supabase
   sw.js, manifest…         installation sur téléphone
 supabase/schema.sql        tables, règles de sécurité, triggers
+supabase/templates/        emails de connexion en français (lien + code)
 supabase/tests/            tests SQL des règles de sécurité
 .github/workflows/pages.yml  déploiement automatique
 ```
