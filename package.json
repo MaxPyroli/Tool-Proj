@@ -1,0 +1,16 @@
+{
+  "name": "tool-proj",
+  "version": "1.0.0",
+  "description": "Suivi de projets d'applications avec post-it, tâches et membres",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "engines": { "node": ">=22.13" },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
