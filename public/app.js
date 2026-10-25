@@ -12,6 +12,19 @@ const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 const BOARD_W = 1800, BOARD_H = 1200;
 
+// Redrawing replaces the page content: remember where the reader was so the screen doesn't jump to the top.
+let lastViewKey = null;
+function redraw(key, draw) {
+  const same = key === lastViewKey;
+  const y = window.scrollY;
+  const chips = document.querySelector('.chips')?.scrollLeft ?? 0;
+  draw();
+  lastViewKey = key;
+  window.scrollTo(0, same ? y : 0);
+  const c = document.querySelector('.chips');
+  if (c && same) c.scrollLeft = chips;
+}
+
 const store = {
   get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
@@ -228,6 +241,7 @@ async function refreshIfIdle() {
 // ---------- auth ----------
 
 function renderAuth() {
+  lastViewKey = null;
   const codeStep = state.authStep === 'code';
   const passkeys = db.passkeysSupported();
   $app.innerHTML = `
@@ -320,7 +334,7 @@ function renderList() {
   const counts = { all: state.projects.length };
   for (const s of Object.keys(STATUS)) counts[s] = state.projects.filter((p) => p.status === s).length;
   const shown = state.filter === 'all' ? state.projects : state.projects.filter((p) => p.status === state.filter);
-  $app.innerHTML = `
+  redraw(`list/${state.filter}`, () => { $app.innerHTML = `
   ${topbar(`<a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool Proj</a><span class="grow"></span>
     <button class="btn primary hide-sm" data-action="new-project">+ Nouveau projet</button>`)}
   <main class="page">
@@ -335,7 +349,7 @@ function renderList() {
       : `<div class="empty"><div class="big">🗂️</div><p>${counts.all ? 'Aucun projet avec ce statut.' : "Aucun projet pour l'instant."}</p>
          ${counts.all ? '' : '<button class="btn primary" data-action="new-project">Créer un projet</button>'}</div>`}
   </main>
-  <button class="fab hide-lg" data-action="new-project" aria-label="Nouveau projet">+ Projet</button>`;
+  <button class="fab hide-lg" data-action="new-project" aria-label="Nouveau projet">+ Projet</button>`; });
 }
 
 function topbar(inner) {
@@ -435,7 +449,7 @@ function renderProject() {
   const scroll = board ? [board.scrollLeft, board.scrollTop] : null;
 
   document.body.classList.add('with-tabbar');
-  $app.innerHTML = `
+  redraw(`p${p.id}/${state.tab}/${state.taskView}/${state.boardView}`, () => { $app.innerHTML = `
   ${topbar(`
     <a class="btn ghost icon" href="#/" aria-label="Retour aux projets">${icon.back}</a>
     <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${esc(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
@@ -447,7 +461,7 @@ function renderProject() {
     ${{ apercu: viewOverview, taches: viewTasks, idees: viewNotes, equipe: viewTeam }[state.tab](d)}
   </main>
   ${state.tab === 'idees' ? '<button class="fab hide-lg" data-action="new-note">+ Post-it</button>' : ''}
-  ${state.tab === 'taches' ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`;
+  ${state.tab === 'taches' ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`; });
 
   if (state.tab === 'idees' && state.boardView === 'wall') {
     const wrap = $app.querySelector('.board-wrap');
@@ -655,7 +669,7 @@ const PRIO_ORDER = { high: 0, normal: 1, low: 2 };
 const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
 
 const CHECK_SVG = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.800l4.600 4.600L19 7.200"/></svg>';
-const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ${t.type}"><i aria-hidden="true">${TYPE_ICON[t.type]}</i>${TYPES[t.type]}</span>`);
+const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${TYPE_ICON[t.type]}</i>${TYPES[t.type]}</span>`);
 const prioTag = (t) => (t.priority === 'high' ? '<span class="prio high" title="Priorité haute">Prioritaire</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
 const sortItems = (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
 const sortEpics = (a, b) => HORIZON_ORDER[a.horizon] - HORIZON_ORDER[b.horizon] || a.position - b.position;
@@ -697,7 +711,7 @@ function viewTasks(d) {
     </div>
     <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
   </div>
-  ${view !== 'roadmap' ? `<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>` : ''}
+  ${view !== 'roadmap' ? `<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ty-${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>` : ''}
   ${{ roadmap: viewRoadmap, list: viewList, board: viewBoard }[view](d)}`;
 }
 
@@ -717,7 +731,7 @@ function viewRoadmap(d) {
       <h3>${esc(e.title)}</h3>
       ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ''}
       <div class="progress"><i style="width:${pr.pct}%"></i></div>
-      <div class="row between small muted"><span class="num">${pr.total ? `${pr.done}/${pr.total} fait${pr.done > 1 ? 's' : ''}` : 'Aucun élément'}</span>${bugs ? `<span class="type-tag bug">${bugs} bug${bugs > 1 ? 's' : ''}</span>` : ''}</div>
+      <div class="row between small muted"><span class="num">${pr.total ? `${pr.done}/${pr.total} fait${pr.done > 1 ? 's' : ''}` : 'Aucun élément'}</span>${bugs ? `<span class="type-tag ty-bug">${bugs} bug${bugs > 1 ? 's' : ''}</span>` : ''}</div>
     </article>`;
   };
   return `
@@ -784,7 +798,7 @@ function viewBoard(d) {
 
 const segField = (name, options, value, label, cls = '') => `
   <div class="field"><span>${label}</span>
-    <div class="seg ${cls ? 'wrap' : ''}" style="margin:0" data-seg="${name}">${Object.entries(options).map(([k, l]) => `<button type="button" class="${cls} ${k}" data-action="pick-seg" data-v="${k}" aria-pressed="${k === value}">${l}</button>`).join('')}</div>
+    <div class="seg ${cls ? 'wrap' : ''}" style="margin:0" data-seg="${name}">${Object.entries(options).map(([k, l]) => `<button type="button" class="${cls ? `${cls} ${cls}-${k}` : ''}" data-action="pick-seg" data-v="${k}" aria-pressed="${k === value}">${l}</button>`).join('')}</div>
     <input type="hidden" name="${name}" value="${value}"></div>`;
 
 /** Create or edit an item (tâche, bug, amélioration). */
@@ -841,7 +855,7 @@ function chooserSheet({ title = 'Ajouter', action = 'choose-new', noteId = '' } 
   ];
   openSheet(`
     <div class="sheet-head"><h2 id="sheet-title">${title}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
-    <div class="chooser">${choices.map(([k, l, hint]) => `<button class="choice ${k}" data-action="${action}" data-v="${k}" data-id="${noteId}"><strong>${l}</strong><span>${hint}</span></button>`).join('')}</div>`);
+    <div class="chooser">${choices.map(([k, l, hint]) => `<button class="choice ch-${k}" data-action="${action}" data-v="${k}" data-id="${noteId}"><strong>${l}</strong><span>${hint}</span></button>`).join('')}</div>`);
 }
 
 /** Desktop drag and drop: items between status columns, chantiers between horizons. */
@@ -1314,6 +1328,23 @@ $app.addEventListener('input', (e) => {
 // Safety net in case a live update was missed (phone asleep, network change).
 setInterval(run(refreshIfIdle), 30000);
 document.addEventListener('visibilitychange', run(async () => { if (!document.hidden) await refreshIfIdle(); }));
+
+// The bottom bar and the round button jump above the keyboard on phones: hide them while typing.
+const TYPING = 'input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=radio]), textarea, select';
+document.addEventListener('focusin', (e) => { if (e.target.matches?.(TYPING) && !e.target.closest('dialog')) document.body.classList.add('kbd'); });
+document.addEventListener('focusout', () => setTimeout(() => { if (!document.activeElement?.matches?.(TYPING)) document.body.classList.remove('kbd'); }, 80));
+// Keep bottom sheets above the keyboard (iOS keeps the layout the same size and covers the bottom).
+if (window.visualViewport) {
+  const sync = () => {
+    const vv = window.visualViewport;
+    const root = document.documentElement.style;
+    root.setProperty('--vvh', `${Math.round(vv.height)}px`);
+    root.setProperty('--kb', `${Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))}px`);
+  };
+  window.visualViewport.addEventListener('resize', sync);
+  window.visualViewport.addEventListener('scroll', sync);
+  sync();
+}
 
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

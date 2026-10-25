@@ -78,7 +78,7 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; overflow-x: hidden; overflow-x: clip; overscroll-behavior-y: contain; touch-action: manipulation; }
 body {
   margin: 0; min-height: 100dvh;
   background: var(--bg); color: var(--ink);
@@ -428,7 +428,7 @@ code { font-size: .9em; background: var(--surface-2); padding: 1px 5px; border-r
 .t-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .75rem; color: var(--muted); }
 .type-tag { --tc: var(--c-task); display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; padding: 1px 8px 1px 6px; border-radius: 99px; color: color-mix(in srgb, var(--tc) 55%, var(--ink)); background: color-mix(in srgb, var(--tc) 18%, transparent); white-space: nowrap; }
 .type-tag i { font-style: normal; font-size: .85em; }
-.type-tag.task { --tc: var(--c-task); } .type-tag.bug { --tc: var(--c-bug); } .type-tag.idea { --tc: var(--c-idea); } .type-tag.improvement { --tc: var(--c-improvement); }
+.type-tag.ty-task { --tc: var(--c-task); } .type-tag.ty-bug { --tc: var(--c-bug); } .type-tag.ty-idea { --tc: var(--c-idea); } .type-tag.ty-improvement { --tc: var(--c-improvement); }
 .prio { font-size: .72rem; font-weight: 700; }
 .prio.high { color: var(--danger); }
 .prio.high::before { content: "▲ "; }
@@ -462,7 +462,7 @@ h3.group-title { cursor: default; color: var(--muted); }
 .choice strong { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
 .choice strong::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c, var(--accent)); }
 .choice span { color: var(--muted); font-size: .88rem; }
-.choice.epic { --c: var(--accent); } .choice.task { --c: var(--c-task); } .choice.bug { --c: var(--c-bug); } .choice.idea { --c: var(--c-idea); } .choice.improvement { --c: var(--c-improvement); }
+.choice.ch-epic { --c: var(--accent); } .choice.ch-task { --c: var(--c-task); } .choice.ch-bug { --c: var(--c-bug); } .choice.ch-idea { --c: var(--c-idea); } .choice.ch-improvement { --c: var(--c-improvement); }
 .choice:hover { background: var(--surface); }
 
 .now-epic { display: grid; gap: 8px; width: 100%; text-align: left; border: 0; background: none; padding: 0; cursor: pointer; color: var(--ink); }
@@ -510,11 +510,11 @@ h3.group-title { cursor: default; color: var(--muted); }
 .t-task { --tc: var(--c-task); } .t-bug { --tc: var(--c-bug); } .t-idea { --tc: var(--c-idea); } .t-improvement { --tc: var(--c-improvement); }
 .check.todo, .check { border-color: color-mix(in srgb, var(--tc, var(--line)) 55%, var(--line)); }
 .chip-t::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--tc); margin-right: 7px; display: inline-block; }
-.chip-t.bug { --tc: var(--c-bug); } .chip-t.idea { --tc: var(--c-idea); } .chip-t.improvement { --tc: var(--c-improvement); } .chip-t.task { --tc: var(--c-task); }
+.chip-t.ty-bug { --tc: var(--c-bug); } .chip-t.ty-idea { --tc: var(--c-idea); } .chip-t.ty-improvement { --tc: var(--c-improvement); } .chip-t.ty-task { --tc: var(--c-task); }
 .seg.wrap { flex-wrap: wrap; }
 .seg.wrap button { flex: 1 1 calc(50% - 6px); }
 .seg button.type-opt { --tc: var(--c-task); }
-.seg button.type-opt.bug { --tc: var(--c-bug); } .seg button.type-opt.idea { --tc: var(--c-idea); } .seg button.type-opt.improvement { --tc: var(--c-improvement); }
+.seg button.type-opt-bug { --tc: var(--c-bug); } .seg button.type-opt-idea { --tc: var(--c-idea); } .seg button.type-opt-improvement { --tc: var(--c-improvement); }
 .seg button.type-opt[aria-pressed="true"] { background: color-mix(in srgb, var(--tc) 24%, var(--surface)); box-shadow: inset 0 0 0 2px var(--tc); color: var(--ink); }
 
 /* Bonbon: pastel, round */
@@ -589,3 +589,33 @@ h3.group-title { cursor: default; color: var(--muted); }
 .dot-doing { width: 12px; height: 12px; border-radius: 50%; background: var(--st-paused); display: block; }
 [data-tstyle="pixel"] .task .check.done, [data-tstyle="sticker"] .task .check.done { border-color: var(--ink); }
 [data-tstyle="neon"] .task .check.done { box-shadow: 0 0 10px color-mix(in srgb, var(--st-active) 60%, transparent); }
+
+/* ---------- phone robustness ---------- */
+body { overflow-x: hidden; overflow-x: clip; max-width: 100%; }
+/* iOS zooms the whole page when a field is smaller than 16px: that is what slid the app sideways */
+input, select, textarea { font-size: 16px; }
+.field, .field > *, .row > *, .members, .member > * { min-width: 0; }
+select, input { max-width: 100%; }
+input[type="date"] { display: block; min-width: 0; min-height: 44px; -webkit-appearance: none; appearance: none; }
+input[type="range"] { width: 100%; height: 34px; touch-action: pan-y; accent-color: var(--accent); margin: 0; }
+html:has(dialog[open]) { overflow: hidden; }
+dialog#sheet { overscroll-behavior: contain; }
+.sheet-body { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.chips, .board-wrap, .seg { overscroll-behavior-x: contain; }
+.note { -webkit-touch-callout: none; }
+@media (max-width: 719px) {
+  .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
+  .tabs { -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform; }
+  .fab { -webkit-transform: translateZ(0); transform: translateZ(0); }
+  .kbd .tabs, .kbd .fab { display: none; }
+  .with-tabbar.kbd .page { padding-bottom: 40px; }
+  dialog#sheet { margin-bottom: var(--kb, 0px); max-height: min(92dvh, calc(var(--vvh, 100dvh) * .96)); }
+}
+/* task cards: long titles and the chantier name must wrap or be cut inside the card, never widen it */
+.task { min-width: 0; max-width: 100%; }
+.task .t-main { grid-template-columns: minmax(0, 1fr); }
+.task .t-main > * { min-width: 0; }
+.t-meta { min-width: 0; max-width: 100%; }
+.t-epic { min-width: 0; max-width: 100%; }
+.t-title { overflow-wrap: anywhere; }
+.col, .group, .items, .columns { min-width: 0; }
