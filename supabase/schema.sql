@@ -417,7 +417,24 @@ grant select on public.activity to authenticated;
 revoke insert on public.projects, public.memberships, public.activity from authenticated, anon;
 grant execute on function public.create_project(text, text, text, text, text), public.add_member(bigint, text, text),
   public.username_available(text), public.is_member(bigint), public.is_project_admin(bigint) to authenticated;
-grant execute on function public.username_available(text) to anon;
+
+-- =========================================================
+-- Durcissement (alertes du linter Supabase)
+-- =========================================================
+
+-- Les fonctions de déclencheurs ne se lancent que par leurs tables : personne ne doit pouvoir les appeler via l'API.
+revoke execute on function public.handle_new_user(), public.keep_one_admin(), public.tasks_before_write(), public.tasks_log(),
+  public.epics_log(), public.notes_log(), public.memberships_log(), public.projects_log() from public, anon, authenticated;
+
+-- Les fonctions appelées par l'app ou par les règles d'accès ne servent qu'aux comptes connectés.
+revoke execute on function public.is_member(bigint), public.is_project_admin(bigint), public.create_project(text, text, text, text, text),
+  public.add_member(bigint, text, text), public.username_available(text) from public, anon;
+grant execute on function public.is_member(bigint), public.is_project_admin(bigint), public.create_project(text, text, text, text, text),
+  public.add_member(bigint, text, text), public.username_available(text) to authenticated;
+
+alter function public.touch_updated_at() set search_path = '';
+alter function public.notes_before_update() set search_path = '';
+alter function public.epics_before_update() set search_path = '';
 
 -- =========================================================
 -- Temps réel (les changements des autres apparaissent en direct)
