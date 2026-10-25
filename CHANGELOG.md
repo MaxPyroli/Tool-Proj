@@ -2,6 +2,10 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.13.0
+- Plus d'émojis dans l'interface : icônes dessinées (types de tâche, pouce, calendrier, fermer, plein écran, écrans vides…), qui suivent les couleurs et le thème.
+- Icône du projet et icône de profil : 16 icônes pour les projets, 24 pour les profils (les anciens émojis déjà choisis restent affichés).
+
 ## 0.12.1
 - Mini-carte : même forme que le mur, plus de bords vides autour.
 

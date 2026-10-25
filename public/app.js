@@ -9,9 +9,62 @@ const TASK = { todo: 'À faire', doing: 'En cours', done: 'Fait' };
 const TASK_COLOR = { todo: 'var(--muted)', doing: 'var(--st-paused)', done: 'var(--st-active)' };
 const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert', orange: 'Orange', purple: 'Violet' };
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
-const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
+// Drawn icons (follow the text colour): interface, project and profile pictures.
+const ICON_PATHS = {
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  out: '<path d="M7 17L17 7M9 7h8v8"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  calendar: '<rect x="3.500" y="5" width="17" height="15.500" rx="3"/><path d="M3.500 10h17M8 3v4M16 3v4"/>',
+  thumb: '<path d="M8 11v9H4.500a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1H8zm0 0l3.200-6.500A1.800 1.800 0 0 1 14.500 6l-.700 4H19a1.700 1.700 0 0 1 1.700 2.100l-1.400 6.200A2 2 0 0 1 17.400 20H8"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="M8 12.300l2.900 2.900L16.200 9.500"/>',
+  bug: '<path d="M9 8.500a3 3 0 0 1 6 0M8 9h8v5a4 4 0 0 1-8 0V9zM12 9v9M8 12H4M16 12h4M8.500 16.500L5.500 18.500M15.500 16.500l3 2M9 5.500L7.500 3.500M15 5.500l1.500-2"/>',
+  bulb: '<path d="M9.500 17.500h5M10 20.500h4M12 3.500a6 6 0 0 0-3.500 10.900c.700.600 1 1.300 1 2.100h5c0-.800.300-1.500 1-2.100A6 6 0 0 0 12 3.500z"/>',
+  spark: '<path d="M12 3.500l1.900 5.600 5.600 1.900-5.600 1.900L12 18.500l-1.900-5.600L4.500 11l5.600-1.900L12 3.500zM19 3v3M17.500 4.500h3"/>',
+  folder: '<path d="M3.500 7.500a2 2 0 0 1 2-2H9l2 2.500h7.500a2 2 0 0 1 2 2V17.500a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10z"/>',
+  note: '<path d="M5 5.500a1.500 1.500 0 0 1 1.500-1.500h11A1.500 1.500 0 0 1 19 5.500V14l-5 6H6.500A1.500 1.500 0 0 1 5 18.500v-13zM19 14h-4a1 1 0 0 0-1 1v5M8.500 8.500h7M8.500 12h4"/>',
+  map: '<path d="M9 5L3.500 7v12L9 17l6 2 5.500-2V5L15 7 9 5zM9 5v12M15 7v12"/>',
+  rocket: '<path d="M12 3c3 2 5 5.500 5 9.500L12 18l-5-5.500C7 8.500 9 5 12 3z"/><circle cx="12" cy="10" r="1.800"/><path d="M7 13.500L4.500 16l3 .500M17 13.500l2.500 2.500-3 .500M12 18v3"/>',
+  phone: '<rect x="7" y="2.500" width="10" height="19" rx="2.500"/><path d="M11 18.500h2"/>',
+  gear: '<circle cx="12" cy="12" r="3.200"/><path d="M12 3v2.500M12 18.500V21M3 12h2.500M18.500 12H21M5.600 5.600l1.800 1.800M16.600 16.600l1.800 1.800M5.600 18.400l1.800-1.800M16.600 7.400l1.800-1.800"/>',
+  gamepad: '<path d="M7 8h10a4.500 4.500 0 0 1 4.400 5.400l-.800 4a2.200 2.200 0 0 1-3.800 1L15 16H9l-2.800 2.400a2.200 2.200 0 0 1-3.800-1l-.800-4A4.500 4.500 0 0 1 7 8z"/><path d="M8 10.500v3M6.500 12h3"/><path d="M15.500 11.500h.01M17.500 13h.01"/>',
+  cart: '<path d="M3 4h2.500l2 11h10l2-8H6.500"/><circle cx="9" cy="19.500" r="1.300"/><circle cx="17" cy="19.500" r="1.300"/>',
+  chart: '<path d="M5 20V11M12 20V4M19 20v-6"/>',
+  palette: '<path d="M12 3.500a8.500 8.500 0 1 0 0 17c1.400 0 2-1 1.500-2.100-.600-1.300.100-2.400 1.500-2.400h2A3.500 3.500 0 0 0 20.500 12 8.500 8.500 0 0 0 12 3.500z"/><path d="M8 11h.01M12 7.800h.01M16 11h.01"/>',
+  robot: '<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V4.500M3 13v2M21 13v2M9.500 13h.01M14.500 13h.01M10 16.500h4"/>',
+  plant: '<path d="M12 20.500V11M12 11C12 7.500 9.500 5 6 5c0 3.500 2.500 6 6 6zM12 14c0-3 2-5 5.500-5 0 3-2.200 5-5.500 5zM8.500 20.500h7"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.800 2.600 3.500 5.700 3.500 9s-.700 6.400-3.500 9c-2.800-2.600-3.500-5.700-3.500-9S9.200 5.600 12 3z"/>',
+  book: '<path d="M5 4.500h11.500a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2V4.500zM5 18a2 2 0 0 1 2-2h11.500"/>',
+  camera: '<path d="M4 8h3l1.500-2.500h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.500"/>',
+  music: '<path d="M9 17.500V6l10-2v11.500"/><circle cx="6.500" cy="17.500" r="2.500"/><circle cx="16.500" cy="15.500" r="2.500"/>',
+  flag: '<path d="M5.500 21V4M5.500 4.500h11l-2 4 2 4h-11"/>',
+  star: '<path d="M12 3.500l2.600 5.300 5.800.800-4.200 4.100 1 5.800L12 16.800l-5.200 2.700 1-5.800L3.600 9.600l5.800-.800L12 3.500z"/>',
+  heart: '<path d="M12 20s-7.500-4.500-7.500-10A4.300 4.300 0 0 1 12 7.500 4.300 4.300 0 0 1 19.500 10c0 5.500-7.500 10-7.500 10z"/>',
+  bolt: '<path d="M13 3L5 13.500h6L10 21l8-10.500h-6L13 3z"/>',
+  flame: '<path d="M12 21a6.500 6.500 0 0 0 6.500-6.500c0-3.500-2.500-5.500-3.500-8-2 1-3 3-3 4.500C11 9.500 9 8.500 9 6.500 6.500 9 5.500 11.500 5.500 14.500A6.500 6.500 0 0 0 12 21z"/>',
+  moon: '<path d="M19.500 14.500A8 8 0 0 1 9.500 4.500a8 8 0 1 0 10 10z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.500V5M12 19v2.500M2.500 12H5M19 12h2.500M5.300 5.300l1.800 1.800M16.900 16.900l1.800 1.800M5.300 18.700l1.800-1.800M16.900 7.100l1.800-1.800"/>',
+  leaf: '<path d="M5 19c0-9 5-14 14-14 0 9-5 14-14 14zM5 19l7-7"/>',
+  cloud: '<path d="M7 18.500a4.500 4.500 0 0 1-.500-9 6 6 0 0 1 11.500 1.500 3.800 3.800 0 0 1-.500 7.500H7z"/>',
+  crown: '<path d="M4 18.500h16M4.500 17L3.500 7.500l5 4 3.500-6 3.500 6 5-4-1 9.500H4.500z"/>',
+  diamond: '<path d="M6.500 4.500h11l3.500 5-9 10.500L3 9.500l3.500-5zM3 9.500h18"/>',
+  ghost: '<path d="M5 20.500V11a7 7 0 0 1 14 0v9.500l-2.300-2-2.400 2-2.300-2-2.300 2-2.400-2L5 20.500z"/><path d="M9.500 11h.01M14.500 11h.01"/>',
+  cat: '<path d="M5 20V6.500l4.500 3h5l4.500-3V20H5z"/><path d="M9.500 13.500h.01M14.500 13.500h.01M11 16.500h2"/>',
+  paw: '<path d="M8 9h.01M16 9h.01M4.500 14h.01M19.500 14h.01" stroke-width="3.600"/><path d="M12 12.500c3 0 5.500 3 5.500 5.200 0 1.500-1.500 2-2.500 1.500-1-.500-2-.800-3-.800s-2 .300-3 .800c-1 .500-2.500 0-2.500-1.500 0-2.200 2.500-5.200 5.500-5.200z"/>',
+  fish: '<path d="M3 12c3-5 8-6 12-3.500L21 6v12l-6-2.500C11 18 6 17 3 12z"/><path d="M8.500 11.500h.01"/>',
+  planet: '<circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.500" transform="rotate(-20 12 12)"/>',
+  mountain: '<path d="M3 19.500l6.500-11 4 6 2-3 5.500 8H3z"/>',
+  coffee: '<path d="M5 9h11v6a4.500 4.500 0 0 1-4.500 4.500h-2A4.500 4.500 0 0 1 5 15V9zM16 10.500h1.500a2.500 2.500 0 0 1 0 5H16M8 3.500v2M12 3.500v2"/>',
+  anchor: '<circle cx="12" cy="5.500" r="2"/><path d="M12 7.500v13M7.500 11h9M4 14c.500 3.500 3.500 6.500 8 6.500s7.500-3 8-6.500"/>',
+};
+const ico = (n, size = 18) => `<svg class="ico" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[n]}</svg>`;
+// Project and profile pictures are stored as "i:<name>" (older ones are plain emoji and still show).
+const PROJECT_GLYPHS = ['rocket', 'phone', 'bulb', 'gear', 'gamepad', 'cart', 'chart', 'palette', 'robot', 'plant', 'globe', 'book', 'camera', 'music', 'flag', 'star'];
+const AVATAR_GLYPHS = ['cat', 'paw', 'fish', 'ghost', 'robot', 'rocket', 'planet', 'star', 'heart', 'bolt', 'flame', 'moon', 'sun', 'cloud', 'leaf', 'mountain', 'crown', 'diamond', 'coffee', 'anchor', 'music', 'gamepad', 'bulb', 'camera'];
+const glyphName = (v) => (typeof v === 'string' && v.startsWith('i:') && ICON_PATHS[v.slice(2)] ? v.slice(2) : '');
+const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : esc(v));
+const glyphGrid = (names, value, action) => names.map((n) => `<button type="button" class="emoji-opt" data-action="${action}" data-v="i:${n}" aria-pressed="${value === `i:${n}`}" aria-label="${n}">${ico(n, 24)}</button>`).join('');
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.12.1';
+const APP_VERSION = '0.13.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -49,13 +102,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const isPhone = () => matchMedia('(max-width: 719px)').matches;
 const initials = (name = '?') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const hue = (id) => [...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-// Profile picture: the emoji and colour each person picked, or their initials.
-const AVATAR_EMOJIS = ['🦊', '🐼', '🐸', '🐙', '🦄', '🐱', '🐶', '🐻', '🐨', '🐯', '🦁', '🐵', '🐧', '🦉', '🐢', '🐳', '🦖', '🐝', '👾', '🤖', '👻', '🧙', '🥷', '🧑‍🚀', '🌵', '🍕', '🍩', '🚀', '⚡', '🌈', '🎧', '🎮', '🎸', '🍀', '🔥', '💎'];
+// Profile picture: the icon and colour each person picked, or their initials.
 const AVATAR_COLORS = ['#ffd8a8', '#ffc9c9', '#fcc2d7', '#eebefa', '#d0bfff', '#a5d8ff', '#99e9f2', '#96f2d7', '#b2f2bb', '#ffec99', '#dee2e6'];
 const avatar = (u, cls = '') => {
   if (!u) return '';
   const style = u.avatarColor ? `--h:${hue(u.id)};background:${u.avatarColor};color:#1b2130` : `--h:${hue(u.id)}`;
-  return `<span class="avatar ${cls}${u.avatarEmoji ? ' emoji' : ''}" style="${style}" title="${esc(u.displayName)}">${esc(u.avatarEmoji || initials(u.displayName))}</span>`;
+  return `<span class="avatar ${cls}${u.avatarEmoji ? ' emoji' : ''}" style="${style}" title="${esc(u.displayName)}">${u.avatarEmoji ? glyph(u.avatarEmoji) : esc(initials(u.displayName))}</span>`;
 };
 
 /** Emoji + colour picker, used on the welcome screen and in Mon compte. */
@@ -64,11 +116,11 @@ function avatarPicker(me) {
   <div class="field avatar-picker"><span>Ton icône</span>
     <div class="row" style="gap:14px;align-items:center">
       <span id="av-preview">${avatar(me, 'xl')}</span>
-      <p class="small muted grow">Choisis un emoji et une couleur. Sans emoji, ce sont tes initiales.</p>
+      <p class="small muted grow">Choisis une icône et une couleur. Sans icône, ce sont tes initiales.</p>
     </div>
-    <div class="emoji-grid" role="radiogroup" aria-label="Emoji">
+    <div class="emoji-grid" role="radiogroup" aria-label="Icône">
       <button type="button" class="emoji-opt initials" data-action="pick-avatar-emoji" data-v="" aria-pressed="${!me.avatarEmoji}" aria-label="Initiales">${esc(initials(me.displayName))}</button>
-      ${AVATAR_EMOJIS.map((e) => `<button type="button" class="emoji-opt" data-action="pick-avatar-emoji" data-v="${e}" aria-pressed="${me.avatarEmoji === e}">${e}</button>`).join('')}
+      ${glyphGrid(AVATAR_GLYPHS, me.avatarEmoji, 'pick-avatar-emoji')}
     </div>
     <div class="swatches" role="radiogroup" aria-label="Couleur">
       <button type="button" class="swatch auto" data-action="pick-avatar-color" data-v="" aria-pressed="${!me.avatarColor}" aria-label="Couleur automatique" style="--note:hsl(${hue(me.id)} 55% 85%)">A</button>
@@ -323,7 +375,7 @@ function projectCard(p) {
   return `
   <a class="pcard" href="#/p/${p.id}" style="--pc:${esc(p.color)}">
     <div class="pcard-head">
-      <span class="emoji-badge">${esc(p.emoji)}</span>
+      <span class="emoji-badge">${glyph(p.emoji)}</span>
       <div class="grow stack" style="gap:4px">
         <h2>${esc(p.name)}</h2>
         <div class="row" style="gap:6px"><span class="pill ${p.status}">${STATUS[p.status]}</span>${p.role === 'admin' ? '<span class="role admin">admin</span>' : ''}</div>
@@ -357,7 +409,7 @@ function renderList() {
       ${[['all', 'Tous'], ...Object.entries(STATUS)].map(([k, l]) => `<button class="chip" data-action="filter" data-v="${k}" aria-pressed="${state.filter === k}">${l}<span class="num">${counts[k]}</span></button>`).join('')}
     </div>` : ''}
     ${shown.length ? `<div class="projects">${shown.map(projectCard).join('')}</div>`
-      : `<div class="empty"><div class="big">🗂️</div><p>${counts.all ? 'Aucun projet avec ce statut.' : "Aucun projet pour l'instant."}</p>
+      : `<div class="empty"><div class="big">${ico('folder', 44)}</div><p>${counts.all ? 'Aucun projet avec ce statut.' : "Aucun projet pour l'instant."}</p>
          ${counts.all ? '' : '<button class="btn primary" data-action="new-project">Créer un projet</button>'}</div>`}
   </main>
   <button class="fab hide-lg" data-action="new-project" aria-label="Nouveau projet">+ Projet</button>`; });
@@ -409,14 +461,14 @@ function setFormColors(form, style) {
 
 function projectForm(p) {
   const editing = !!p;
-  p ||= { name: '', description: '', emoji: '🚀', color: PROJECT_COLORS[0], status: 'idea', manualProgress: 0, dueDate: '', tasks: { total: 0 } };
+  p ||= { name: '', description: '', emoji: 'i:rocket', color: PROJECT_COLORS[0], status: 'idea', manualProgress: 0, dueDate: '', tasks: { total: 0 } };
   openSheet(`
     <form class="stack" data-form="${editing ? 'edit-project' : 'new-project'}">
-      <div class="sheet-head"><h2 id="sheet-title">${editing ? 'Paramètres du projet' : 'Nouveau projet'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      <div class="sheet-head"><h2 id="sheet-title">${editing ? 'Paramètres du projet' : 'Nouveau projet'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       <label class="field"><span>Nom</span><input class="input" id="pf-name" name="name" value="${esc(p.name)}" required maxlength="80" placeholder="ex. App de covoiturage" autofocus></label>
       <div class="field"><span>Icône</span>
-        <div class="row"><input class="input" id="pf-emoji" name="emoji" value="${esc(p.emoji)}" maxlength="8" style="width:70px;text-align:center;font-size:1.3rem">
-        <div class="row" style="gap:4px">${EMOJIS.map((e) => `<button type="button" class="btn ghost icon" data-action="pick-emoji" data-v="${e}">${e}</button>`).join('')}</div></div>
+        <div class="emoji-grid" role="radiogroup" aria-label="Icône du projet">${glyphGrid(PROJECT_GLYPHS, p.emoji, 'pick-emoji')}</div>
+        <input type="hidden" id="pf-emoji" name="emoji" value="${esc(p.emoji)}">
       </div>
       <div class="field"><span>Couleur</span>
         <div class="swatches">${PROJECT_COLORS.map((c) => `<button type="button" class="swatch" style="--note:${c}" data-action="pick-color" data-v="${c}" aria-pressed="${c === p.color}" aria-label="Couleur ${c}"></button>`).join('')}
@@ -461,7 +513,7 @@ function renderProject() {
   redraw(`p${p.id}/${state.tab}/${state.taskView}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`, () => { $app.innerHTML = `
   ${topbar(`
     <a class="btn ghost icon" href="#/" aria-label="Retour aux projets">${icon.back}</a>
-    <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${esc(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
+    <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${glyph(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
     ${isAdmin ? `<button class="btn ghost icon" data-action="edit-project" aria-label="Paramètres du projet">${icon.gear}</button>` : ''}`)}
   <nav class="tabs" aria-label="Sections du projet">
     ${tabs.map(([k, l, ic, n]) => `<a class="tab" href="#/p/${p.id}/${k}" ${state.tab === k ? 'aria-current="page"' : ''}><span class="ico">${ic}</span>${l}${n ? `<span class="count num">${n}</span>` : ''}</a>`).join('')}
@@ -486,7 +538,7 @@ function linksBlock(d) {
       <a class="link-chip lk-${k.id}" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">
         <span class="lk-ico">${linkIcon(k)}</span>
         <span class="lk-text"><b>${esc(linkLabel(l))}</b><small>${esc(linkHost(l.url))}</small></span>
-        <span class="lk-out" aria-hidden="true">↗</span>
+        <span class="lk-out" aria-hidden="true">${ico('out', 16)}</span>
       </a>`; }).join('')}</div>`
       : `<button class="btn wrap-text" data-action="manage-links">+ Ajouter un lien <span class="muted small">GitHub, Supabase, Claude…</span></button>`}
   </div>`;
@@ -497,7 +549,7 @@ function linksSheet(editId = null) {
   const d = state.data;
   const cur = d.links.find((l) => l.id === editId) || { label: '', url: '' };
   openSheet(`
-    <div class="sheet-head"><h2 id="sheet-title">Liens du projet</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+    <div class="sheet-head"><h2 id="sheet-title">Liens du projet</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
     ${d.links.length ? `<div class="members">${d.links.map((l) => { const k = linkKind(l.url); return `
       <div class="member lk-${k.id}"><span class="lk-ico">${linkIcon(k)}</span>
         <div class="grow"><strong>${esc(linkLabel(l))}</strong><span class="small muted lk-url">${esc(linkHost(l.url))}</span></div>
@@ -534,7 +586,7 @@ function viewOverview(d) {
           ${nowPr.total ? `<div class="now-progress"><div class="row between small"><span class="muted">Chantiers « Maintenant »</span><span class="num"><b>${nowPr.done}/${nowPr.total}</b> faits · ${nowPr.pct} %</span></div>
             <div class="progress"><i style="width:${nowPr.pct}%"></i></div></div>` : ''}
           <div class="meta">
-            ${p.dueDate ? `<span>📅 ${esc(dueLabel(p.dueDate))}</span>` : ''}
+            ${p.dueDate ? `<span class="with-ico">${ico('calendar', 15)} ${esc(dueLabel(p.dueDate))}</span>` : ''}
           </div>
         </div>
       </div>
@@ -558,8 +610,8 @@ function viewOverview(d) {
       </section>
       <section class="panel">
         <div class="row between"><h3>Idées les plus votées</h3><a class="small" href="#/p/${p.id}/idees">Voir le mur</a></div>
-        ${top.length ? `<div class="top-ideas">${top.map((n) => `<button class="mini-note c-${n.color}" data-action="open-note" data-id="${n.id}"><span>${esc(n.text.split('\n')[0] || 'Post-it vide')}</span><span class="num">👍 ${n.votes}</span></button>`).join('')}</div>`
-          : `<p class="muted small">Vote pour les post-it avec 👍 : les favoris apparaîtront ici.</p>`}
+        ${top.length ? `<div class="top-ideas">${top.map((n) => `<button class="mini-note c-${n.color}" data-action="open-note" data-id="${n.id}"><span>${esc(n.text.split('\n')[0] || 'Post-it vide')}</span><span class="num with-ico">${ico('thumb', 13)} ${n.votes}</span></button>`).join('')}</div>`
+          : `<p class="muted small">Vote pour les post-it avec le pouce ${ico('thumb', 14)} : les favoris apparaîtront ici.</p>`}
       </section>
       <section class="panel activity">
         <button class="panel-toggle" data-action="toggle-activity" aria-expanded="${state.activityOpen}">
@@ -581,7 +633,7 @@ function noteHtml(n, wall) {
     style="--rot:${rot}deg;${wall ? `left:${n.x}px;top:${n.y}px;z-index:${n.z}` : ''}" tabindex="0" aria-label="Post-it : ${esc(n.text.slice(0, 60))}">
     <div class="n-text">${esc(n.text)}</div>
     <div class="n-foot"><span class="who">${esc(n.author || '')}</span>
-      <button class="vote ${n.voted ? 'on' : ''}" data-action="vote" data-id="${n.id}" aria-pressed="${n.voted}" aria-label="Voter">👍 <span class="num">${n.votes}</span></button></div>
+      <button class="vote ${n.voted ? 'on' : ''}" data-action="vote" data-id="${n.id}" aria-pressed="${n.voted}" aria-label="Voter">${ico('thumb', 14)} <span class="num">${n.votes}</span></button></div>
   </article>`;
 }
 
@@ -597,10 +649,10 @@ function viewNotes(d) {
     </div>
     <p class="muted small grow">${wall ? 'Glisse le fond pour te déplacer, pince (ou Ctrl + molette) pour zoomer, touche un post-it pour le modifier.' : 'Les plus votés d\'abord, puis par ordre d\'ajout.'}</p>
   </div>
-  ${!d.notes.length ? `<div class="empty"><div class="big">🗒️</div><p>Aucun post-it. Note ici les idées, les bugs à régler, les envies…</p><button class="btn primary" data-action="new-note">Coller un post-it</button></div>`
+  ${!d.notes.length ? `<div class="empty"><div class="big">${ico('note', 44)}</div><p>Aucun post-it. Note ici les idées, les bugs à régler, les envies…</p><button class="btn primary" data-action="new-note">Coller un post-it</button></div>`
     : wall ? `<div class="board-wrap wall${state.wall?.fs ? ' fs' : ''}" tabindex="0" aria-label="Plan de travail des post-it">
         <div class="board" style="width:${BOARD_W}px;height:${BOARD_H}px">${sorted.map((n) => noteHtml(n, true)).join('')}</div>
-        <div class="wall-top"><button class="btn sm" data-action="wall-exit">✕ Fermer</button><span class="wall-title">Post-it · ${d.notes.length}</span><button class="btn sm primary" data-action="new-note">+ Post-it</button></div>
+        <div class="wall-top"><button class="btn sm" data-action="wall-exit">${ico('x', 15)} Fermer</button><span class="wall-title">Post-it · ${d.notes.length}</span><button class="btn sm primary" data-action="new-note">+ Post-it</button></div>
         <div class="minimap" aria-hidden="true"></div>
         <div class="wall-bar" role="toolbar" aria-label="Zoom et rangement">
           <button class="wb" data-action="wall-zoom" data-v="out" aria-label="Dézoomer">−</button>
@@ -608,7 +660,7 @@ function viewNotes(d) {
           <button class="wb" data-action="wall-zoom" data-v="in" aria-label="Zoomer">+</button>
           <button class="wb txt" data-action="wall-fit">Tout voir</button>
           <button class="wb txt" data-action="wall-arrange">Ranger</button>
-          ${state.wall?.fs ? '' : '<button class="wb" data-action="wall-fs" aria-label="Plein écran">⛶</button>'}
+          ${state.wall?.fs ? '' : `<button class="wb" data-action="wall-fs" aria-label="Plein écran">${ico('expand', 20)}</button>`}
         </div>
       </div>`
       : `<div class="note-grid">${sorted.map((n) => noteHtml(n, false)).join('')}</div>`}`;
@@ -653,9 +705,10 @@ function viewTeam(d) {
 // ---------- tasks: chantiers + items (tâche / bug / amélioration), three views ----------
 
 const TYPES = { task: 'Tâche', bug: 'Bug', idea: 'Idée', improvement: 'Amélioration' };
-const TYPE_ICON = { task: '✅', bug: '🐞', idea: '💡', improvement: '✨' };
+const TYPE_ICON_NAME = { task: 'check', bug: 'bug', idea: 'bulb', improvement: 'spark' };
+const typeIcon = (k, size = 15) => ico(TYPE_ICON_NAME[k], size);
 const TYPE_LIST = Object.keys(TYPES);
-const typeLabel = (k) => `${TYPE_ICON[k]} ${TYPES[k]}`;
+const typeLabel = (k) => `<span class="with-ico">${typeIcon(k)} ${TYPES[k]}</span>`;
 const NEW_TITLE = { task: 'Nouvelle tâche', bug: 'Nouveau bug', idea: 'Nouvelle idée', improvement: 'Nouvelle amélioration' };
 
 // Task look per project: a style (the shape of cards and tags) and one colour per type, editable by admins.
@@ -685,7 +738,7 @@ const PRIO_ORDER = { high: 0, normal: 1, low: 2 };
 const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
 
 const CHECK_SVG = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.800l4.600 4.600L19 7.200"/></svg>';
-const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${TYPE_ICON[t.type]}</i>${TYPES[t.type]}</span>`);
+const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${typeIcon(t.type, 13)}</i>${TYPES[t.type]}</span>`);
 const prioTag = (t) => (t.priority === 'high' ? '<span class="prio high" title="Priorité haute">Prioritaire</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
 const sortItems = (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
 const sortEpics = (a, b) => HORIZON_ORDER[a.horizon] - HORIZON_ORDER[b.horizon] || a.position - b.position;
@@ -737,7 +790,7 @@ function viewRoadmap(d) {
   const done = d.epics.filter((e) => e.horizon === 'done');
   const loose = d.tasks.filter((t) => !t.epicId && t.status !== 'done').length;
   if (!d.epics.length) {
-    return `<div class="empty"><div class="big">🗺️</div><p>Aucun grand chantier pour l'instant.<br>Un chantier regroupe une grosse idée et toutes ses tâches, bugs et améliorations.</p>
+    return `<div class="empty"><div class="big">${ico('map', 44)}</div><p>Aucun grand chantier pour l'instant.<br>Un chantier regroupe une grosse idée et toutes ses tâches, bugs et améliorations.</p>
       <button class="btn primary" data-action="new-epic">Créer un chantier</button></div>`;
   }
   const card = (e) => {
@@ -824,7 +877,7 @@ function taskSheet(t) {
   t = { title: '', description: '', status: 'todo', type: 'task', priority: 'normal', epicId: null, assigneeId: null, ...t };
   openSheet(`
     <form class="stack" data-form="${isNew ? 'new-task' : 'edit-task'}" data-id="${t.id || ''}">
-      <div class="sheet-head"><h2 id="sheet-title">${isNew ? NEW_TITLE[t.type] : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      <div class="sheet-head"><h2 id="sheet-title">${isNew ? NEW_TITLE[t.type] : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       ${segField('type', Object.fromEntries(TYPE_LIST.map((k) => [k, typeLabel(k)])), t.type, 'Type', 'type-opt')}
       <label class="field"><span>Titre</span><input class="input" id="tf-title" name="title" maxlength="200" required value="${esc(t.title)}" placeholder="${t.type === 'bug' ? 'ex. Crash quand on ouvre la carte' : 'ex. Écran de connexion'}" autofocus></label>
       <label class="field"><span>Description <small class="muted">(facultatif)</small></span><textarea class="input" id="tf-desc" name="description" maxlength="5000" placeholder="${t.type === 'bug' ? 'Comment le reproduire, sur quel appareil…' : 'Détails, étapes, liens…'}">${esc(t.description)}</textarea></label>
@@ -848,7 +901,7 @@ function epicSheet(e) {
   const items = isNew ? [] : d.tasks.filter((t) => t.epicId === e.id).sort(sortItems);
   openSheet(`
     <form class="stack" data-form="${isNew ? 'new-epic' : 'edit-epic'}" data-id="${e.id || ''}">
-      <div class="sheet-head"><h2 id="sheet-title">${isNew ? 'Nouveau chantier' : 'Chantier'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      <div class="sheet-head"><h2 id="sheet-title">${isNew ? 'Nouveau chantier' : 'Chantier'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       <label class="field"><span>Titre</span><input class="input" id="ef-title" name="title" maxlength="200" required value="${esc(e.title)}" placeholder="ex. Mode hors-ligne" autofocus></label>
       <label class="field"><span>Description</span><textarea class="input" id="ef-desc" name="description" maxlength="5000" style="min-height:130px" placeholder="L'idée, pourquoi, les grandes étapes…&#10;- point 1&#10;- point 2">${esc(e.description)}</textarea></label>
       ${segField('horizon', HORIZON, e.horizon, 'Quand ?')}
@@ -870,7 +923,7 @@ function chooserSheet({ title = 'Ajouter', action = 'choose-new', noteId = '' } 
     ['improvement', 'Amélioration', "Rendre mieux ce qui existe déjà."],
   ];
   openSheet(`
-    <div class="sheet-head"><h2 id="sheet-title">${title}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+    <div class="sheet-head"><h2 id="sheet-title">${title}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
     <div class="chooser">${choices.map(([k, l, hint]) => `<button class="choice ch-${k}" data-action="${action}" data-v="${k}" data-id="${noteId}"><strong>${l}</strong><span>${hint}</span></button>`).join('')}</div>`);
 }
 
@@ -912,12 +965,12 @@ function noteSheet(n) {
   const isNew = !n.id;
   openSheet(`
     <form class="stack" data-form="${isNew ? 'new-note' : 'edit-note'}" data-id="${n.id || ''}">
-      <div class="sheet-head"><h2 id="sheet-title">${isNew ? 'Nouveau post-it' : 'Post-it'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      <div class="sheet-head"><h2 id="sheet-title">${isNew ? 'Nouveau post-it' : 'Post-it'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       <div class="sheet-note c-${n.color}" id="nf-paper"><textarea id="nf-text" name="text" maxlength="1000" placeholder="Une idée, un bug, une envie…" autofocus>${esc(n.text)}</textarea></div>
       <div class="swatches" role="radiogroup" aria-label="Couleur">${Object.entries(NOTE_COLORS).map(([k, l]) => `<button type="button" class="swatch c-${k}" data-action="note-color" data-v="${k}" aria-pressed="${k === n.color}" aria-label="${l}"></button>`).join('')}</div>
       <input type="hidden" name="color" value="${n.color}">
       ${isNew ? `<input type="hidden" name="x" value="${n.x ?? ''}"><input type="hidden" name="y" value="${n.y ?? ''}">` : ''}
-      ${isNew ? '' : `<p class="small muted">Par ${esc(n.author || 'un ancien membre')} · ${timeAgo(n.createdAt)} · 👍 ${n.votes}</p>`}
+      ${isNew ? '' : `<p class="small muted">Par ${esc(n.author || 'un ancien membre')} · ${timeAgo(n.createdAt)} · <span class="with-ico">${ico('thumb', 13)} ${n.votes}</span></p>`}
       <div class="row between">
         ${isNew ? '<span></span>' : `<div class="row"><button type="button" class="btn danger" data-action="delete-note" data-id="${n.id}">Supprimer</button>
           <button type="button" class="btn" data-action="note-convert" data-id="${n.id}">Transformer en…</button></div>`}
@@ -1026,7 +1079,7 @@ function arrangeLayout(notes, mode) {
 
 function arrangeSheet() {
   openSheet(`
-    <div class="sheet-head"><h2 id="sheet-title">Ranger les post-it</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+    <div class="sheet-head"><h2 id="sheet-title">Ranger les post-it</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
     <p class="small muted">Les post-it sont alignés en grille, pour tout le monde. Tu pourras annuler juste après.</p>
     <div class="chooser">
       <button class="choice ch-task" data-action="wall-arrange-do" data-v="color"><strong>Par couleur</strong><span>Une ligne par couleur de post-it.</span></button>
@@ -1290,7 +1343,7 @@ function accountSheet() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   openSheet(`
     <div class="sheet-head"><div class="row">${avatar(me, 'lg')}<div><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div></div>
-      <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
     ${!standalone ? `<div class="panel" style="background:var(--accent-soft);border-color:transparent">
       <h3>Installer l'app</h3>
       ${state.installPrompt ? '<p class="small">Ajoute Tool Proj à ton écran d\'accueil pour l\'ouvrir comme une vraie app.</p><button class="btn primary" data-action="install">Installer</button>'
@@ -1359,7 +1412,7 @@ const actions = {
   filter: (el) => { state.filter = el.dataset.v; renderList(); },
   'new-project': () => projectForm(null),
   'edit-project': () => projectForm(state.data.project),
-  'pick-emoji': (el) => { sheet.querySelector('#pf-emoji').value = el.dataset.v; },
+  'pick-emoji': (el) => { sheet.querySelector('#pf-emoji').value = el.dataset.v; el.closest('.emoji-grid').querySelectorAll('.emoji-opt').forEach((b) => b.setAttribute('aria-pressed', b === el)); },
   'pick-color': (el) => {
     sheet.querySelector('#pf-color').value = el.dataset.v;
     sheet.querySelectorAll('[data-action="pick-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));

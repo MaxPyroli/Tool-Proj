@@ -217,7 +217,7 @@ textarea.input { min-height: 96px; resize: vertical; }
   display: grid; place-items: center; gap: 12px; text-align: center; padding: 48px 16px;
   border: 2px dashed var(--line); border-radius: var(--r); color: var(--muted);
 }
-.empty .big { font-size: 2.4rem; }
+.empty .big { color: var(--muted); display: flex; justify-content: center; margin-bottom: 4px; }
 
 .fab {
   position: fixed; z-index: 15;
@@ -469,7 +469,7 @@ code { font-size: .9em; background: var(--surface-2); padding: 1px 5px; border-r
 .task .t-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .t-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .75rem; color: var(--muted); }
 .type-tag { --tc: var(--c-task); display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; padding: 1px 8px 1px 6px; border-radius: 99px; color: color-mix(in srgb, var(--tc) 55%, var(--ink)); background: color-mix(in srgb, var(--tc) 18%, transparent); white-space: nowrap; }
-.type-tag i { font-style: normal; font-size: .85em; }
+.type-tag i { font-style: normal; display: inline-flex; }
 .type-tag.ty-task { --tc: var(--c-task); } .type-tag.ty-bug { --tc: var(--c-bug); } .type-tag.ty-idea { --tc: var(--c-idea); } .type-tag.ty-improvement { --tc: var(--c-improvement); }
 .prio { font-size: .72rem; font-weight: 700; }
 .prio.high { color: var(--danger); }
@@ -673,3 +673,14 @@ dialog#sheet { overscroll-behavior: contain; }
 .toast.has-act { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .toast-act { pointer-events: auto; border: 0; background: none; color: inherit; font: inherit; font-weight: 800; text-decoration: underline; cursor: pointer; padding: 6px 4px; }
 .toast.has-act { pointer-events: auto; }
+
+/* drawn icons */
+.ico { flex: none; vertical-align: -.2em; }
+.with-ico { display: inline-flex; align-items: center; gap: 5px; }
+.vote .ico { vertical-align: 0; }
+.lk-out { display: inline-flex; }
+.btn .ico, .wb .ico { vertical-align: -.25em; }
+.emoji-badge .ico, .avatar .ico { width: 1em; height: 1em; vertical-align: 0; }
+.emoji-opt { display: grid; place-items: center; color: var(--ink); }
+.emoji-opt .ico { vertical-align: 0; }
+.avatar.emoji .ico { stroke-width: 2.200; }
