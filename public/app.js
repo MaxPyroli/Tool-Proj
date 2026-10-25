@@ -11,8 +11,9 @@ const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert'
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 const BOARD_W = 1800, BOARD_H = 1200;
-const APP_VERSION = 'v9';
-document.documentElement.dataset.appv = APP_VERSION;
+const APP_VERSION = '0.9.0';
+const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
+document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
 // Redrawing replaces the page content: remember where the reader was so the screen doesn't jump to the top.
 let lastViewKey = null;
@@ -1002,7 +1003,7 @@ function accountSheet() {
       <button class="btn" data-action="passkey-add">${icon.key} Ajouter une clé sur cet appareil</button>
     </section>` : ''}
     <button class="btn danger" data-action="logout">Se déconnecter</button>
-    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION}</p>`, () => { if (db.passkeysSupported()) loadPasskeys(); });
+    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span></p>`, () => { if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {

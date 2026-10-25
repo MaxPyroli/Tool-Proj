@@ -100,9 +100,17 @@ Le script ajoute ce qui manque sans rien effacer. Si tu oublies, l'app affiche �
 ```bash
 npm start            # sert public/ sur http://localhost:5173
 npm run test:db      # teste schema.sql (droits, triggers) sur un Postgres local
+npm run bump -- patch   # change la version partout (patch, minor, major ou x.y.z)
+node test/mobile-audit.cjs <dossier> <clé-secrète-locale> 390   # audit mobile (voir l'en-tête du fichier)
 ```
 
 `npm run test:db` utilise `DATABASE_URL` (par défaut `postgres://postgres@localhost:5432/postgres`) et crée puis supprime une base temporaire.
+
+## Versions
+
+Numérotation `0.x.y` (voir [`CHANGELOG.md`](CHANGELOG.md)) : `npm run bump -- minor` pour une nouveauté, `patch` pour une correction.
+Le **numéro de build** est ajouté tout seul à chaque mise en ligne : on le voit avec la version dans *Mon compte* (« version 0.9.0 (build 27) »).
+Les règles de travail et les vérifications à refaire à chaque ajout sont dans [`CLAUDE.md`](CLAUDE.md).
 
 ## Structure
 

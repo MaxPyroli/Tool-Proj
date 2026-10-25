@@ -1,11 +1,12 @@
 {
   "name": "tool-proj",
-  "version": "2.0.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Suivi de projets d'applications avec post-it, tâches et membres (GitHub Pages + Supabase)",
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.js",
-    "test:db": "sh scripts/test-db.sh"
+    "test:db": "sh scripts/test-db.sh",
+    "bump": "node scripts/bump-version.js"
   }
 }

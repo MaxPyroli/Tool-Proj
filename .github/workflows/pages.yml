@@ -36,6 +36,13 @@ jobs:
             require("fs").writeFileSync("public/config.js", "window.TOOL_PROJ_CONFIG = " + JSON.stringify(c, null, 2) + ";\n");
           '
 
+      - name: Numéroter le build
+        run: |
+          sed -i "s/const APP_BUILD = 'dev';/const APP_BUILD = '${{ github.run_number }}';/" public/app.js
+          sed -i "s/const BUILD = 'dev';/const BUILD = '${{ github.run_number }}';/" public/sw.js
+          grep -q "APP_BUILD = '${{ github.run_number }}'" public/app.js
+          grep -q "BUILD = '${{ github.run_number }}'" public/sw.js
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
