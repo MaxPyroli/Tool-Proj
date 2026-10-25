@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.12.1
+- Mini-carte : même forme que le mur, plus de bords vides autour.
+
 ## 0.12.0
 - Mini-carte : elle montre maintenant le mur entier (le cadre = ce que tu vois).
 - Zoom en tenant un post-it : un doigt tient le post-it, deux autres doigts pincent. (Les boutons − et + restent utilisables avec un autre doigt.)
