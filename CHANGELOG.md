@@ -2,6 +2,10 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.12.0
+- Mini-carte : elle montre maintenant le mur entier (le cadre = ce que tu vois).
+- Zoom en tenant un post-it : un doigt tient le post-it, deux autres doigts pincent. (Les boutons − et + restent utilisables avec un autre doigt.)
+
 ## 0.11.2
 - Mur de post-it : on ne voit plus le vide autour du plan (il remplit l'écran, ou se centre quand il est petit).
 - Une fiche de post-it ne se referme plus toute seule juste après l'ouverture (clic fantôme d'un tap).

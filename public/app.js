@@ -11,7 +11,7 @@ const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert'
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.11.2';
+const APP_VERSION = '0.12.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1073,12 +1073,11 @@ function bindWall(wrap) {
     const { W, H } = view(), c = w.cam;
     const vis = { x: -c.x / c.k, y: -c.y / c.k, w: W / c.k, h: H / c.k };
     const boxes = noteEls().map((el) => ({ x: el.offsetLeft, y: el.offsetTop, color: [...el.classList].find((k) => k.startsWith('c-')) }));
-    const x0 = Math.min(vis.x, ...boxes.map((b) => b.x)) - 40, y0 = Math.min(vis.y, ...boxes.map((b) => b.y)) - 40;
-    const x1 = Math.max(vis.x + vis.w, ...boxes.map((b) => b.x + WALL.noteW)) + 40, y1 = Math.max(vis.y + vis.h, ...boxes.map((b) => b.y + WALL.noteH)) + 40;
-    const MW = mm.clientWidth, MH = mm.clientHeight, s = Math.min(MW / (x1 - x0), MH / (y1 - y0));
-    const ox = (MW - (x1 - x0) * s) / 2 - x0 * s, oy = (MH - (y1 - y0) * s) / 2 - y0 * s;
+    // the map always shows the whole wall, so it matches the world the view moves in
+    const MW = mm.clientWidth, MH = mm.clientHeight, s = Math.min(MW / BOARD_W, MH / BOARD_H);
+    const ox = (MW - BOARD_W * s) / 2, oy = (MH - BOARD_H * s) / 2;
     mmMap = { s, ox, oy };
-    mm.innerHTML = boxes.map((b) => `<i class="mm-note ${b.color}" style="left:${b.x * s + ox}px;top:${b.y * s + oy}px;width:${WALL.noteW * s}px;height:${WALL.noteH * s}px"></i>`).join('')
+    mm.innerHTML = `<b class="mm-world" style="left:${ox}px;top:${oy}px;width:${BOARD_W * s}px;height:${BOARD_H * s}px"></b>` + boxes.map((b) => `<i class="mm-note ${b.color}" style="left:${b.x * s + ox}px;top:${b.y * s + oy}px;width:${Math.max(3, WALL.noteW * s)}px;height:${Math.max(3, WALL.noteH * s)}px"></i>`).join('')
       + `<b class="mm-view" style="left:${vis.x * s + ox}px;top:${vis.y * s + oy}px;width:${vis.w * s}px;height:${vis.h * s}px"></b>`;
   }
   function miniTo(e) {
@@ -1177,7 +1176,12 @@ function bindWall(wrap) {
     refreshFlags();
     const el = e.target.closest('.note');
     if (ptrs.size === 1) { if (el) startDrag(e, el); else startPan(e); return; }
-    if (ptrs.size !== 2) return; // a third finger is ignored
+    if (ptrs.size === 3) { // one finger holds a post-it, the two others pinch the view
+      const free = [...ptrs.keys()].filter((i) => !(drags.get(i)?.moved));
+      if (free.length === 2 && [...drags.values()].some((d) => d.moved)) { pan = null; for (const i of free) drags.delete(i); startPinch(free); refreshFlags(); }
+      return;
+    }
+    if (ptrs.size !== 2) return;
     const first = [...ptrs.keys()][0], held = drags.get(first);
     if (held && held.moved) { // the first finger is carrying a post-it
       if (el && !drags.has(e.pointerId)) startDrag(e, el); else startPan(e);
@@ -1196,7 +1200,7 @@ function bindWall(wrap) {
       const [a, b] = pinch.ids.map((i) => ptrs.get(i)); if (!a || !b) return;
       const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
       const r = wrap.getBoundingClientRect(), k2 = clampK(pinch.k0 * d / pinch.d0);
-      w.fit = false; w.cam.k = k2; w.cam.x = cx - r.left - pinch.p.x * k2; w.cam.y = cy - r.top - pinch.p.y * k2; apply();
+      w.fit = false; w.cam.k = k2; w.cam.x = cx - r.left - pinch.p.x * k2; w.cam.y = cy - r.top - pinch.p.y * k2; apply(); keepHeldNotes();
       return;
     }
     const d = drags.get(e.pointerId);

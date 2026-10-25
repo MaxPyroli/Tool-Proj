@@ -348,6 +348,7 @@ textarea.input { min-height: 96px; resize: vertical; }
   background: color-mix(in srgb, var(--surface) 88%, transparent); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
   touch-action: none; cursor: crosshair;
 }
+.mm-world { position: absolute; background: var(--board); border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
 .mm-note { position: absolute; border-radius: 1px; background: var(--muted); }
 .mm-note.c-yellow { background: var(--pi-yellow); } .mm-note.c-pink { background: var(--pi-pink); } .mm-note.c-blue { background: var(--pi-blue); }
 .mm-note.c-green { background: var(--pi-green); } .mm-note.c-orange { background: var(--pi-orange); } .mm-note.c-purple { background: var(--pi-purple); }
