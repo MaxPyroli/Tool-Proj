@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so it opens instantly and works as an installed app.
 // Supabase calls always go to the network (data must stay fresh and shared).
-const CACHE = 'tool-proj-v8';
+const CACHE = 'tool-proj-v9';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'data.js', 'config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
 const CACHEABLE_HOSTS = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
@@ -18,8 +18,9 @@ self.addEventListener('fetch', (e) => {
   const sameOrigin = url.origin === self.location.origin;
   if (!sameOrigin && !CACHEABLE_HOSTS.includes(url.hostname)) return; // Supabase & co : réseau uniquement
   // Network first (so updates show up), cache as fallback when offline.
+  // `no-cache` makes the browser check with the server instead of trusting its own 10-minute copy (GitHub Pages sends max-age=600).
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, sameOrigin ? { cache: 'no-cache' } : undefined)
       .then((res) => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
         return res;

@@ -11,6 +11,8 @@ const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert'
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 const BOARD_W = 1800, BOARD_H = 1200;
+const APP_VERSION = 'v9';
+document.documentElement.dataset.appv = APP_VERSION;
 
 // Redrawing replaces the page content: remember where the reader was so the screen doesn't jump to the top.
 let lastViewKey = null;
@@ -999,7 +1001,8 @@ function accountSheet() {
       <div class="passkeys" id="pk-list"><p class="small muted">Chargement…</p></div>
       <button class="btn" data-action="passkey-add">${icon.key} Ajouter une clé sur cet appareil</button>
     </section>` : ''}
-    <button class="btn danger" data-action="logout">Se déconnecter</button>`, () => { if (db.passkeysSupported()) loadPasskeys(); });
+    <button class="btn danger" data-action="logout">Se déconnecter</button>
+    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION}</p>`, () => { if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {
@@ -1347,7 +1350,18 @@ if (window.visualViewport) {
 }
 
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); state.installPrompt = e; });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  // When a new version takes over, reload once so the screen runs the new code (not while typing or in a sheet).
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    if (sheet.open || document.activeElement?.matches?.('input, textarea, select')) return; // it will load next time
+    reloaded = true; location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then((reg) => reg.update()).catch(() => {});
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) navigator.serviceWorker.getRegistration().then((r) => r?.update()).catch(() => {}); });
+}
 
 function signedIn() {
   state.authError = ''; state.authInfo = ''; state.authStep = 'email';
