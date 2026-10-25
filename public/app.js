@@ -1191,6 +1191,10 @@ const forms = {
       for (const t of TYPE_LIST) { const v = (body[`tc_${t}`] || '').toLowerCase(); if (v && v !== base[t].toLowerCase()) body.typeColors[t] = v; }
     }
     TYPE_LIST.forEach((t) => delete body[`tc_${t}`]);
+    // Only send the style when it changed, so saving other settings never depends on the style columns existing.
+    const cur = state.data.project;
+    const same = body.taskStyle === styleOf(cur) && JSON.stringify(Object.entries(body.typeColors || {}).sort()) === JSON.stringify(Object.entries(cur.typeColors || {}).sort());
+    if (same) { delete body.taskStyle; delete body.typeColors; }
     await db.updateProject(state.pid, body);
     closeSheet(); toast('Projet mis à jour'); await reloadProject();
   },

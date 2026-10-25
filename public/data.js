@@ -10,6 +10,7 @@ const sb = configured ? createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: {
 
 // Translate Supabase / Postgres errors into messages people can act on.
 const MESSAGES = [
+  [/tasks_type_check/i, "Le type « Idée » demande la mise à jour de la base : relance supabase/schema.sql dans le SQL Editor (tes données sont conservées)."],
   [/PGRST20[45]|42P01|42703|schema cache|does not exist.*(epics|description|priority)|relation "public\.(epics|project_links)"/i, "La base Supabase n'est pas à jour : relance le script supabase/schema.sql dans le SQL Editor (tes données sont conservées)."],
   [/email_provider_disabled|Email logins are disabled/i, 'La connexion par email est désactivée dans Supabase (Authentication → Sign In / Providers → Email).'],
   [/Signups not allowed|otp_disabled/i, "Aucun compte avec cet email. Demande à un admin de t'inviter."],
