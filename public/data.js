@@ -184,14 +184,14 @@ export async function getProject(id, me) {
 }
 
 export async function createProject(f) {
-  return ok(await sb.rpc('create_project', { p_name: f.name, p_description: f.description || '', p_emoji: f.emoji || 'i:rocket', p_color: f.color, p_status: f.status }));
+  return ok(await sb.rpc('create_project', { p_name: f.name, p_description: f.description || '', p_emoji: f.emoji || '🚀', p_color: f.color, p_status: f.status }));
 }
 
 export async function updateProject(id, f) {
   const row = {};
   if (f.name !== undefined) row.name = f.name.trim();
   if (f.description !== undefined) row.description = f.description.trim();
-  if (f.emoji !== undefined) row.emoji = f.emoji.trim() || 'i:rocket';
+  if (f.emoji !== undefined) row.emoji = f.emoji.trim() || '🚀';
   if (f.color !== undefined) row.color = f.color;
   if (f.status !== undefined) row.status = f.status;
   if (f.manualProgress !== undefined) row.manual_progress = Math.max(0, Math.min(100, Math.round(Number(f.manualProgress) || 0)));

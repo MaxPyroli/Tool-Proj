@@ -9,6 +9,7 @@ const TASK = { todo: 'À faire', doing: 'En cours', done: 'Fait' };
 const TASK_COLOR = { todo: 'var(--muted)', doing: 'var(--st-paused)', done: 'var(--st-active)' };
 const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert', orange: 'Orange', purple: 'Violet' };
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
+const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 // Drawn icons (follow the text colour): interface, project and profile pictures.
 const ICON_PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -57,14 +58,11 @@ const ICON_PATHS = {
   anchor: '<circle cx="12" cy="5.500" r="2"/><path d="M12 7.500v13M7.500 11h9M4 14c.500 3.500 3.500 6.500 8 6.500s7.500-3 8-6.500"/>',
 };
 const ico = (n, size = 18) => `<svg class="ico" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[n]}</svg>`;
-// Project and profile pictures are stored as "i:<name>" (older ones are plain emoji and still show).
-const PROJECT_GLYPHS = ['rocket', 'phone', 'bulb', 'gear', 'gamepad', 'cart', 'chart', 'palette', 'robot', 'plant', 'globe', 'book', 'camera', 'music', 'flag', 'star'];
-const AVATAR_GLYPHS = ['cat', 'paw', 'fish', 'ghost', 'robot', 'rocket', 'planet', 'star', 'heart', 'bolt', 'flame', 'moon', 'sun', 'cloud', 'leaf', 'mountain', 'crown', 'diamond', 'coffee', 'anchor', 'music', 'gamepad', 'bulb', 'camera'];
+// Project and profile pictures are emoji; "i:<name>" values (drawn icons, briefly offered in 0.13.0) still show.
 const glyphName = (v) => (typeof v === 'string' && v.startsWith('i:') && ICON_PATHS[v.slice(2)] ? v.slice(2) : '');
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : esc(v));
-const glyphGrid = (names, value, action) => names.map((n) => `<button type="button" class="emoji-opt" data-action="${action}" data-v="i:${n}" aria-pressed="${value === `i:${n}`}" aria-label="${n}">${ico(n, 24)}</button>`).join('');
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.13.0';
+const APP_VERSION = '0.13.1';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -103,6 +101,7 @@ const isPhone = () => matchMedia('(max-width: 719px)').matches;
 const initials = (name = '?') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const hue = (id) => [...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 // Profile picture: the icon and colour each person picked, or their initials.
+const AVATAR_EMOJIS = ['🦊', '🐼', '🐸', '🐙', '🦄', '🐱', '🐶', '🐻', '🐨', '🐯', '🦁', '🐵', '🐧', '🦉', '🐢', '🐳', '🦖', '🐝', '👾', '🤖', '👻', '🧙', '🥷', '🧑‍🚀', '🌵', '🍕', '🍩', '🚀', '⚡', '🌈', '🎧', '🎮', '🎸', '🍀', '🔥', '💎'];
 const AVATAR_COLORS = ['#ffd8a8', '#ffc9c9', '#fcc2d7', '#eebefa', '#d0bfff', '#a5d8ff', '#99e9f2', '#96f2d7', '#b2f2bb', '#ffec99', '#dee2e6'];
 const avatar = (u, cls = '') => {
   if (!u) return '';
@@ -116,11 +115,11 @@ function avatarPicker(me) {
   <div class="field avatar-picker"><span>Ton icône</span>
     <div class="row" style="gap:14px;align-items:center">
       <span id="av-preview">${avatar(me, 'xl')}</span>
-      <p class="small muted grow">Choisis une icône et une couleur. Sans icône, ce sont tes initiales.</p>
+      <p class="small muted grow">Choisis un emoji et une couleur. Sans emoji, ce sont tes initiales.</p>
     </div>
-    <div class="emoji-grid" role="radiogroup" aria-label="Icône">
+    <div class="emoji-grid" role="radiogroup" aria-label="Emoji">
       <button type="button" class="emoji-opt initials" data-action="pick-avatar-emoji" data-v="" aria-pressed="${!me.avatarEmoji}" aria-label="Initiales">${esc(initials(me.displayName))}</button>
-      ${glyphGrid(AVATAR_GLYPHS, me.avatarEmoji, 'pick-avatar-emoji')}
+      ${AVATAR_EMOJIS.map((e) => `<button type="button" class="emoji-opt" data-action="pick-avatar-emoji" data-v="${e}" aria-pressed="${me.avatarEmoji === e}">${e}</button>`).join('')}
     </div>
     <div class="swatches" role="radiogroup" aria-label="Couleur">
       <button type="button" class="swatch auto" data-action="pick-avatar-color" data-v="" aria-pressed="${!me.avatarColor}" aria-label="Couleur automatique" style="--note:hsl(${hue(me.id)} 55% 85%)">A</button>
@@ -461,14 +460,14 @@ function setFormColors(form, style) {
 
 function projectForm(p) {
   const editing = !!p;
-  p ||= { name: '', description: '', emoji: 'i:rocket', color: PROJECT_COLORS[0], status: 'idea', manualProgress: 0, dueDate: '', tasks: { total: 0 } };
+  p ||= { name: '', description: '', emoji: '🚀', color: PROJECT_COLORS[0], status: 'idea', manualProgress: 0, dueDate: '', tasks: { total: 0 } };
   openSheet(`
     <form class="stack" data-form="${editing ? 'edit-project' : 'new-project'}">
       <div class="sheet-head"><h2 id="sheet-title">${editing ? 'Paramètres du projet' : 'Nouveau projet'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       <label class="field"><span>Nom</span><input class="input" id="pf-name" name="name" value="${esc(p.name)}" required maxlength="80" placeholder="ex. App de covoiturage" autofocus></label>
       <div class="field"><span>Icône</span>
-        <div class="emoji-grid" role="radiogroup" aria-label="Icône du projet">${glyphGrid(PROJECT_GLYPHS, p.emoji, 'pick-emoji')}</div>
-        <input type="hidden" id="pf-emoji" name="emoji" value="${esc(p.emoji)}">
+        <div class="row"><input class="input" id="pf-emoji" name="emoji" value="${esc(p.emoji)}" maxlength="8" style="width:70px;text-align:center;font-size:1.3rem">
+        <div class="row" style="gap:4px">${EMOJIS.map((e) => `<button type="button" class="btn ghost icon" data-action="pick-emoji" data-v="${e}">${e}</button>`).join('')}</div></div>
       </div>
       <div class="field"><span>Couleur</span>
         <div class="swatches">${PROJECT_COLORS.map((c) => `<button type="button" class="swatch" style="--note:${c}" data-action="pick-color" data-v="${c}" aria-pressed="${c === p.color}" aria-label="Couleur ${c}"></button>`).join('')}
@@ -1412,7 +1411,7 @@ const actions = {
   filter: (el) => { state.filter = el.dataset.v; renderList(); },
   'new-project': () => projectForm(null),
   'edit-project': () => projectForm(state.data.project),
-  'pick-emoji': (el) => { sheet.querySelector('#pf-emoji').value = el.dataset.v; el.closest('.emoji-grid').querySelectorAll('.emoji-opt').forEach((b) => b.setAttribute('aria-pressed', b === el)); },
+  'pick-emoji': (el) => { sheet.querySelector('#pf-emoji').value = el.dataset.v; },
   'pick-color': (el) => {
     sheet.querySelector('#pf-color').value = el.dataset.v;
     sheet.querySelectorAll('[data-action="pick-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
