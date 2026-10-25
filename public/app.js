@@ -11,7 +11,7 @@ const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert'
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.10.0';
+const APP_VERSION = '0.11.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1110,94 +1110,131 @@ function bindWall(wrap) {
     refit() { if (w.fit) { w.cam = fitCamera(wrap, state.data.notes); apply(); } else apply(); },
   };
 
-  // ---- gestures: one finger moves the wall or a post-it, two fingers zoom ----
-  const ptrs = new Map();
-  let pan = null, pinch = null, drag = null, edge = 0, last = null;
-  const centerOf = () => { const a = [...ptrs.values()]; return { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2, d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1 }; };
+  // ---- gestures ----
+  //  one finger on the background: move the view      one finger on a post-it: move it (a tap opens it)
+  //  two fingers: zoom + move the view (also when they land on post-it)
+  //  holding a post-it with one finger: another finger on the background moves the view, on another post-it moves it too
+  const ptrs = new Map();   // every finger down: pointerId -> {x, y}
+  const drags = new Map();  // pointerId -> post-it being moved by that finger
+  let pan = null, pinch = null, edge = 0;
   const ignore = (t) => t.closest('.wall-bar, .wall-top, .minimap, .vote');
 
-  function moveNoteTo(cx, cy) {
+  function posNote(d, cx, cy) {
     const p = toWorld(cx, cy);
-    const x = Math.max(0, Math.min(BOARD_W - WALL.noteW, p.x - drag.gx)), y = Math.max(10, Math.min(BOARD_H - WALL.noteH, p.y - drag.gy));
-    drag.el.style.left = `${x}px`; drag.el.style.top = `${y}px`; queueMini();
+    const x = Math.max(0, Math.min(BOARD_W - WALL.noteW, p.x - d.gx)), y = Math.max(10, Math.min(BOARD_H - WALL.noteH, p.y - d.gy));
+    d.el.style.left = `${x}px`; d.el.style.top = `${y}px`;
   }
-  function edgeLoop() {
+  // after the view moved, post-it held by a finger stay under that finger
+  function keepHeldNotes() { for (const [id, d] of drags) { const q = ptrs.get(id); if (d.moved && q) posNote(d, q.x, q.y); } queueMini(); }
+  const refreshFlags = () => { state.dragging = [...drags.values()].some((d) => d.moved); state.panning = ptrs.size > 0; };
+  function dropDrag(d, restore) {
+    if (restore && d.moved) { d.el.style.left = `${d.ox}px`; d.el.style.top = `${d.oy}px`; }
+    d.el.classList.remove('dragging');
+  }
+  function resetGestures() { // forget fingers that never reported "up" (system gesture, lost event…)
+    for (const d of drags.values()) dropDrag(d, true);
+    drags.clear(); ptrs.clear(); pan = null; pinch = null;
+    if (edge) { cancelAnimationFrame(edge); edge = 0; }
+    refreshFlags();
+  }
+  function startDrag(e, el) {
+    const p = toWorld(e.clientX, e.clientY);
+    drags.set(e.pointerId, { el, id: Number(el.dataset.note), sx: e.clientX, sy: e.clientY, ox: el.offsetLeft, oy: el.offsetTop, gx: p.x - el.offsetLeft, gy: p.y - el.offsetTop, moved: false });
+    try { el.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+  }
+  function startPan(e) {
+    pan = { pid: e.pointerId, sx: e.clientX, sy: e.clientY, cx: w.cam.x, cy: w.cam.y };
+    try { wrap.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+  }
+  function startPinch(ids) {
+    const [a, b] = ids.map((i) => ptrs.get(i));
+    const c = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+    pinch = { ids, d0: c.d, k0: w.cam.k, p: toWorld(c.x, c.y) };
+  }
+  function edgeLoop() { // a single post-it dragged near the edge makes the view follow
     edge = 0;
-    if (!drag || !drag.moved || !last) return;
+    const only = drags.size === 1 ? [...drags.entries()][0] : null;
+    if (!only || !only[1].moved || pan) return;
+    const q = ptrs.get(only[0]); if (!q) return;
     const r = wrap.getBoundingClientRect(), m = 48, sp = 14;
     let dx = 0, dy = 0;
-    if (last.x > r.right - m) dx = -sp; else if (last.x < r.left + m) dx = sp;
-    if (last.y > r.bottom - m - 60) dy = -sp; else if (last.y < r.top + m + (w.fs ? 44 : 0)) dy = sp;
-    if (dx || dy) { w.cam.x += dx; w.cam.y += dy; w.fit = false; apply(); moveNoteTo(last.x, last.y); edge = requestAnimationFrame(edgeLoop); }
-  }
-  function cancelDrag() {
-    if (!drag) return;
-    if (drag.moved) { drag.el.style.left = `${drag.ox}px`; drag.el.style.top = `${drag.oy}px`; }
-    drag.el.classList.remove('dragging'); drag = null; state.dragging = false;
+    if (q.x > r.right - m) dx = -sp; else if (q.x < r.left + m) dx = sp;
+    if (q.y > r.bottom - m - 60) dy = -sp; else if (q.y < r.top + m + (w.fs ? 44 : 0)) dy = sp;
+    if (dx || dy) { w.cam.x += dx; w.cam.y += dy; w.fit = false; apply(); keepHeldNotes(); edge = requestAnimationFrame(edgeLoop); }
   }
 
   wrap.addEventListener('pointerdown', (e) => {
     if (ignore(e.target) || (e.pointerType === 'mouse' && e.button > 0)) return;
+    if (e.isPrimary) resetGestures(); // a first finger means no other one can be down
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    state.panning = true;
-    if (ptrs.size === 2) { // second finger: pinch (cancels a post-it drag)
-      cancelDrag(); pan = null;
-      const c = centerOf(); pinch = { d0: c.d, k0: w.cam.k, p: toWorld(c.x, c.y) };
+    refreshFlags();
+    const el = e.target.closest('.note');
+    if (ptrs.size === 1) { if (el) startDrag(e, el); else startPan(e); return; }
+    if (ptrs.size !== 2) return; // a third finger is ignored
+    const first = [...ptrs.keys()][0], held = drags.get(first);
+    if (held && held.moved) { // the first finger is carrying a post-it
+      if (el && !drags.has(e.pointerId)) startDrag(e, el); else startPan(e);
       return;
     }
-    const el = e.target.closest('.note');
-    try { (el || wrap).setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
-    if (el) {
-      const p = toWorld(e.clientX, e.clientY);
-      drag = { el, id: Number(el.dataset.note), sx: e.clientX, sy: e.clientY, ox: el.offsetLeft, oy: el.offsetTop, gx: p.x - el.offsetLeft, gy: p.y - el.offsetTop, moved: false, pid: e.pointerId };
-    } else {
-      pan = { sx: e.clientX, sy: e.clientY, cx: w.cam.x, cy: w.cam.y, moved: false };
-    }
+    // otherwise it is a zoom / move-the-view gesture, even if the fingers landed on post-it
+    for (const d of drags.values()) dropDrag(d, true);
+    drags.clear(); pan = null; refreshFlags();
+    startPinch([...ptrs.keys()]);
   });
   wrap.addEventListener('pointermove', (e) => {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch && ptrs.size >= 2) {
-      const c = centerOf(), r = wrap.getBoundingClientRect(), k2 = clampK(pinch.k0 * c.d / pinch.d0);
-      w.fit = false; w.cam.k = k2; w.cam.x = c.x - r.left - pinch.p.x * k2; w.cam.y = c.y - r.top - pinch.p.y * k2; apply();
+    if (pinch) {
+      if (!pinch.ids.includes(e.pointerId)) return;
+      const [a, b] = pinch.ids.map((i) => ptrs.get(i)); if (!a || !b) return;
+      const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const r = wrap.getBoundingClientRect(), k2 = clampK(pinch.k0 * d / pinch.d0);
+      w.fit = false; w.cam.k = k2; w.cam.x = cx - r.left - pinch.p.x * k2; w.cam.y = cy - r.top - pinch.p.y * k2; apply();
       return;
     }
-    if (drag && e.pointerId === drag.pid) {
-      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
-      if (!drag.moved) { drag.moved = true; state.dragging = true; drag.el.classList.add('dragging'); }
-      last = { x: e.clientX, y: e.clientY }; moveNoteTo(e.clientX, e.clientY);
+    const d = drags.get(e.pointerId);
+    if (d) {
+      if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) return;
+      if (!d.moved) { d.moved = true; d.el.classList.add('dragging'); refreshFlags(); }
+      posNote(d, e.clientX, e.clientY); queueMini();
       if (!edge) edge = requestAnimationFrame(edgeLoop);
-    } else if (pan) {
+    } else if (pan && pan.pid === e.pointerId) {
       const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy;
       if (!pan.moved && Math.hypot(dx, dy) < 3) return;
-      pan.moved = true; w.fit = false; w.cam.x = pan.cx + dx; w.cam.y = pan.cy + dy; apply();
+      pan.moved = true; w.fit = false; w.cam.x = pan.cx + dx; w.cam.y = pan.cy + dy; apply(); keepHeldNotes();
     }
   });
   const end = run(async (e) => {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.delete(e.pointerId);
-    if (pinch) { // one finger left: carry on moving the wall with it
-      if (ptrs.size < 2) { pinch = null; const [rest] = [...ptrs.values()]; pan = rest ? { sx: rest.x, sy: rest.y, cx: w.cam.x, cy: w.cam.y, moved: true } : null; }
-      if (!ptrs.size) state.panning = false;
-      return;
+    if (pinch && pinch.ids.includes(e.pointerId)) { // one finger of the pinch left: the other carries on moving the view
+      const other = pinch.ids.find((i) => i !== e.pointerId); pinch = null;
+      const q = ptrs.get(other);
+      if (q) pan = { pid: other, sx: q.x, sy: q.y, cx: w.cam.x, cy: w.cam.y, moved: true };
+      refreshFlags(); return;
     }
-    if (!ptrs.size) state.panning = false;
-    if (drag && e.pointerId === drag.pid) {
-      const d = drag; drag = null; state.dragging = false; if (edge) { cancelAnimationFrame(edge); edge = 0; }
-      const n = state.data.notes.find((x) => x.id === d.id);
-      if (!d.moved) { d.el.classList.remove('dragging'); if (e.type === 'pointerup' && n) noteSheet(n); return; }
-      // Put the note in front right away, locally: otherwise it drops behind the others until the save comes back.
-      const x = Math.round(parseFloat(d.el.style.left)), y = Math.round(parseFloat(d.el.style.top));
-      const z = Math.max(0, ...state.data.notes.map((o) => o.z)) + 1;
-      d.el.style.zIndex = z; d.el.classList.remove('dragging');
-      if (n) Object.assign(n, { x, y, z });
-      queueMini();
-      await db.updateNote(d.id, { x, y, z }, state.data.notes);
-    } else if (pan && !ptrs.size) { pan = null; }
+    const d = drags.get(e.pointerId);
+    if (pan && pan.pid === e.pointerId) pan = null;
+    if (!d) { refreshFlags(); return; }
+    drags.delete(e.pointerId);
+    if (edge && !drags.size) { cancelAnimationFrame(edge); edge = 0; }
+    const n = state.data.notes.find((x) => x.id === d.id);
+    refreshFlags();
+    if (!d.moved) { d.el.classList.remove('dragging'); if (e.type === 'pointerup' && n && !ptrs.size) noteSheet(n); return; }
+    // Put the note in front right away, locally: otherwise it drops behind the others until the save comes back.
+    const x = Math.round(parseFloat(d.el.style.left)), y = Math.round(parseFloat(d.el.style.top));
+    const z = Math.max(0, ...state.data.notes.map((o) => o.z)) + 1;
+    d.el.style.zIndex = z; d.el.classList.remove('dragging');
+    if (n) Object.assign(n, { x, y, z });
+    queueMini();
+    await db.updateNote(d.id, { x, y, z }, state.data.notes);
   });
   wrap.addEventListener('pointerup', end);
   wrap.addEventListener('pointercancel', end);
-  wrap.addEventListener('lostpointercapture', (e) => { if (e.pointerType !== 'mouse' && ptrs.has(e.pointerId) && !drag && !pinch) { ptrs.delete(e.pointerId); if (!ptrs.size) state.panning = false; } });
+  // iOS: stop Safari from zooming/scrolling the page while fingers are on the wall
+  for (const t of ['gesturestart', 'gesturechange', 'gestureend']) wrap.addEventListener(t, (e) => e.preventDefault());
+  wrap.addEventListener('touchmove', (e) => { if (!ignore(e.target)) e.preventDefault(); }, { passive: false });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) resetGestures(); });
 
   // mouse wheel: scroll moves the wall, Ctrl/⌘ + scroll (or a trackpad pinch) zooms
   wrap.addEventListener('wheel', (e) => {

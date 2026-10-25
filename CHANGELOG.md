@@ -2,6 +2,11 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.11.0
+- Mur de post-it : vrais gestes à plusieurs doigts. Pincer pour zoomer et déplacer la vue (même en partant d'un post-it, sans rien déplacer par erreur).
+- Un doigt tient un post-it, l'autre déplace la vue : on peut transporter un post-it loin sans le lâcher. Deux doigts sur deux post-it déjà en mouvement : les deux se déplacent en même temps.
+- Un geste interrompu (doigt jamais relevé) ne bloque plus le mur ; sur iPhone, la page ne zoome plus à la place du mur.
+
 ## 0.10.0
 - Post-it : un vrai plan de travail. Zoom (pincement à deux doigts, Ctrl + molette, boutons − et +), déplacement en glissant le fond, bouton « Tout voir », mini-carte, plein écran.
 - « Ranger » : aligne les post-it en grille (par couleur, par votes ou par ordre d'ajout), avec « Annuler ».

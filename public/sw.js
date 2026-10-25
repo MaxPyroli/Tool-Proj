@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so it opens instantly and works as an installed app.
 // Supabase calls always go to the network (data must stay fresh and shared).
-const VERSION = '0.10.0';
+const VERSION = '0.11.0';
 const BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 const CACHE = `tool-proj-${VERSION}-${BUILD}`;
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'data.js', 'config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png'];
