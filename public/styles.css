@@ -331,7 +331,7 @@ textarea.input { min-height: 96px; resize: vertical; }
   content: ""; position: absolute; top: -9px; left: 50%; width: 64px; height: 20px; translate: -50% 0;
   background: rgb(255 255 255 / .45); border: 1px solid rgb(0 0 0 / .05); rotate: calc(var(--rot) * -2);
 }
-.note.dragging { cursor: grabbing; transform: rotate(0deg) scale(1.04); box-shadow: var(--shadow-lift); z-index: 9999 !important; transition: none; }
+.note.dragging { cursor: grabbing; transform: rotate(0deg) scale(1.04); box-shadow: var(--shadow-lift); z-index: 1000000 !important; transition: none; }
 .note .n-text { white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
 .note .n-text:empty::before { content: "Post-it vide…"; opacity: .45; }
 .note .n-foot { position: absolute; left: 10px; right: 8px; bottom: 6px; display: flex; align-items: center; justify-content: space-between; font-family: var(--f-body); font-size: .72rem; opacity: .8; gap: 6px; }
@@ -480,3 +480,21 @@ h3.group-title { cursor: default; color: var(--muted); }
 .prog-edit { display: grid; gap: 4px; max-width: 320px; }
 .prog-edit input { width: 100%; accent-color: var(--accent); }
 .now-progress { display: grid; gap: 6px; max-width: 320px; }
+
+/* ---------- project links ---------- */
+.links { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.link-chip { --lc: var(--accent); display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); text-decoration: none; min-width: 0; min-height: 56px; transition: border-color .15s, transform .1s; }
+.link-chip:hover { border-color: var(--lc); }
+.link-chip:active { transform: scale(.98); }
+.lk-ico { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--lc); background: color-mix(in srgb, var(--lc) 14%, transparent); }
+.lk-text { display: grid; min-width: 0; flex: 1; }
+.lk-text b, .lk-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-text small { color: var(--muted); font-size: .78rem; }
+.lk-out { color: var(--muted); font-size: 1.1rem; }
+.lk-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-github { --lc: var(--ink); } .lk-supabase { --lc: #2fb479; } .lk-claude { --lc: #d97757; }
+.lk-design { --lc: #a259ff; } .lk-store { --lc: var(--st-done); } .lk-doc { --lc: var(--muted); } .lk-site { --lc: var(--accent); }
+.member .lk-ico { color: var(--lc, var(--accent)); }
+
+.note.just-added { animation: note-pop .9s ease-out; }
+@keyframes note-pop { 0% { transform: rotate(var(--rot)) scale(.9); box-shadow: 0 0 0 4px var(--accent); } 60% { transform: rotate(var(--rot)) scale(1.04); } 100% { transform: rotate(var(--rot)); } }

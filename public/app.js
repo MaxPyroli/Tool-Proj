@@ -87,6 +87,25 @@ function dueLabel(d) {
   return `${date} · dans ${days} j`;
 }
 
+// Links: the kind (and icon) is guessed from the address.
+const LINK_KINDS = [
+  { id: 'github', name: 'GitHub', fill: true, test: /(^|\.)(github\.com|githubusercontent\.com)$/, glyph: '<path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>' },
+  { id: 'supabase', name: 'Supabase', fill: true, test: /(^|\.)supabase\.(com|co|io)$/, glyph: '<path d="M21.362 9.354H12V.396a.396.396 0 0 0-.716-.233L2.203 12.424l-.401.562a1.04 1.04 0 0 0 .836 1.659H12v8.959a.396.396 0 0 0 .716.233l9.081-12.261.401-.562a1.04 1.04 0 0 0-.836-1.66z"/>' },
+  { id: 'claude', name: 'Claude', fill: true, test: /(^|\.)(claude\.ai|claude\.com|anthropic\.com)$/, glyph: '<path d="M12 1.5l2.2 7.3 7.3-2.2-5.3 5.4 5.3 5.4-7.3-2.2L12 22.5l-2.2-7.3-7.3 2.2 5.3-5.4-5.3-5.4 7.3 2.2z"/>' },
+  { id: 'design', name: 'Maquette', test: /(^|\.)(figma\.com|canva\.com|penpot\.app|miro\.com)$/, glyph: '<path d="M12 19l7-7 3 3-7 7zM18 13l-1.5-7.5L2 2l3.5 14.5 7.5 1.5zM2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>' },
+  { id: 'store', name: 'Store', test: /(^|\.)(apps\.apple\.com|testflight\.apple\.com|play\.google\.com|appstoreconnect\.apple\.com)$/, glyph: '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/>' },
+  { id: 'doc', name: 'Document', test: /(^|\.)(notion\.so|notion\.site|docs\.google\.com|drive\.google\.com|trello\.com|linear\.app)$/, glyph: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8"/>' },
+  { id: 'site', name: 'Site', test: /./, glyph: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>' },
+];
+const linkKind = (url) => {
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch { /* keep generic */ }
+  return LINK_KINDS.find((k) => k.test.test(host)) || LINK_KINDS.at(-1);
+};
+const linkIcon = (k) => `<svg viewBox="0 0 24 24" width="20" height="20" ${k.fill ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'} aria-hidden="true">${k.glyph}</svg>`;
+const linkLabel = (l) => l.label || `${linkKind(l.url).name}`;
+const linkHost = (url) => { try { const u = new URL(url); return u.hostname.replace(/^www\./, '') + (u.pathname.length > 1 ? u.pathname.replace(/\/$/, '') : ''); } catch { return url; } };
+
 const icon = {
   key: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M17 6l3 3M14.5 8.5l2 2"/></svg>',
   overview: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
@@ -325,7 +344,7 @@ function topbar(inner) {
 
 function projectForm(p) {
   const editing = !!p;
-  p ||= { name: '', description: '', emoji: '🚀', color: PROJECT_COLORS[0], status: 'idea', manualProgress: 0, repoUrl: '', dueDate: '', tasks: { total: 0 } };
+  p ||= { name: '', description: '', emoji: '🚀', color: PROJECT_COLORS[0], status: 'idea', manualProgress: 0, dueDate: '', tasks: { total: 0 } };
   openSheet(`
     <form class="stack" data-form="${editing ? 'edit-project' : 'new-project'}">
       <div class="sheet-head"><h2 id="sheet-title">${editing ? 'Paramètres du projet' : 'Nouveau projet'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
@@ -342,7 +361,6 @@ function projectForm(p) {
       <label class="field"><span>Description</span><textarea class="input" id="pf-desc" name="description" maxlength="2000" placeholder="Le but de l'app, pour qui, la stack…">${esc(p.description)}</textarea></label>
       ${editing ? `
         <label class="field"><span>Échéance</span><input class="input" id="pf-due" type="date" name="dueDate" value="${esc(p.dueDate || '')}"></label>
-        <label class="field"><span>Lien (dépôt, maquette, store…)</span><input class="input" id="pf-repo" type="url" name="repoUrl" value="${esc(p.repoUrl)}" placeholder="https://github.com/…"></label>
         <label class="field"><span>Avancement : <b class="num" id="pf-prog-v">${p.manualProgress} %</b></span>
           <input type="range" id="pf-prog" name="manualProgress" min="0" max="100" step="5" value="${p.manualProgress}">
           <small class="muted">Ton estimation de l'avancement global. Les tâches ajoutées ne la changent pas.</small></label>` : ''}
@@ -399,6 +417,41 @@ function renderProject() {
   if (state.tab === 'taches') bindTaskDnD();
 }
 
+function linksBlock(d) {
+  const admin = d.project.role === 'admin';
+  if (!d.links.length && !admin) return '';
+  return `<div class="stack" style="gap:8px">
+    <div class="row between"><span class="label">Liens</span>${admin && d.links.length ? '<button class="link-btn small" data-action="manage-links">Gérer</button>' : ''}</div>
+    ${d.links.length ? `<div class="links">${d.links.map((l) => { const k = linkKind(l.url); return `
+      <a class="link-chip lk-${k.id}" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">
+        <span class="lk-ico">${linkIcon(k)}</span>
+        <span class="lk-text"><b>${esc(linkLabel(l))}</b><small>${esc(linkHost(l.url))}</small></span>
+        <span class="lk-out" aria-hidden="true">↗</span>
+      </a>`; }).join('')}</div>`
+      : `<button class="btn" data-action="manage-links">+ Ajouter un lien (GitHub, Supabase, Claude…)</button>`}
+  </div>`;
+}
+
+/** Admin sheet: list, add, edit and remove the project's links. */
+function linksSheet(editId = null) {
+  const d = state.data;
+  const cur = d.links.find((l) => l.id === editId) || { label: '', url: '' };
+  openSheet(`
+    <div class="sheet-head"><h2 id="sheet-title">Liens du projet</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+    ${d.links.length ? `<div class="members">${d.links.map((l) => { const k = linkKind(l.url); return `
+      <div class="member lk-${k.id}"><span class="lk-ico">${linkIcon(k)}</span>
+        <div class="grow"><strong>${esc(linkLabel(l))}</strong><span class="small muted lk-url">${esc(linkHost(l.url))}</span></div>
+        <button class="btn sm ghost" data-action="edit-link" data-id="${l.id}">Modifier</button>
+        <button class="btn sm ghost" data-action="delete-link" data-id="${l.id}" aria-label="Supprimer ${esc(linkLabel(l))}">Supprimer</button></div>`; }).join('')}</div>` : '<p class="small muted">Aucun lien pour le moment.</p>'}
+    <form class="stack panel" data-form="save-link" data-id="${editId || ''}" novalidate>
+      <h3>${editId ? 'Modifier le lien' : 'Ajouter un lien'}</h3>
+      <label class="field"><span>Adresse</span><input class="input" id="lk-url" name="url" type="url" inputmode="url" autocapitalize="none" spellcheck="false" value="${esc(cur.url)}" placeholder="github.com/toi/mon-app" ${editId ? '' : 'autofocus'}></label>
+      <label class="field"><span>Nom <small class="muted">(facultatif : sinon GitHub, Supabase, Claude…)</small></span><input class="input" id="lk-label" name="label" maxlength="80" value="${esc(cur.label)}" placeholder="ex. Code, Base de données, Conversation de départ"></label>
+      <p class="small muted">Colle l'adresse d'un dépôt GitHub, d'un projet Supabase, d'une conversation Claude, d'une maquette Figma, du site en ligne ou de la fiche sur le store.</p>
+      <div class="row end">${editId ? '<button type="button" class="btn ghost" data-action="manage-links">Annuler</button>' : ''}<button class="btn primary" type="submit">${editId ? 'Enregistrer' : 'Ajouter'}</button></div>
+    </form>`);
+}
+
 function viewOverview(d) {
   const p = d.project;
   const top = [...d.notes].filter((n) => n.votes > 0).sort((a, b) => b.votes - a.votes).slice(0, 3);
@@ -422,7 +475,6 @@ function viewOverview(d) {
             <div class="progress"><i style="width:${nowPr.pct}%"></i></div></div>` : ''}
           <div class="meta">
             ${p.dueDate ? `<span>📅 ${esc(dueLabel(p.dueDate))}</span>` : ''}
-            ${p.repoUrl ? `<a href="${esc(p.repoUrl)}" target="_blank" rel="noopener">🔗 ${esc(p.repoUrl.replace(/^https?:\/\//, ''))}</a>` : ''}
           </div>
         </div>
       </div>
@@ -432,6 +484,7 @@ function viewOverview(d) {
         <div><span class="label">Fait</span><strong class="num">${p.tasks.done}</strong></div>
         <div class="${bugs ? 'warn' : ''}"><span class="label">Bugs ouverts</span><strong class="num">${bugs}</strong></div>
       </div>
+      ${linksBlock(d)}
       ${p.description ? `<div class="stack" style="gap:6px"><span class="label">Description</span><p class="description">${esc(p.description)}</p></div>`
         : p.role === 'admin' ? '<p class="muted small">Pas encore de description. <button class="link-btn" data-action="edit-project">En ajouter une</button></p>' : ''}
     </section>
@@ -469,7 +522,7 @@ function noteHtml(n, wall) {
 
 function viewNotes(d) {
   const wall = state.boardView === 'wall';
-  const sorted = wall ? d.notes : [...d.notes].sort((a, b) => b.votes - a.votes || b.id - a.id);
+  const sorted = wall ? d.notes : [...d.notes].sort((a, b) => b.votes - a.votes || a.id - b.id);
   return `
   <div class="board-tools">
     <button class="btn primary hide-sm" data-action="new-note">+ Post-it</button>
@@ -477,7 +530,7 @@ function viewNotes(d) {
       <button data-action="board-view" data-v="wall" aria-pressed="${wall}">Mur</button>
       <button data-action="board-view" data-v="grid" aria-pressed="${!wall}">Grille</button>
     </div>
-    <p class="muted small grow">${wall ? 'Glisse les post-it pour les ranger, touche-les pour les modifier.' : 'Triés par votes.'}</p>
+    <p class="muted small grow">${wall ? 'Glisse les post-it pour les ranger, touche-les pour les modifier.' : 'Les plus votés d\'abord, puis par ordre d\'ajout.'}</p>
   </div>
   ${!d.notes.length ? `<div class="empty"><div class="big">🗒️</div><p>Aucun post-it. Note ici les idées, les bugs à régler, les envies…</p><button class="btn primary" data-action="new-note">Coller un post-it</button></div>`
     : wall ? `<div class="board-wrap"><div class="board">${sorted.map((n) => noteHtml(n, true)).join('')}</div></div>`
@@ -809,13 +862,15 @@ function bindBoard(wrap) {
   const end = run(async (e) => {
     if (!drag || e.pointerId !== drag.pid) return;
     const d = drag; drag = null; state.dragging = false;
-    d.el.classList.remove('dragging');
     const n = state.data.notes.find((x) => x.id === d.id);
-    if (!d.moved) { if (e.type === 'pointerup' && n) noteSheet(n); return; }
+    if (!d.moved) { d.el.classList.remove('dragging'); if (e.type === 'pointerup' && n) noteSheet(n); return; }
+    // Put the note in front right away, locally: otherwise it drops behind the others until the save comes back.
     const x = parseFloat(d.el.style.left), y = parseFloat(d.el.style.top);
-    const row = await db.updateNote(d.id, { x, y, front: true }, state.data.notes);
-    Object.assign(n, row);
-    d.el.style.zIndex = row.z;
+    const z = Math.max(0, ...state.data.notes.map((o) => o.z)) + 1;
+    d.el.style.zIndex = z;
+    d.el.classList.remove('dragging');
+    if (n) Object.assign(n, { x, y, z });
+    await db.updateNote(d.id, { x, y, z }, state.data.notes);
   });
   wrap.addEventListener('pointerup', end);
   wrap.addEventListener('pointercancel', end);
@@ -926,6 +981,12 @@ const actions = {
     chooserSheet();
   },
   'new-epic': () => epicSheet({}),
+  'manage-links': () => linksSheet(),
+  'edit-link': (el) => linksSheet(Number(el.dataset.id)),
+  'delete-link': async (el) => {
+    await db.deleteLink(Number(el.dataset.id));
+    toast('Lien supprimé'); await reloadProject(); linksSheet();
+  },
   'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: state.taskView === 'board' && isPhone() ? state.taskCol : 'todo' })),
   'open-epic': (el) => epicSheet(state.data.epics.find((e) => e.id === Number(el.dataset.id))),
   'delete-epic': async (el) => {
@@ -1054,6 +1115,12 @@ const forms = {
     await db.updateTask(Number(f.dataset.id), formData(f));
     closeSheet(); await reloadProject();
   },
+  async 'save-link'(f) {
+    const b = formData(f);
+    if (f.dataset.id) await db.updateLink(Number(f.dataset.id), b);
+    else await db.addLink(state.pid, b, state.data.links);
+    toast(f.dataset.id ? 'Lien modifié' : 'Lien ajouté'); await reloadProject(); linksSheet();
+  },
   async 'new-epic'(f) {
     await db.addEpic(state.pid, formData(f), state.data.epics);
     closeSheet(); toast('Chantier créé'); await reloadProject();
@@ -1067,6 +1134,11 @@ const forms = {
     const spot = freeSpot();
     await db.addNote(state.pid, { text: b.text, color: b.color, ...spot }, state.data.notes);
     closeSheet(); await reloadProject();
+    // Show where the new post-it landed (end of the grid, or its spot on the wall).
+    const newest = Math.max(...state.data.notes.map((n) => n.id));
+    const el = $app.querySelector(`[data-note="${newest}"]`);
+    el?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    el?.classList.add('just-added');
   },
   async 'edit-note'(f) {
     const b = formData(f);

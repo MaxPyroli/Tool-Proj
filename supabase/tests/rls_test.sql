@@ -70,6 +70,21 @@ do $$ begin
   assert exists (select 1 from activity where message = 'a créé le chantier « Mode hors-ligne »'), 'activité chantier';
 end $$;
 
+-- ===== Liens du projet =====
+-- (Alice est admin du projet ; Bob l'est devenu plus haut : on teste avec un projet où il est simple membre.)
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select create_project('Projet liens') as lpid \gset
+select add_member(:lpid, 'bob', 'member');
+insert into project_links (project_id, label, url) values (:lpid, 'Dépôt', 'https://github.com/x/y');
+select pg_temp.expect_error(format('insert into project_links (project_id, url) values (%s, ''javascript:alert(1)'')', :lpid), 'check constraint');
+select pg_temp.expect_error(format('insert into project_links (project_id, url) values (%s, ''ftp://x.fr'')', :lpid), 'check constraint');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+do $$ begin assert (select count(*) from project_links) = 1, 'un membre voit les liens'; end $$;
+select pg_temp.expect_error(format('insert into project_links (project_id, label, url) values (%s, ''x'', ''https://x.fr'')', :lpid), 'row-level security');
+update project_links set label = 'Pirate';
+delete from project_links;
+do $$ begin assert (select label from project_links) = 'Dépôt', 'un membre ne modifie ni ne supprime les liens'; end $$;
+
 -- ===== Eve, extérieure =====
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
 do $$ begin
@@ -80,6 +95,7 @@ end $$;
 select pg_temp.expect_error(format('insert into notes (project_id, text) values (%s, ''x'')', :pid), 'row-level security');
 select pg_temp.expect_error(format('insert into tasks (project_id, title) values (%s, ''x'')', :pid), 'row-level security');
 select pg_temp.expect_error(format('insert into epics (project_id, title) values (%s, ''x'')', :pid), 'row-level security');
+do $$ begin assert (select count(*) from project_links) = 0, 'eve ne voit pas les liens'; end $$;
 do $$ begin assert (select count(*) from epics) = 0, 'eve ne voit pas les chantiers'; end $$;
 -- un chantier d'un autre projet ne peut pas être utilisé
 select create_project('Projet Eve') as epid \gset

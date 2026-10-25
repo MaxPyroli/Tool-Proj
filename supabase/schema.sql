@@ -91,6 +91,22 @@ do $$ begin
   end if;
 end $$;
 
+-- Liens du projet : dépôt GitHub, base Supabase, conversation Claude, maquette, site…
+create table if not exists public.project_links (
+  id bigint generated always as identity primary key,
+  project_id bigint not null references public.projects (id) on delete cascade,
+  label text not null default '' check (char_length(label) <= 80),
+  url text not null check (char_length(url) <= 500 and url ~* '^https?://\S+$'),
+  position double precision not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists project_links_project_idx on public.project_links (project_id);
+
+-- L'ancien champ « lien » du projet devient le premier lien de la liste (une seule fois).
+insert into public.project_links (project_id, label, url)
+select p.id, 'Lien', p.repo_url from public.projects p
+where p.repo_url <> '' and not exists (select 1 from public.project_links l where l.project_id = p.id);
+
 create table if not exists public.notes (
   id bigint generated always as identity primary key,
   project_id bigint not null references public.projects (id) on delete cascade,
@@ -251,6 +267,15 @@ end $$;
 drop trigger if exists tasks_before_write on public.tasks;
 create trigger tasks_before_write before insert or update on public.tasks for each row execute function public.tasks_before_write();
 
+create or replace function public.links_before_update()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.project_id <> old.project_id then raise exception 'Un lien ne peut pas changer de projet'; end if;
+  return new;
+end $$;
+drop trigger if exists links_before_update on public.project_links;
+create trigger links_before_update before update on public.project_links for each row execute function public.links_before_update();
+
 create or replace function public.notes_before_update()
 returns trigger language plpgsql as $$
 begin
@@ -361,6 +386,7 @@ alter table public.projects enable row level security;
 alter table public.memberships enable row level security;
 alter table public.tasks enable row level security;
 alter table public.epics enable row level security;
+alter table public.project_links enable row level security;
 alter table public.notes enable row level security;
 alter table public.note_votes enable row level security;
 alter table public.activity enable row level security;
@@ -392,6 +418,15 @@ drop policy if exists "tasks_all" on public.tasks;
 create policy "tasks_all" on public.tasks for all to authenticated using (public.is_member(project_id)) with check (public.is_member(project_id));
 drop policy if exists "epics_all" on public.epics;
 create policy "epics_all" on public.epics for all to authenticated using (public.is_member(project_id)) with check (public.is_member(project_id));
+-- Liens : visibles par les membres, gérés par les admins du projet.
+drop policy if exists "links_select" on public.project_links;
+create policy "links_select" on public.project_links for select to authenticated using (public.is_member(project_id));
+drop policy if exists "links_write" on public.project_links;
+create policy "links_write" on public.project_links for insert to authenticated with check (public.is_project_admin(project_id));
+drop policy if exists "links_update" on public.project_links;
+create policy "links_update" on public.project_links for update to authenticated using (public.is_project_admin(project_id)) with check (public.is_project_admin(project_id));
+drop policy if exists "links_delete" on public.project_links;
+create policy "links_delete" on public.project_links for delete to authenticated using (public.is_project_admin(project_id));
 drop policy if exists "notes_all" on public.notes;
 create policy "notes_all" on public.notes for all to authenticated using (public.is_member(project_id)) with check (public.is_member(project_id));
 
@@ -414,6 +449,7 @@ grant select, update, delete on public.projects to authenticated;
 grant select, update, delete on public.memberships to authenticated;
 grant select, insert, update, delete on public.tasks, public.epics, public.notes, public.note_votes to authenticated;
 grant select on public.activity to authenticated;
+grant select, insert, update, delete on public.project_links to authenticated;
 revoke insert on public.projects, public.memberships, public.activity from authenticated, anon;
 grant execute on function public.create_project(text, text, text, text, text), public.add_member(bigint, text, text),
   public.username_available(text), public.is_member(bigint), public.is_project_admin(bigint) to authenticated;
@@ -443,7 +479,7 @@ do $$
 declare t text;
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    foreach t in array array['projects', 'memberships', 'tasks', 'epics', 'notes', 'note_votes'] loop
+    foreach t in array array['projects', 'memberships', 'tasks', 'epics', 'project_links', 'notes', 'note_votes'] loop
       if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
         execute format('alter publication supabase_realtime add table public.%I', t);
       end if;

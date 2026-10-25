@@ -10,7 +10,7 @@ const sb = configured ? createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: {
 
 // Translate Supabase / Postgres errors into messages people can act on.
 const MESSAGES = [
-  [/PGRST20[45]|42P01|42703|schema cache|does not exist.*(epics|description|priority)|relation "public\.epics"/i, "La base Supabase n'est pas à jour : relance le script supabase/schema.sql dans le SQL Editor (tes données sont conservées)."],
+  [/PGRST20[45]|42P01|42703|schema cache|does not exist.*(epics|description|priority)|relation "public\.(epics|project_links)"/i, "La base Supabase n'est pas à jour : relance le script supabase/schema.sql dans le SQL Editor (tes données sont conservées)."],
   [/email_provider_disabled|Email logins are disabled/i, 'La connexion par email est désactivée dans Supabase (Authentication → Sign In / Providers → Email).'],
   [/Signups not allowed|otp_disabled/i, "Aucun compte avec cet email. Demande à un admin de t'inviter."],
   [/expired|invalid.*(token|otp|link)|(token|otp|link).*invalid/i, 'Ce code ou ce lien a expiré ou a déjà servi. Demande-en un nouveau.'],
@@ -130,7 +130,7 @@ function summary(p, me) {
     .sort((a, b) => (a.role === b.role ? a.displayName.localeCompare(b.displayName) : a.role === 'admin' ? -1 : 1));
   return {
     id: p.id, name: p.name, description: p.description, emoji: p.emoji, color: p.color, status: p.status,
-    repoUrl: p.repo_url, dueDate: p.due_date, createdAt: p.created_at, updatedAt: p.updated_at,
+    dueDate: p.due_date, createdAt: p.created_at, updatedAt: p.updated_at,
     role: members.find((m) => m.id === me)?.role ?? null,
     manualProgress: p.manual_progress,
     progress: p.manual_progress, // set by admins: upcoming tasks shouldn't make the project look less advanced
@@ -151,6 +151,7 @@ const taskDto = (t) => ({
   id: t.id, title: t.title, description: t.description ?? '', status: t.status, type: t.type ?? 'task', priority: t.priority ?? 'normal',
   epicId: t.epic_id ?? null, position: t.position, assigneeId: t.assignee_id, createdAt: t.created_at, doneAt: t.done_at,
 });
+const linkDto = (l) => ({ id: l.id, label: l.label, url: l.url, position: l.position });
 const epicDto = (e) => ({ id: e.id, title: e.title, description: e.description, horizon: e.horizon, position: e.position, createdAt: e.created_at });
 const noteDto = (n, me) => ({
   id: n.id, text: n.text, color: n.color, x: n.x, y: n.y, z: n.z, createdBy: n.created_by,
@@ -159,10 +160,11 @@ const noteDto = (n, me) => ({
 });
 
 export async function getProject(id, me) {
-  const [p, tasks, epics, notes, activity] = await Promise.all([
+  const [p, tasks, epics, links, notes, activity] = await Promise.all([
     sb.from('projects').select(PROJECT_SELECT).eq('id', id).maybeSingle().then(ok),
     sb.from('tasks').select('*').eq('project_id', id).order('position').order('id').then(ok),
     sb.from('epics').select('*').eq('project_id', id).order('position').order('id').then(ok),
+    sb.from('project_links').select('*').eq('project_id', id).order('position').order('id').then(ok),
     sb.from('notes').select('*, author:profiles!notes_created_by_fkey(display_name), note_votes(user_id)').eq('project_id', id).order('z').order('id').then(ok),
     sb.from('activity').select('id, message, created_at, profiles(display_name)').eq('project_id', id).order('id', { ascending: false }).limit(30).then(ok),
   ]);
@@ -173,6 +175,7 @@ export async function getProject(id, me) {
     members: project.members,
     tasks: tasks.map(taskDto),
     epics: epics.map(epicDto),
+    links: links.map(linkDto),
     notes: notes.map((n) => noteDto(n, me)),
     activity: activity.map((a) => ({ id: a.id, message: a.message, createdAt: a.created_at, user: a.profiles?.display_name })),
   };
@@ -190,10 +193,6 @@ export async function updateProject(id, f) {
   if (f.color !== undefined) row.color = f.color;
   if (f.status !== undefined) row.status = f.status;
   if (f.manualProgress !== undefined) row.manual_progress = Math.max(0, Math.min(100, Math.round(Number(f.manualProgress) || 0)));
-  if (f.repoUrl !== undefined) {
-    row.repo_url = f.repoUrl.trim();
-    if (row.repo_url && !/^https?:\/\//i.test(row.repo_url)) throw new Error('Le lien doit commencer par http:// ou https://');
-  }
   if (f.dueDate !== undefined) row.due_date = f.dueDate || null;
   const data = ok(await sb.from('projects').update(row).eq('id', id).select('id'));
   if (!data.length) throw new Error("Tu n'as pas les droits pour modifier ce projet.");
@@ -256,6 +255,7 @@ export async function updateNote(id, f, notes) {
   if (f.x !== undefined) row.x = clamp(f.x);
   if (f.y !== undefined) row.y = clamp(f.y);
   if (f.front) row.z = topZ(notes);
+  if (f.z !== undefined) row.z = Math.round(f.z);
   ok(await sb.from('notes').update(row).eq('id', id));
   return row;
 }
@@ -268,6 +268,28 @@ export async function toggleVote(note, me) {
 }
 
 /** Turns an idea into a task; the post-it stays on the wall. */
+// ---------- links (GitHub, Supabase, Claude, maquette, site…) ----------
+
+/** Accepts "github.com/x/y" too; only http(s) links are kept. */
+export function cleanUrl(raw) {
+  let u = (raw || '').trim();
+  if (!u) throw new Error("Colle l'adresse du lien.");
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u;
+  let parsed;
+  try { parsed = new URL(u); } catch { throw new Error("Cette adresse n'est pas valide."); }
+  if (!/^https?:$/.test(parsed.protocol) || !parsed.hostname.includes('.')) throw new Error("L'adresse doit commencer par http:// ou https://.");
+  return parsed.href.slice(0, 500);
+}
+
+export async function addLink(pid, { label, url }, links) {
+  const position = Math.max(0, ...links.map((l) => l.position)) + 1;
+  ok(await sb.from('project_links').insert({ project_id: pid, label: (label || '').trim().slice(0, 80), url: cleanUrl(url), position }));
+}
+export async function updateLink(id, { label, url }) {
+  ok(await sb.from('project_links').update({ label: (label || '').trim().slice(0, 80), url: cleanUrl(url) }).eq('id', id));
+}
+export async function deleteLink(id) { ok(await sb.from('project_links').delete().eq('id', id)); }
+
 // ---------- epics (grands chantiers) ----------
 
 function epicRow(f) {
@@ -302,7 +324,7 @@ export async function convertNote(pid, note, kind, data) {
 /** Calls onChange whenever teammates change something in the project. Returns an unsubscribe function. */
 export function subscribeProject(pid, onChange) {
   const ch = sb.channel(`project-${pid}`);
-  for (const table of ['tasks', 'epics', 'notes', 'memberships']) {
+  for (const table of ['tasks', 'epics', 'project_links', 'notes', 'memberships']) {
     ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `project_id=eq.${pid}` }, onChange);
   }
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'projects', filter: `id=eq.${pid}` }, onChange);
