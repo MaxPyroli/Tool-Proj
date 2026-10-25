@@ -15,12 +15,13 @@ Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur
 - **Avatars** : chacun choisit son emoji et sa couleur (ou garde ses initiales).
 - **Tâches organisées** :
   - **grands chantiers** pour les grosses idées (titre, longue description, avancement propre), rangés en *Maintenant / Ensuite / Plus tard / Terminé* ;
-  - **éléments** de type *Tâche*, *Bug* ou *Amélioration*, avec titre, description, statut, priorité (haute / normale / basse), personne assignée, rattachés ou non à un chantier ;
+  - **éléments** de type *Tâche*, *Bug*, *Idée* ou *Amélioration*, chacun avec sa couleur, avec titre, description, statut, priorité (haute / normale / basse), personne assignée, rattachés ou non à un chantier ;
   - trois affichages : **Feuille de route** (les chantiers), **Liste** (par chantier, triée par priorité, filtres Bugs / Améliorations / À moi), **Tableau** (À faire / En cours / Fait). Glisser-déposer sur ordinateur.
+  - **style par projet** : les admins choisissent un look (Classique, Bonbon, Néon, Papier, Pixel, Autocollant) et peuvent changer la couleur de chaque type, dans les paramètres du projet ;
 - **Mur de post-it** pour le brouillon : notes de couleur qu'on déplace librement (souris ou doigt), vue « Grille » triée par votes, 👍 pour voter, et « Transformer en… » chantier, tâche, bug ou amélioration quand l'idée est mûre.
 - **Liens du projet** : autant de liens que voulu (GitHub, Supabase, conversation Claude, maquette, site, store…), reconnus par leur adresse avec leur icône et affichés en boutons dans l'aperçu. Les admins les gèrent, tous les membres les voient.
 - **Temps réel** : les changements des autres apparaissent tout seuls.
-- **Aperçu** : jauge d'avancement, chantiers en cours, bugs ouverts, idées les plus votées, activité récente. Thème clair / sombre / auto.
+- **Aperçu** : jauge d'avancement, chantiers en cours, bugs ouverts, idées les plus votées, activité récente (repliée par défaut, elle se vide toute seule : 20 événements au plus, 14 jours). Thème clair / sombre / auto.
 
 Les droits sont vérifiés **dans la base** (règles RLS de Postgres) : même en bricolant le navigateur, personne ne peut lire ou modifier un projet dont il n'est pas membre.
 

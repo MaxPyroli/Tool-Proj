@@ -31,6 +31,14 @@ do $$ begin
 end $$;
 select pg_temp.expect_error($$insert into projects (name) values ('x')$$, 'permission denied');
 select add_member(:pid, '@bob', 'member');
+-- style des tâches et couleurs par type
+update projects set task_style = 'neon', type_colors = '{"bug":"#ff3860","idea":"#ffe600"}' where id = :pid;
+select pg_temp.expect_error(format('update projects set task_style = ''disco'' where id = %s', :pid), 'check constraint');
+select pg_temp.expect_error(format('update projects set type_colors = ''{"bug":"rouge"}'' where id = %s', :pid), 'check constraint');
+select pg_temp.expect_error(format('update projects set type_colors = ''{"epic":"#ffffff"}'' where id = %s', :pid), 'check constraint');
+select pg_temp.expect_error(format('update projects set type_colors = ''[]'' where id = %s', :pid), 'check constraint');
+insert into tasks (project_id, title, type) values (:pid, 'Et si on faisait un mode sombre ?', 'idea');
+do $$ begin assert exists (select 1 from activity where message = 'a ajouté l''idée « Et si on faisait un mode sombre ? »'), 'activité idée'; end $$;
 select pg_temp.expect_error(format('select add_member(%s, ''bob'')', :pid), 'Déjà membre');
 select pg_temp.expect_error(format('select add_member(%s, ''personne'')', :pid), 'Aucun compte');
 insert into tasks (project_id, title) values (:pid, 'Login'), (:pid, 'Carte');
@@ -42,10 +50,12 @@ select pg_temp.expect_error(format('delete from memberships where project_id = %
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
 do $$ begin
   assert (select count(*) from projects) = 1, 'bob voit le projet';
-  assert (select count(*) from tasks) = 2, 'bob voit les tâches';
+  assert (select count(*) from tasks) = 3, 'bob voit les tâches';
 end $$;
 update projects set name = 'Pirate';
 do $$ begin assert (select name from projects) = 'App vélo', 'un membre ne modifie pas le projet'; end $$;
+update projects set task_style = 'pixel';
+do $$ begin assert (select task_style from projects) = 'neon', 'un membre ne change pas le style'; end $$;
 select pg_temp.expect_error(format('select add_member(%s, ''alice'')', :pid), 'Réservé aux admins');
 update tasks set status = 'done' where title = 'Login';
 do $$ begin assert (select done_at is not null from tasks where title = 'Login'), 'done_at rempli'; end $$;
@@ -78,6 +88,13 @@ select add_member(:lpid, 'bob', 'member');
 insert into project_links (project_id, label, url) values (:lpid, 'Dépôt', 'https://github.com/x/y');
 select pg_temp.expect_error(format('insert into project_links (project_id, url) values (%s, ''javascript:alert(1)'')', :lpid), 'check constraint');
 select pg_temp.expect_error(format('insert into project_links (project_id, url) values (%s, ''ftp://x.fr'')', :lpid), 'check constraint');
+-- le journal d'activité se vide au fil de l'eau (20 événements au plus)
+insert into tasks (project_id, title) select :lpid, 'Tâche ' || g from generate_series(1, 25) g;
+select (count(*) <= 20 and count(*) > 0) as purged from activity where project_id = :lpid \gset
+\if :purged
+\else
+  do $$ begin raise exception 'ÉCHEC : le journal ne se vide pas tout seul'; end $$;
+\endif
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
 do $$ begin assert (select count(*) from project_links) = 1, 'un membre voit les liens'; end $$;
 select pg_temp.expect_error(format('insert into project_links (project_id, label, url) values (%s, ''x'', ''https://x.fr'')', :lpid), 'row-level security');

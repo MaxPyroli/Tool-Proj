@@ -21,6 +21,7 @@ const state = {
   me: null, authStep: 'email', authEmail: '', authError: '', authInfo: '',
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
+  activityOpen: store.get('activityOpen', '0') === '1',
   taskCol: 'todo', roadmapCol: 'now', taskView: store.get('taskView', 'list'), taskFilter: 'all', showDone: false,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
@@ -154,6 +155,7 @@ sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); }
 sheet.addEventListener('close', () => { sheetCleanup?.(); sheetCleanup = null; });
 sheet.addEventListener('input', (e) => {
   const form = e.target.form;
+  if (e.target.name?.startsWith('tc_') && form?.elements.taskStyle) refreshStylePreview(form);
   if (e.target.name === 'displayName' && form?.elements.avatarEmoji) refreshAvatarPreview(form);
 });
 
@@ -182,6 +184,7 @@ window.addEventListener('hashchange', () => { closeSheet(); render(); });
 
 async function render() {
   document.body.classList.remove('with-tabbar');
+  if (route().name !== 'project') applyTaskStyle(null);
   if (!state.me) return renderAuth();
   const r = route();
   if (r.name === 'project') {
@@ -342,6 +345,43 @@ function topbar(inner) {
 
 // ---------- project form ----------
 
+const SAMPLE_TASKS = { task: 'Écran de connexion', bug: 'Crash au lancement', idea: 'Et si on avait un mode sombre ?', improvement: 'Chargement plus rapide' };
+
+function stylePreviewHtml(p) {
+  const c = typeColors(p);
+  const vars = TYPE_LIST.map((k) => `--c-${k}:${c[k]}`).join(';');
+  return `<div class="style-preview items" data-tstyle="${styleOf(p)}" style="${vars}" aria-hidden="true">
+    ${TYPE_LIST.map((k) => `<div class="task t-${k}"><span class="check"></span><div class="t-main"><span class="t-title">${esc(SAMPLE_TASKS[k])}</span>${typeTag({ type: k }) ? `<span class="t-meta">${typeTag({ type: k })}</span>` : ''}</div></div>`).join('')}
+  </div>`;
+}
+
+/** Style presets + one colour per type, with a live preview. */
+function taskStyleField(p) {
+  const colors = typeColors(p);
+  return `
+  <div class="field style-field"><span>Style des tâches</span>
+    <div class="style-grid" role="radiogroup" aria-label="Style">
+      ${Object.entries(TASK_STYLES).map(([k, st]) => `<button type="button" class="style-card" data-action="pick-style" data-v="${k}" aria-pressed="${k === styleOf(p)}">
+        <span class="style-dots">${TYPE_LIST.map((t) => `<i style="background:${st.colors[t]}"></i>`).join('')}</span><b>${st.name}</b><small>${st.hint}</small></button>`).join('')}
+    </div>
+    <input type="hidden" name="taskStyle" value="${styleOf(p)}">
+    <span class="sub">Couleur de chaque type</span>
+    <div class="type-colors">${TYPE_LIST.map((t) => `<label class="tc-pick"><input type="color" name="tc_${t}" value="${colors[t]}" aria-label="Couleur ${TYPES[t]}"><span>${typeLabel(t)}</span></label>`).join('')}</div>
+    <button type="button" class="link-btn small" data-action="reset-type-colors" style="justify-self:start">Revenir aux couleurs du style</button>
+    <div id="style-preview-box">${stylePreviewHtml(p)}</div>
+  </div>`;
+}
+
+/** Reads the form's current style + colours and redraws the preview. */
+function refreshStylePreview(form) {
+  const f = form.elements;
+  const p = { taskStyle: f.taskStyle.value, typeColors: Object.fromEntries(TYPE_LIST.map((t) => [t, f[`tc_${t}`].value])) };
+  form.querySelector('#style-preview-box').innerHTML = stylePreviewHtml(p);
+}
+function setFormColors(form, style) {
+  TYPE_LIST.forEach((t) => { form.elements[`tc_${t}`].value = TASK_STYLES[style].colors[t]; });
+}
+
 function projectForm(p) {
   const editing = !!p;
   p ||= { name: '', description: '', emoji: '🚀', color: PROJECT_COLORS[0], status: 'idea', manualProgress: 0, dueDate: '', tasks: { total: 0 } };
@@ -363,7 +403,8 @@ function projectForm(p) {
         <label class="field"><span>Échéance</span><input class="input" id="pf-due" type="date" name="dueDate" value="${esc(p.dueDate || '')}"></label>
         <label class="field"><span>Avancement : <b class="num" id="pf-prog-v">${p.manualProgress} %</b></span>
           <input type="range" id="pf-prog" name="manualProgress" min="0" max="100" step="5" value="${p.manualProgress}">
-          <small class="muted">Ton estimation de l'avancement global. Les tâches ajoutées ne la changent pas.</small></label>` : ''}
+          <small class="muted">Ton estimation de l'avancement global. Les tâches ajoutées ne la changent pas.</small></label>
+        ${taskStyleField(p)}` : ''}
       <div class="row ${editing ? 'between' : 'end'}">
         ${editing ? '<button type="button" class="btn danger" data-action="delete-project">Supprimer le projet</button>' : ''}
         <button class="btn primary" type="submit">${editing ? 'Enregistrer' : 'Créer le projet'}</button>
@@ -381,6 +422,7 @@ function renderProject() {
   const d = state.data;
   if (!d) return;
   const p = d.project;
+  applyTaskStyle(p);
   const isAdmin = p.role === 'admin';
   const openTasks = d.tasks.filter((t) => t.status !== 'done').length;
   const tabs = [
@@ -501,9 +543,14 @@ function viewOverview(d) {
         ${top.length ? `<div class="top-ideas">${top.map((n) => `<button class="mini-note c-${n.color}" data-action="open-note" data-id="${n.id}"><span>${esc(n.text.split('\n')[0] || 'Post-it vide')}</span><span class="num">👍 ${n.votes}</span></button>`).join('')}</div>`
           : `<p class="muted small">Vote pour les post-it avec 👍 : les favoris apparaîtront ici.</p>`}
       </section>
-      <section class="panel">
-        <h3>Activité récente</h3>
-        ${d.activity.length ? `<ul class="feed">${d.activity.slice(0, 12).map((a) => `<li><span class="grow"><b>${esc(a.user || 'Quelqu\'un')}</b> ${esc(a.message)}<time>${timeAgo(a.createdAt)}</time></span></li>`).join('')}</ul>` : '<p class="muted small">Rien pour le moment.</p>'}
+      <section class="panel activity">
+        <button class="panel-toggle" data-action="toggle-activity" aria-expanded="${state.activityOpen}">
+          <h3>Activité récente</h3>${d.activity.length ? `<span class="count num">${d.activity.length}</span>` : ''}<span class="chev" aria-hidden="true">${state.activityOpen ? '▴' : '▾'}</span>
+        </button>
+        ${!d.activity.length ? '<p class="muted small">Rien pour le moment.</p>'
+          : state.activityOpen ? `<ul class="feed">${d.activity.map((a) => `<li><span class="grow"><b>${esc(a.user || 'Quelqu\'un')}</b> ${esc(a.message)}<time>${timeAgo(a.createdAt)}</time></span></li>`).join('')}</ul>
+            <p class="small muted">Les plus anciens disparaissent tout seuls (20 au plus, 14 jours).</p>`
+          : `<p class="small muted act-last"><b>${esc(d.activity[0].user || 'Quelqu\'un')}</b> ${esc(d.activity[0].message)} · ${timeAgo(d.activity[0].createdAt)}</p>`}
       </section>
     </div>
   </div>`;
@@ -575,14 +622,39 @@ function viewTeam(d) {
 
 // ---------- tasks: chantiers + items (tâche / bug / amélioration), three views ----------
 
-const TYPES = { task: 'Tâche', bug: 'Bug', improvement: 'Amélioration' };
+const TYPES = { task: 'Tâche', bug: 'Bug', idea: 'Idée', improvement: 'Amélioration' };
+const TYPE_ICON = { task: '✅', bug: '🐞', idea: '💡', improvement: '✨' };
+const TYPE_LIST = Object.keys(TYPES);
+const typeLabel = (k) => `${TYPE_ICON[k]} ${TYPES[k]}`;
+const NEW_TITLE = { task: 'Nouvelle tâche', bug: 'Nouveau bug', idea: 'Nouvelle idée', improvement: 'Nouvelle amélioration' };
+
+// Task look per project: a style (the shape of cards and tags) and one colour per type, editable by admins.
+const TASK_STYLES = {
+  classic: { name: 'Classique', hint: 'Sobre, un liseré de couleur.', colors: { task: '#868e96', bug: '#e03131', idea: '#f59f00', improvement: '#7048c8' } },
+  candy: { name: 'Bonbon', hint: 'Pastel et tout rond.', colors: { task: '#63e6be', bug: '#ff6b9a', idea: '#ffd43b', improvement: '#9775fa' } },
+  neon: { name: 'Néon', hint: 'Ça brille dans le noir.', colors: { task: '#69db7c', bug: '#ff3860', idea: '#ffe600', improvement: '#00c8e6' } },
+  paper: { name: 'Papier', hint: 'Des petits papiers collés.', colors: { task: '#adb5bd', bug: '#f76707', idea: '#fab005', improvement: '#4dabf7' } },
+  pixel: { name: 'Pixel', hint: 'Rétro, façon jeu 8 bits.', colors: { task: '#51cf66', bug: '#fa5252', idea: '#fcc419', improvement: '#339af0' } },
+  sticker: { name: 'Autocollant', hint: 'Gros contours, un peu de travers.', colors: { task: '#38d9a9', bug: '#ff6b6b', idea: '#ffa94d', improvement: '#da77f2' } },
+};
+const styleOf = (p) => (TASK_STYLES[p?.taskStyle] ? p.taskStyle : 'classic');
+const typeColors = (p) => ({ ...TASK_STYLES[styleOf(p)].colors, ...(p?.typeColors || {}) });
+
+/** Puts the project's task style and colours on <body>; null clears them (project list, login). */
+function applyTaskStyle(p) {
+  const b = document.body;
+  if (!p) { delete b.dataset.tstyle; TYPE_LIST.forEach((k) => b.style.removeProperty(`--c-${k}`)); return; }
+  b.dataset.tstyle = styleOf(p);
+  const c = typeColors(p);
+  TYPE_LIST.forEach((k) => b.style.setProperty(`--c-${k}`, c[k]));
+}
 const PRIORITY = { high: 'Haute', normal: 'Normale', low: 'Basse' };
 const HORIZON = { now: 'Maintenant', next: 'Ensuite', later: 'Plus tard', done: 'Terminé' };
 const STATUS_ORDER = { doing: 0, todo: 1, done: 2 };
 const PRIO_ORDER = { high: 0, normal: 1, low: 2 };
 const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
 
-const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ${t.type}">${TYPES[t.type]}</span>`);
+const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ${t.type}"><i aria-hidden="true">${TYPE_ICON[t.type]}</i>${TYPES[t.type]}</span>`);
 const prioTag = (t) => (t.priority === 'high' ? '<span class="prio high" title="Priorité haute">Prioritaire</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
 const sortItems = (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
 const sortEpics = (a, b) => HORIZON_ORDER[a.horizon] - HORIZON_ORDER[b.horizon] || a.position - b.position;
@@ -600,7 +672,7 @@ function matchesFilter(t) {
 
 function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
   return `
-  <div class="task ${t.status === 'done' ? 'is-done' : ''}" data-action="open-task" data-id="${t.id}" ${draggable ? 'draggable="true" data-drag="task"' : ''}>
+  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''}" data-action="open-task" data-id="${t.id}" ${draggable ? 'draggable="true" data-drag="task"' : ''}>
     <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? '✓' : t.status === 'doing' ? '●' : ''}</button>
     <div class="t-main">
       <span class="t-title">${esc(t.title)}</span>
@@ -614,6 +686,7 @@ function viewTasks(d) {
   const view = state.taskView;
   const open = d.tasks.filter((t) => t.status !== 'done');
   const filters = [['all', 'Tout', open.length], ['bug', 'Bugs', open.filter((t) => t.type === 'bug').length],
+    ['idea', 'Idées', open.filter((t) => t.type === 'idea').length],
     ['improvement', 'Améliorations', open.filter((t) => t.type === 'improvement').length], ['task', 'Tâches', open.filter((t) => t.type === 'task').length],
     ['mine', 'À moi', open.filter((t) => t.assigneeId === state.me.id).length]];
   return `
@@ -623,7 +696,7 @@ function viewTasks(d) {
     </div>
     <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
   </div>
-  ${view !== 'roadmap' ? `<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>` : ''}
+  ${view !== 'roadmap' ? `<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>` : ''}
   ${{ roadmap: viewRoadmap, list: viewList, board: viewBoard }[view](d)}`;
 }
 
@@ -708,9 +781,9 @@ function viewBoard(d) {
   </div>`;
 }
 
-const segField = (name, options, value, label) => `
+const segField = (name, options, value, label, cls = '') => `
   <div class="field"><span>${label}</span>
-    <div class="seg" style="margin:0" data-seg="${name}">${Object.entries(options).map(([k, l]) => `<button type="button" data-action="pick-seg" data-v="${k}" aria-pressed="${k === value}">${l}</button>`).join('')}</div>
+    <div class="seg ${cls ? 'wrap' : ''}" style="margin:0" data-seg="${name}">${Object.entries(options).map(([k, l]) => `<button type="button" class="${cls} ${k}" data-action="pick-seg" data-v="${k}" aria-pressed="${k === value}">${l}</button>`).join('')}</div>
     <input type="hidden" name="${name}" value="${value}"></div>`;
 
 /** Create or edit an item (tâche, bug, amélioration). */
@@ -720,8 +793,8 @@ function taskSheet(t) {
   t = { title: '', description: '', status: 'todo', type: 'task', priority: 'normal', epicId: null, assigneeId: null, ...t };
   openSheet(`
     <form class="stack" data-form="${isNew ? 'new-task' : 'edit-task'}" data-id="${t.id || ''}">
-      <div class="sheet-head"><h2 id="sheet-title">${isNew ? `Nouveau${t.type === 'improvement' ? 'elle amélioration' : t.type === 'bug' ? ' bug' : 'elle tâche'}` : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
-      ${segField('type', TYPES, t.type, 'Type')}
+      <div class="sheet-head"><h2 id="sheet-title">${isNew ? NEW_TITLE[t.type] : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+      ${segField('type', Object.fromEntries(TYPE_LIST.map((k) => [k, typeLabel(k)])), t.type, 'Type', 'type-opt')}
       <label class="field"><span>Titre</span><input class="input" id="tf-title" name="title" maxlength="200" required value="${esc(t.title)}" placeholder="${t.type === 'bug' ? 'ex. Crash quand on ouvre la carte' : 'ex. Écran de connexion'}" autofocus></label>
       <label class="field"><span>Description <small class="muted">(facultatif)</small></span><textarea class="input" id="tf-desc" name="description" maxlength="5000" placeholder="${t.type === 'bug' ? 'Comment le reproduire, sur quel appareil…' : 'Détails, étapes, liens…'}">${esc(t.description)}</textarea></label>
       ${segField('status', TASK, t.status, 'Statut')}
@@ -762,6 +835,7 @@ function chooserSheet({ title = 'Ajouter', action = 'choose-new', noteId = '' } 
     ['epic', 'Grand chantier', 'Une grosse idée qui regroupera plusieurs tâches.'],
     ['task', 'Tâche', 'Quelque chose à faire.'],
     ['bug', 'Bug', 'Un problème à corriger.'],
+    ['idea', 'Idée', 'Une piste à creuser, pas encore décidée.'],
     ['improvement', 'Amélioration', "Rendre mieux ce qui existe déjà."],
   ];
   openSheet(`
@@ -1007,6 +1081,19 @@ const actions = {
     form.querySelectorAll('[data-action="pick-avatar-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
     refreshAvatarPreview(form);
   },
+  'pick-style': (el) => {
+    const form = el.closest('form');
+    form.elements.taskStyle.value = el.dataset.v;
+    form.querySelectorAll('.style-card').forEach((b) => b.setAttribute('aria-pressed', b === el));
+    setFormColors(form, el.dataset.v);
+    refreshStylePreview(form);
+  },
+  'reset-type-colors': (el) => {
+    const form = el.closest('form');
+    setFormColors(form, form.elements.taskStyle.value);
+    refreshStylePreview(form);
+  },
+  'toggle-activity': () => { state.activityOpen = !state.activityOpen; store.set('activityOpen', state.activityOpen ? '1' : '0'); renderProject(); },
   'pick-seg': (el) => {
     const seg = el.closest('[data-seg]');
     el.closest('form').elements[seg.dataset.seg].value = el.dataset.v;
@@ -1017,7 +1104,8 @@ const actions = {
     const note = state.data.notes.find((n) => n.id === Number(el.dataset.id));
     const title = await db.convertNote(state.pid, note, el.dataset.v, state.data);
     closeSheet();
-    toast(`${el.dataset.v === 'epic' ? 'Chantier' : TYPES[el.dataset.v]} créé${el.dataset.v === 'improvement' ? 'e' : ''} : ${title}`);
+    const kind = el.dataset.v;
+    toast(`${kind === 'epic' ? 'Chantier' : TYPES[kind]} créé${kind === 'bug' || kind === 'epic' ? '' : 'e'} : ${title}`);
     await reloadProject();
   },
   'open-task': (el) => taskSheet(state.data.tasks.find((t) => t.id === Number(el.dataset.id))),
@@ -1097,6 +1185,12 @@ const forms = {
   },
   async 'edit-project'(f) {
     const body = formData(f);
+    const base = TASK_STYLES[body.taskStyle]?.colors;
+    if (base) {
+      body.typeColors = {};
+      for (const t of TYPE_LIST) { const v = (body[`tc_${t}`] || '').toLowerCase(); if (v && v !== base[t].toLowerCase()) body.typeColors[t] = v; }
+    }
+    TYPE_LIST.forEach((t) => delete body[`tc_${t}`]);
     await db.updateProject(state.pid, body);
     closeSheet(); toast('Projet mis à jour'); await reloadProject();
   },

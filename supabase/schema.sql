@@ -80,9 +80,6 @@ alter table public.tasks add column if not exists priority text not null default
 alter table public.tasks add column if not exists epic_id bigint references public.epics (id) on delete set null;
 create index if not exists tasks_epic_idx on public.tasks (epic_id);
 do $$ begin
-  if not exists (select 1 from pg_constraint where conname = 'tasks_type_check') then
-    alter table public.tasks add constraint tasks_type_check check (type in ('task', 'bug', 'improvement'));
-  end if;
   if not exists (select 1 from pg_constraint where conname = 'tasks_priority_check') then
     alter table public.tasks add constraint tasks_priority_check check (priority in ('high', 'normal', 'low'));
   end if;
@@ -106,6 +103,23 @@ create index if not exists project_links_project_idx on public.project_links (pr
 insert into public.project_links (project_id, label, url)
 select p.id, 'Lien', p.repo_url from public.projects p
 where p.repo_url <> '' and not exists (select 1 from public.project_links l where l.project_id = p.id);
+
+alter table public.tasks drop constraint if exists tasks_type_check;
+alter table public.tasks add constraint tasks_type_check check (type in ('task', 'bug', 'idea', 'improvement'));
+
+-- Style des tâches par projet : un style (look) et des couleurs par type, personnalisables par les admins.
+create or replace function public.valid_type_colors(c jsonb)
+returns boolean language sql immutable set search_path = '' as $$
+  select jsonb_typeof(c) = 'object' and not exists (
+    select 1 from jsonb_each_text(c) e
+    where e.key not in ('task', 'bug', 'idea', 'improvement') or e.value !~ '^#[0-9a-fA-F]{6}$');
+$$;
+alter table public.projects add column if not exists task_style text not null default 'classic';
+alter table public.projects add column if not exists type_colors jsonb not null default '{}'::jsonb;
+alter table public.projects drop constraint if exists projects_task_style_check;
+alter table public.projects add constraint projects_task_style_check check (task_style in ('classic', 'candy', 'neon', 'paper', 'pixel', 'sticker'));
+alter table public.projects drop constraint if exists projects_type_colors_check;
+alter table public.projects add constraint projects_type_colors_check check (public.valid_type_colors(type_colors));
 
 create table if not exists public.notes (
   id bigint generated always as identity primary key,
@@ -193,6 +207,10 @@ returns void language sql security definer set search_path = '' as $$
   select pid, (select id from public.profiles where id = auth.uid()), msg
   where exists (select 1 from public.projects where id = pid);
   update public.projects set updated_at = now() where id = pid;
+  -- Le journal se vide au fil de l'eau : 20 événements au plus, rien de plus vieux que 14 jours.
+  delete from public.activity where project_id = pid
+    and (created_at < now() - interval '14 days'
+         or id not in (select id from public.activity where project_id = pid order by id desc limit 20));
 $$;
 revoke execute on function public.log_activity(bigint, text) from public, anon, authenticated;
 
@@ -291,10 +309,10 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'INSERT' then
     perform public.log_activity(new.project_id, format('a ajouté %s « %s »',
-      case new.type when 'bug' then 'le bug' when 'improvement' then 'l''amélioration' else 'la tâche' end, new.title));
+      case new.type when 'bug' then 'le bug' when 'idea' then 'l''idée' when 'improvement' then 'l''amélioration' else 'la tâche' end, new.title));
   elsif tg_op = 'DELETE' then
     perform public.log_activity(old.project_id, format('a supprimé %s « %s »',
-      case old.type when 'bug' then 'le bug' when 'improvement' then 'l''amélioration' else 'la tâche' end, old.title));
+      case old.type when 'bug' then 'le bug' when 'idea' then 'l''idée' when 'improvement' then 'l''amélioration' else 'la tâche' end, old.title));
   elsif new.status <> old.status then
     perform public.log_activity(new.project_id, format('%s « %s »',
       case new.status when 'todo' then 'a remis à faire' when 'doing' then 'a commencé' else 'a terminé' end, new.title));
@@ -368,8 +386,8 @@ begin
     insert into public.activity (project_id, user_id, message)
     values (new.id, auth.uid(), format('a passé le projet en « %s »',
       case new.status when 'idea' then 'Idée' when 'active' then 'En cours' when 'paused' then 'En pause' else 'Terminé' end));
-  elsif (new.name, new.description, new.emoji, new.color, new.manual_progress, new.repo_url, new.due_date)
-        is distinct from (old.name, old.description, old.emoji, old.color, old.manual_progress, old.repo_url, old.due_date) then
+  elsif (new.name, new.description, new.emoji, new.color, new.manual_progress, new.repo_url, new.due_date, new.task_style, new.type_colors)
+        is distinct from (old.name, old.description, old.emoji, old.color, old.manual_progress, old.repo_url, old.due_date, old.task_style, old.type_colors) then
     insert into public.activity (project_id, user_id, message) values (new.id, auth.uid(), 'a modifié le projet');
   end if;
   return null;
