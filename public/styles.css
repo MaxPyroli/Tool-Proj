@@ -22,6 +22,7 @@
   --st-active: #2b8a3e;
   --st-paused: #b76e00;
   --st-done: #3b6fd8;
+  --on-active: #ffffff; /* tick drawn on the green "done" circle */
   /* item types & roadmap horizons */
   /* colour of each task type (overridden per project on <body>) */
   --c-task: #868e96;
@@ -52,6 +53,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --on-active: #0b2412;
     --h-now: #51cf66; --h-next: #74a7ff; --h-later: #a6adb8; --h-done: #8b94a3;
     --bg: #12161d; --surface: #1b212b; --surface-2: #222935; --ink: #e8ecf2; --muted: #9aa3b2;
     --line: #2e3644; --accent: #3cc2b4; --accent-ink: #062b27; --accent-soft: #143b38;
@@ -63,6 +65,7 @@
   }
 }
 :root[data-theme="dark"] {
+    --on-active: #0b2412;
     --h-now: #51cf66; --h-next: #74a7ff; --h-later: #a6adb8; --h-done: #8b94a3;
   --bg: #12161d; --surface: #1b212b; --surface-2: #222935; --ink: #e8ecf2; --muted: #9aa3b2;
   --line: #2e3644; --accent: #3cc2b4; --accent-ink: #062b27; --accent-soft: #143b38;
@@ -578,3 +581,11 @@ h3.group-title { cursor: default; color: var(--muted); }
 .act-last { overflow-wrap: anywhere; }
 [data-tstyle="paper"] .task .prio.low { color: rgb(43 39 23 / .65); }
 [data-tstyle="paper"] .task .prio.high { color: #a61e1e; }
+
+/* the "done" tick: always a solid green circle with a bold tick, whatever the style or theme */
+.task .check, .check { width: 32px; height: 32px; }
+.task .check.done, [data-tstyle] .task .check.done { background: var(--st-active); border-color: var(--st-active); color: var(--on-active); }
+.check.done svg { display: block; }
+.dot-doing { width: 12px; height: 12px; border-radius: 50%; background: var(--st-paused); display: block; }
+[data-tstyle="pixel"] .task .check.done, [data-tstyle="sticker"] .task .check.done { border-color: var(--ink); }
+[data-tstyle="neon"] .task .check.done { box-shadow: 0 0 10px color-mix(in srgb, var(--st-active) 60%, transparent); }
