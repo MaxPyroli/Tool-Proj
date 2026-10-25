@@ -619,3 +619,10 @@ dialog#sheet { overscroll-behavior: contain; }
 .t-epic { min-width: 0; max-width: 100%; }
 .t-title { overflow-wrap: anywhere; }
 .col, .group, .items, .columns { min-width: 0; }
+
+/* cards: the content column may never be wider than the card (a long unbreakable label used to stretch it) */
+.panel, .pcard, .epic-card, .group, .col { grid-template-columns: minmax(0, 1fr); }
+.panel > *, .pcard > *, .epic-card > * { min-width: 0; max-width: 100%; }
+.btn.wrap-text { white-space: normal; height: auto; min-height: 44px; padding-top: 8px; padding-bottom: 8px; text-align: center; line-height: 1.3; flex-wrap: wrap; }
+.btn { max-width: 100%; }
+.hero > * { min-width: 0; }

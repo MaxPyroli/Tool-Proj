@@ -484,7 +484,7 @@ function linksBlock(d) {
         <span class="lk-text"><b>${esc(linkLabel(l))}</b><small>${esc(linkHost(l.url))}</small></span>
         <span class="lk-out" aria-hidden="true">↗</span>
       </a>`; }).join('')}</div>`
-      : `<button class="btn" data-action="manage-links">+ Ajouter un lien (GitHub, Supabase, Claude…)</button>`}
+      : `<button class="btn wrap-text" data-action="manage-links">+ Ajouter un lien <span class="muted small">GitHub, Supabase, Claude…</span></button>`}
   </div>`;
 }
 
