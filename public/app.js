@@ -10,8 +10,8 @@ const TASK_COLOR = { todo: 'var(--muted)', doing: 'var(--st-paused)', done: 'var
 const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert', orange: 'Orange', purple: 'Violet' };
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
-const BOARD_W = 1800, BOARD_H = 1200;
-const APP_VERSION = '0.9.0';
+const BOARD_W = 3000, BOARD_H = 2400;
+const APP_VERSION = '0.10.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -133,12 +133,18 @@ const icon = {
   gear: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
 };
 
-function toast(msg, err = false) {
+function toast(msg, err = false, action = null) {
   const el = document.createElement('div');
-  el.className = `toast${err ? ' err' : ''}`;
+  el.className = `toast${err ? ' err' : ''}${action ? ' has-act' : ''}`;
   el.textContent = msg;
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'toast-act'; b.textContent = action.label;
+    b.addEventListener('click', () => { el.remove(); action.fn(); });
+    el.append(b);
+  }
   document.getElementById('toasts').append(el);
-  setTimeout(() => el.remove(), err ? 4500 : 2500);
+  setTimeout(() => el.remove(), err ? 4500 : action ? 9000 : 2500);
 }
 
 /** Wraps an async action: shows its error as a toast. */
@@ -200,7 +206,7 @@ window.addEventListener('hashchange', () => { closeSheet(); render(); });
 
 async function render() {
   document.body.classList.remove('with-tabbar');
-  if (route().name !== 'project') applyTaskStyle(null);
+  if (route().name !== 'project') { applyTaskStyle(null); wallApi = null; if (state.wall) state.wall.fs = false; document.documentElement.classList.remove('wall-open'); }
   if (!state.me) return renderAuth();
   const r = route();
   if (r.name === 'project') {
@@ -233,7 +239,7 @@ function subscribe(pid) {
 }
 async function refreshIfIdle() {
   if (!state.pid || !state.data || document.hidden) return;
-  if (sheet.open || state.dragging || ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
+  if (sheet.open || state.dragging || state.panning || ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
     clearTimeout(staleTimer); staleTimer = setTimeout(refreshIfIdle, 2000); // try again once idle
     return;
   }
@@ -448,11 +454,9 @@ function renderProject() {
     ['idees', 'Post-it', icon.notes, d.notes.length],
     ['equipe', 'Équipe', icon.team, d.members.length],
   ];
-  const board = $app.querySelector('.board-wrap');
-  const scroll = board ? [board.scrollLeft, board.scrollTop] : null;
-
+  syncWallChrome();
   document.body.classList.add('with-tabbar');
-  redraw(`p${p.id}/${state.tab}/${state.taskView}/${state.boardView}`, () => { $app.innerHTML = `
+  redraw(`p${p.id}/${state.tab}/${state.taskView}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`, () => { $app.innerHTML = `
   ${topbar(`
     <a class="btn ghost icon" href="#/" aria-label="Retour aux projets">${icon.back}</a>
     <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${esc(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
@@ -466,13 +470,8 @@ function renderProject() {
   ${state.tab === 'idees' ? '<button class="fab hide-lg" data-action="new-note">+ Post-it</button>' : ''}
   ${state.tab === 'taches' ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`; });
 
-  if (state.tab === 'idees' && state.boardView === 'wall') {
-    const wrap = $app.querySelector('.board-wrap');
-    if (wrap) {
-      if (scroll) [wrap.scrollLeft, wrap.scrollTop] = scroll;
-      bindBoard(wrap);
-    }
-  }
+  const wallEl = state.tab === 'idees' && state.boardView === 'wall' ? $app.querySelector('.board-wrap.wall') : null;
+  if (wallEl) bindWall(wallEl); else wallApi = null;
   if (state.tab === 'taches') bindTaskDnD();
 }
 
@@ -594,10 +593,22 @@ function viewNotes(d) {
       <button data-action="board-view" data-v="wall" aria-pressed="${wall}">Mur</button>
       <button data-action="board-view" data-v="grid" aria-pressed="${!wall}">Grille</button>
     </div>
-    <p class="muted small grow">${wall ? 'Glisse les post-it pour les ranger, touche-les pour les modifier.' : 'Les plus votés d\'abord, puis par ordre d\'ajout.'}</p>
+    <p class="muted small grow">${wall ? 'Glisse le fond pour te déplacer, pince (ou Ctrl + molette) pour zoomer, touche un post-it pour le modifier.' : 'Les plus votés d\'abord, puis par ordre d\'ajout.'}</p>
   </div>
   ${!d.notes.length ? `<div class="empty"><div class="big">🗒️</div><p>Aucun post-it. Note ici les idées, les bugs à régler, les envies…</p><button class="btn primary" data-action="new-note">Coller un post-it</button></div>`
-    : wall ? `<div class="board-wrap"><div class="board">${sorted.map((n) => noteHtml(n, true)).join('')}</div></div>`
+    : wall ? `<div class="board-wrap wall${state.wall?.fs ? ' fs' : ''}" tabindex="0" aria-label="Plan de travail des post-it">
+        <div class="board" style="width:${BOARD_W}px;height:${BOARD_H}px">${sorted.map((n) => noteHtml(n, true)).join('')}</div>
+        <div class="wall-top"><button class="btn sm" data-action="wall-exit">✕ Fermer</button><span class="wall-title">Post-it · ${d.notes.length}</span><button class="btn sm primary" data-action="new-note">+ Post-it</button></div>
+        <div class="minimap" aria-hidden="true"></div>
+        <div class="wall-bar" role="toolbar" aria-label="Zoom et rangement">
+          <button class="wb" data-action="wall-zoom" data-v="out" aria-label="Dézoomer">−</button>
+          <button class="wb zoom-val" data-action="wall-100" aria-label="Revenir à 100 %">100 %</button>
+          <button class="wb" data-action="wall-zoom" data-v="in" aria-label="Zoomer">+</button>
+          <button class="wb txt" data-action="wall-fit">Tout voir</button>
+          <button class="wb txt" data-action="wall-arrange">Ranger</button>
+          ${state.wall?.fs ? '' : '<button class="wb" data-action="wall-fs" aria-label="Plein écran">⛶</button>'}
+        </div>
+      </div>`
       : `<div class="note-grid">${sorted.map((n) => noteHtml(n, false)).join('')}</div>`}`;
 }
 
@@ -903,6 +914,7 @@ function noteSheet(n) {
       <div class="sheet-note c-${n.color}" id="nf-paper"><textarea id="nf-text" name="text" maxlength="1000" placeholder="Une idée, un bug, une envie…" autofocus>${esc(n.text)}</textarea></div>
       <div class="swatches" role="radiogroup" aria-label="Couleur">${Object.entries(NOTE_COLORS).map(([k, l]) => `<button type="button" class="swatch c-${k}" data-action="note-color" data-v="${k}" aria-pressed="${k === n.color}" aria-label="${l}"></button>`).join('')}</div>
       <input type="hidden" name="color" value="${n.color}">
+      ${isNew ? `<input type="hidden" name="x" value="${n.x ?? ''}"><input type="hidden" name="y" value="${n.y ?? ''}">` : ''}
       ${isNew ? '' : `<p class="small muted">Par ${esc(n.author || 'un ancien membre')} · ${timeAgo(n.createdAt)} · 👍 ${n.votes}</p>`}
       <div class="row between">
         ${isNew ? '<span></span>' : `<div class="row"><button type="button" class="btn danger" data-action="delete-note" data-id="${n.id}">Supprimer</button>
@@ -912,64 +924,313 @@ function noteSheet(n) {
     </form>`);
 }
 
-/** Picks a spot on the wall that doesn't cover another post-it, preferring the visible area. */
-function freeSpot() {
-  const wrap = $app.querySelector('.board-wrap');
-  const notes = state.data?.notes || [];
-  const free = (x, y) => notes.every((n) => Math.abs(n.x - x) > 200 || Math.abs(n.y - y) > 190);
-  const vx = wrap ? wrap.scrollLeft : 0, vy = wrap ? wrap.scrollTop : 0;
-  const vw = wrap ? wrap.clientWidth : 900, vh = wrap ? wrap.clientHeight : 600;
-  for (const [ox, oy, w, h] of [[vx, vy, vw, vh], [0, 0, BOARD_W, BOARD_H]]) {
-    for (let y = oy + 24; y + 180 <= Math.min(BOARD_H, oy + h); y += 200) {
-      for (let x = ox + 24; x + 190 <= Math.min(BOARD_W, ox + w); x += 214) {
-        if (free(x, y)) return { x, y };
-      }
-    }
-  }
-  return { x: vx + 40 + Math.round(Math.random() * 80), y: vy + 40 + Math.round(Math.random() * 80) };
+// ---------- post-it wall: a big work surface you can zoom and move around ----------
+
+const WALL = { minK: 0.1, maxK: 2.5, noteW: 190, noteH: 190 };
+const wallState = () => (state.wall ||= { fs: false, cam: null, fit: true, spawn: null, pid: null });
+const clampK = (k) => Math.max(WALL.minK, Math.min(WALL.maxK, k));
+let wallApi = null; // functions of the wall currently on screen
+
+function loadCam(pid) {
+  try { const c = JSON.parse(store.get(`wall:${pid}`, 'null')); if (c && [c.x, c.y, c.k].every(Number.isFinite)) return c; } catch { /* ignore */ }
+  return null;
+}
+let saveCamTimer = null;
+function saveCam() {
+  clearTimeout(saveCamTimer);
+  saveCamTimer = setTimeout(() => { const w = wallState(); if (w.cam && w.pid) store.set(`wall:${w.pid}`, JSON.stringify(w.cam)); }, 400);
 }
 
-/** Drag post-its on the wall with pointer events (mouse, touch and pen). A tap opens the note. */
-function bindBoard(wrap) {
-  let drag = null;
+/** Keeps the fullscreen class on <html> in sync with what is on screen. */
+function syncWallChrome() {
+  const w = wallState();
+  const on = w.fs && state.tab === 'idees' && state.boardView === 'wall' && !!state.pid;
+  document.documentElement.classList.toggle('wall-open', on);
+  if (!on) w.fs = false;
+}
+
+function setWallFullscreen(on) {
+  const w = wallState();
+  if (on === w.fs) return;
+  w.fs = on;
+  if (on) history.pushState({ wallfs: 1 }, '');
+  else if (history.state?.wallfs) history.back();
+  syncWallChrome();
+  renderProject();
+}
+window.addEventListener('popstate', () => { const w = wallState(); if (w.fs) { w.fs = false; if (isPhone()) { state.boardView = 'grid'; store.set('boardView', 'grid'); } syncWallChrome(); renderProject(); } });
+
+function noteBox(n) { return { x: n.x, y: n.y, w: WALL.noteW, h: WALL.noteH }; }
+
+/** Camera that shows every post-it (never zoomed in beyond 100 %). */
+function fitCamera(wrap, notes) {
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (!notes.length) return { x: 24, y: 24, k: 1 };
+  const x0 = Math.min(...notes.map((n) => n.x)), y0 = Math.min(...notes.map((n) => n.y));
+  const x1 = Math.max(...notes.map((n) => n.x + WALL.noteW)), y1 = Math.max(...notes.map((n) => n.y + WALL.noteH));
+  const padX = 28, padTop = state.wall?.fs ? 64 : 28, padBottom = 76;
+  const k = clampK(Math.min(1, (W - 2 * padX) / (x1 - x0), (H - padTop - padBottom) / (y1 - y0)));
+  return { k, x: (W - (x1 - x0) * k) / 2 - x0 * k, y: padTop + (H - padTop - padBottom - (y1 - y0) * k) / 2 - y0 * k };
+}
+
+/** Free spot for a new post-it inside the part of the wall you are looking at. */
+function freeSpot() {
+  const w = wallState();
+  const wrap = $app.querySelector('.board-wrap.wall');
+  const notes = state.data?.notes || [];
+  if (w.spawn) { const s = w.spawn; w.spawn = null; return s; }
+  const free = (x, y) => notes.every((n) => Math.abs(n.x - x) > 200 || Math.abs(n.y - y) > 190);
+  let view = { x: 0, y: 0, w: 900, h: 600 };
+  if (wrap && w.cam) view = { x: -w.cam.x / w.cam.k, y: -w.cam.y / w.cam.k, w: wrap.clientWidth / w.cam.k, h: wrap.clientHeight / w.cam.k };
+  const bounded = (r) => ({ x: Math.max(0, r.x), y: Math.max(10, r.y), w: Math.min(r.w, BOARD_W), h: Math.min(r.h, BOARD_H) });
+  const v = bounded(view);
+  for (const r of [v, { x: 0, y: 10, w: BOARD_W, h: BOARD_H }]) {
+    for (let y = r.y + 24; y + 180 <= Math.min(BOARD_H, r.y + r.h); y += 200) {
+      for (let x = r.x + 24; x + WALL.noteW <= Math.min(BOARD_W, r.x + r.w); x += 214) if (free(x, y)) return { x: Math.round(x), y: Math.round(y) };
+    }
+  }
+  return { x: Math.round(v.x + 40 + Math.random() * 80), y: Math.round(v.y + 40 + Math.random() * 80) };
+}
+
+/** Moves the view so a post-it is in the middle (used after adding one). */
+function centerOnNote(id) {
+  const n = state.data.notes.find((x) => x.id === id);
+  if (n && wallApi) wallApi.centerOn(n.x + WALL.noteW / 2, n.y + WALL.noteH / 2);
+}
+
+/** Neat grid. mode: 'color' | 'votes' | 'date'. Returns [{id, x, y}]. */
+function arrangeLayout(notes, mode) {
+  const colors = Object.keys(NOTE_COLORS);
+  const list = [...notes];
+  if (mode === 'votes') list.sort((a, b) => b.votes - a.votes || a.id - b.id);
+  else if (mode === 'date') list.sort((a, b) => a.id - b.id);
+  else list.sort((a, b) => colors.indexOf(a.color) - colors.indexOf(b.color) || b.votes - a.votes || a.id - b.id);
+  const X0 = 40, Y0 = 70, STEP = 214, maxRows = Math.floor((BOARD_H - Y0 - 30) / STEP);
+  const place = (cols) => {
+    let row = 0, col = 0, prev = null; const out = [];
+    for (const n of list) {
+      if (mode === 'color' && prev && n.color !== prev && col > 0) { row++; col = 0; }
+      prev = n.color;
+      out.push({ id: n.id, x: X0 + col * STEP, y: Y0 + row * STEP });
+      if (++col >= cols) { col = 0; row++; }
+    }
+    return { out, rows: row + (col ? 1 : 0) };
+  };
+  let cols = Math.max(3, Math.min(10, Math.ceil(Math.sqrt(list.length * 1.6))));
+  let res = place(cols);
+  while (res.rows > maxRows && cols < 13) res = place(++cols);
+  return res.out;
+}
+
+function arrangeSheet() {
+  openSheet(`
+    <div class="sheet-head"><h2 id="sheet-title">Ranger les post-it</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">✕</button></div>
+    <p class="small muted">Les post-it sont alignés en grille, pour tout le monde. Tu pourras annuler juste après.</p>
+    <div class="chooser">
+      <button class="choice ch-task" data-action="wall-arrange-do" data-v="color"><strong>Par couleur</strong><span>Une ligne par couleur de post-it.</span></button>
+      <button class="choice ch-idea" data-action="wall-arrange-do" data-v="votes"><strong>Par votes</strong><span>Les plus votés en premier.</span></button>
+      <button class="choice ch-epic" data-action="wall-arrange-do" data-v="date"><strong>Par ordre d'ajout</strong><span>Du plus ancien au plus récent.</span></button>
+    </div>`);
+}
+
+function bindWall(wrap) {
+  const w = wallState();
+  const board = wrap.querySelector('.board');
+  const label = wrap.querySelector('.zoom-val');
+  const mm = wrap.querySelector('.minimap');
+  const view = () => ({ W: wrap.clientWidth, H: wrap.clientHeight });
+  const noteEls = () => [...board.querySelectorAll('.note')];
+  let raf = 0;
+
+  // First time on this project: restore the last view, or show everything.
+  if (w.pid !== state.pid) { w.pid = state.pid; w.cam = loadCam(state.pid); w.fit = !w.cam; }
+  if (!w.cam || w.fit) w.cam = fitCamera(wrap, state.data.notes);
+
+  function clampCam() {
+    const { W, H } = view(), c = w.cam;
+    c.k = clampK(c.k);
+    c.x = Math.min(W - 80, Math.max(80 - BOARD_W * c.k, c.x));
+    c.y = Math.min(H - 80, Math.max(80 - BOARD_H * c.k, c.y));
+  }
+  function apply(animate = false) {
+    clampCam();
+    board.classList.toggle('animating', animate);
+    board.style.transform = `translate(${w.cam.x}px, ${w.cam.y}px) scale(${w.cam.k})`;
+    if (label) label.textContent = `${Math.round(w.cam.k * 100)} %`;
+    if (animate) setTimeout(() => board.classList.remove('animating'), 320);
+    queueMini(); saveCam();
+  }
+  const queueMini = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawMini(); }); };
+
+  // ---- mini map ----
+  let mmMap = null;
+  function drawMini() {
+    if (!mm) return;
+    const { W, H } = view(), c = w.cam;
+    const vis = { x: -c.x / c.k, y: -c.y / c.k, w: W / c.k, h: H / c.k };
+    const boxes = noteEls().map((el) => ({ x: el.offsetLeft, y: el.offsetTop, color: [...el.classList].find((k) => k.startsWith('c-')) }));
+    const x0 = Math.min(vis.x, ...boxes.map((b) => b.x)) - 40, y0 = Math.min(vis.y, ...boxes.map((b) => b.y)) - 40;
+    const x1 = Math.max(vis.x + vis.w, ...boxes.map((b) => b.x + WALL.noteW)) + 40, y1 = Math.max(vis.y + vis.h, ...boxes.map((b) => b.y + WALL.noteH)) + 40;
+    const MW = mm.clientWidth, MH = mm.clientHeight, s = Math.min(MW / (x1 - x0), MH / (y1 - y0));
+    const ox = (MW - (x1 - x0) * s) / 2 - x0 * s, oy = (MH - (y1 - y0) * s) / 2 - y0 * s;
+    mmMap = { s, ox, oy };
+    mm.innerHTML = boxes.map((b) => `<i class="mm-note ${b.color}" style="left:${b.x * s + ox}px;top:${b.y * s + oy}px;width:${WALL.noteW * s}px;height:${WALL.noteH * s}px"></i>`).join('')
+      + `<b class="mm-view" style="left:${vis.x * s + ox}px;top:${vis.y * s + oy}px;width:${vis.w * s}px;height:${vis.h * s}px"></b>`;
+  }
+  function miniTo(e) {
+    if (!mmMap) return;
+    const r = mm.getBoundingClientRect();
+    const wx = (e.clientX - r.left - mmMap.ox) / mmMap.s, wy = (e.clientY - r.top - mmMap.oy) / mmMap.s;
+    const { W, H } = view();
+    w.fit = false; w.cam.x = W / 2 - wx * w.cam.k; w.cam.y = H / 2 - wy * w.cam.k; apply();
+  }
+  if (mm) {
+    mm.addEventListener('pointerdown', (e) => { e.stopPropagation(); mm.setPointerCapture(e.pointerId); miniTo(e); mm.dataset.on = '1'; });
+    mm.addEventListener('pointermove', (e) => { if (mm.dataset.on) miniTo(e); });
+    mm.addEventListener('pointerup', () => { delete mm.dataset.on; });
+    mm.addEventListener('pointercancel', () => { delete mm.dataset.on; });
+  }
+
+  // ---- camera helpers (also exposed to the toolbar buttons) ----
+  const toWorld = (cx, cy) => { const r = wrap.getBoundingClientRect(); return { x: (cx - r.left - w.cam.x) / w.cam.k, y: (cy - r.top - w.cam.y) / w.cam.k }; };
+  function zoomAt(cx, cy, k2, animate = false) {
+    const r = wrap.getBoundingClientRect(), p = toWorld(cx, cy);
+    k2 = clampK(k2); w.fit = false;
+    w.cam.k = k2; w.cam.x = cx - r.left - p.x * k2; w.cam.y = cy - r.top - p.y * k2; apply(animate);
+  }
+  wallApi = {
+    zoom(f) { const r = wrap.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, w.cam.k * f, true); },
+    zoomTo(k) { const r = wrap.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, k, true); },
+    fit() { w.fit = true; w.cam = fitCamera(wrap, state.data.notes); apply(true); },
+    centerOn(wx, wy) {
+      const { W, H } = view(), c = w.cam, sx = wx * c.k + c.x, sy = wy * c.k + c.y;
+      if (sx > 40 && sx < W - 40 && sy > 70 && sy < H - 90) return;
+      w.fit = false; c.x = W / 2 - wx * c.k; c.y = H / 2 - wy * c.k; apply(true);
+    },
+    refit() { if (w.fit) { w.cam = fitCamera(wrap, state.data.notes); apply(); } else apply(); },
+  };
+
+  // ---- gestures: one finger moves the wall or a post-it, two fingers zoom ----
+  const ptrs = new Map();
+  let pan = null, pinch = null, drag = null, edge = 0, last = null;
+  const centerOf = () => { const a = [...ptrs.values()]; return { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2, d: Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) || 1 }; };
+  const ignore = (t) => t.closest('.wall-bar, .wall-top, .minimap, .vote');
+
+  function moveNoteTo(cx, cy) {
+    const p = toWorld(cx, cy);
+    const x = Math.max(0, Math.min(BOARD_W - WALL.noteW, p.x - drag.gx)), y = Math.max(10, Math.min(BOARD_H - WALL.noteH, p.y - drag.gy));
+    drag.el.style.left = `${x}px`; drag.el.style.top = `${y}px`; queueMini();
+  }
+  function edgeLoop() {
+    edge = 0;
+    if (!drag || !drag.moved || !last) return;
+    const r = wrap.getBoundingClientRect(), m = 48, sp = 14;
+    let dx = 0, dy = 0;
+    if (last.x > r.right - m) dx = -sp; else if (last.x < r.left + m) dx = sp;
+    if (last.y > r.bottom - m - 60) dy = -sp; else if (last.y < r.top + m + (w.fs ? 44 : 0)) dy = sp;
+    if (dx || dy) { w.cam.x += dx; w.cam.y += dy; w.fit = false; apply(); moveNoteTo(last.x, last.y); edge = requestAnimationFrame(edgeLoop); }
+  }
+  function cancelDrag() {
+    if (!drag) return;
+    if (drag.moved) { drag.el.style.left = `${drag.ox}px`; drag.el.style.top = `${drag.oy}px`; }
+    drag.el.classList.remove('dragging'); drag = null; state.dragging = false;
+  }
+
   wrap.addEventListener('pointerdown', (e) => {
+    if (ignore(e.target) || (e.pointerType === 'mouse' && e.button > 0)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    state.panning = true;
+    if (ptrs.size === 2) { // second finger: pinch (cancels a post-it drag)
+      cancelDrag(); pan = null;
+      const c = centerOf(); pinch = { d0: c.d, k0: w.cam.k, p: toWorld(c.x, c.y) };
+      return;
+    }
     const el = e.target.closest('.note');
-    if (!el || e.target.closest('.vote') || e.button > 0) return;
-    drag = { el, id: Number(el.dataset.note), sx: e.clientX, sy: e.clientY, ox: el.offsetLeft, oy: el.offsetTop, moved: false, pid: e.pointerId };
-    el.setPointerCapture(e.pointerId);
+    try { (el || wrap).setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ }
+    if (el) {
+      const p = toWorld(e.clientX, e.clientY);
+      drag = { el, id: Number(el.dataset.note), sx: e.clientX, sy: e.clientY, ox: el.offsetLeft, oy: el.offsetTop, gx: p.x - el.offsetLeft, gy: p.y - el.offsetTop, moved: false, pid: e.pointerId };
+    } else {
+      pan = { sx: e.clientX, sy: e.clientY, cx: w.cam.x, cy: w.cam.y, moved: false };
+    }
   });
   wrap.addEventListener('pointermove', (e) => {
-    if (!drag || e.pointerId !== drag.pid) return;
-    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
-    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
-    if (!drag.moved) { drag.moved = true; state.dragging = true; drag.el.classList.add('dragging'); }
-    const x = Math.max(0, Math.min(BOARD_W - drag.el.offsetWidth, drag.ox + dx));
-    const y = Math.max(10, Math.min(BOARD_H - drag.el.offsetHeight, drag.oy + dy));
-    drag.el.style.left = `${x}px`; drag.el.style.top = `${y}px`;
-    // Auto-scroll when dragging near the edges of the visible wall.
-    const r = wrap.getBoundingClientRect(), m = 40;
-    if (e.clientX > r.right - m) wrap.scrollLeft += 12; else if (e.clientX < r.left + m) wrap.scrollLeft -= 12;
-    if (e.clientY > r.bottom - m) wrap.scrollTop += 12; else if (e.clientY < r.top + m) wrap.scrollTop -= 12;
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && ptrs.size >= 2) {
+      const c = centerOf(), r = wrap.getBoundingClientRect(), k2 = clampK(pinch.k0 * c.d / pinch.d0);
+      w.fit = false; w.cam.k = k2; w.cam.x = c.x - r.left - pinch.p.x * k2; w.cam.y = c.y - r.top - pinch.p.y * k2; apply();
+      return;
+    }
+    if (drag && e.pointerId === drag.pid) {
+      if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+      if (!drag.moved) { drag.moved = true; state.dragging = true; drag.el.classList.add('dragging'); }
+      last = { x: e.clientX, y: e.clientY }; moveNoteTo(e.clientX, e.clientY);
+      if (!edge) edge = requestAnimationFrame(edgeLoop);
+    } else if (pan) {
+      const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy;
+      if (!pan.moved && Math.hypot(dx, dy) < 3) return;
+      pan.moved = true; w.fit = false; w.cam.x = pan.cx + dx; w.cam.y = pan.cy + dy; apply();
+    }
   });
   const end = run(async (e) => {
-    if (!drag || e.pointerId !== drag.pid) return;
-    const d = drag; drag = null; state.dragging = false;
-    const n = state.data.notes.find((x) => x.id === d.id);
-    if (!d.moved) { d.el.classList.remove('dragging'); if (e.type === 'pointerup' && n) noteSheet(n); return; }
-    // Put the note in front right away, locally: otherwise it drops behind the others until the save comes back.
-    const x = parseFloat(d.el.style.left), y = parseFloat(d.el.style.top);
-    const z = Math.max(0, ...state.data.notes.map((o) => o.z)) + 1;
-    d.el.style.zIndex = z;
-    d.el.classList.remove('dragging');
-    if (n) Object.assign(n, { x, y, z });
-    await db.updateNote(d.id, { x, y, z }, state.data.notes);
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.delete(e.pointerId);
+    if (pinch) { // one finger left: carry on moving the wall with it
+      if (ptrs.size < 2) { pinch = null; const [rest] = [...ptrs.values()]; pan = rest ? { sx: rest.x, sy: rest.y, cx: w.cam.x, cy: w.cam.y, moved: true } : null; }
+      if (!ptrs.size) state.panning = false;
+      return;
+    }
+    if (!ptrs.size) state.panning = false;
+    if (drag && e.pointerId === drag.pid) {
+      const d = drag; drag = null; state.dragging = false; if (edge) { cancelAnimationFrame(edge); edge = 0; }
+      const n = state.data.notes.find((x) => x.id === d.id);
+      if (!d.moved) { d.el.classList.remove('dragging'); if (e.type === 'pointerup' && n) noteSheet(n); return; }
+      // Put the note in front right away, locally: otherwise it drops behind the others until the save comes back.
+      const x = Math.round(parseFloat(d.el.style.left)), y = Math.round(parseFloat(d.el.style.top));
+      const z = Math.max(0, ...state.data.notes.map((o) => o.z)) + 1;
+      d.el.style.zIndex = z; d.el.classList.remove('dragging');
+      if (n) Object.assign(n, { x, y, z });
+      queueMini();
+      await db.updateNote(d.id, { x, y, z }, state.data.notes);
+    } else if (pan && !ptrs.size) { pan = null; }
   });
   wrap.addEventListener('pointerup', end);
   wrap.addEventListener('pointercancel', end);
+  wrap.addEventListener('lostpointercapture', (e) => { if (e.pointerType !== 'mouse' && ptrs.has(e.pointerId) && !drag && !pinch) { ptrs.delete(e.pointerId); if (!ptrs.size) state.panning = false; } });
+
+  // mouse wheel: scroll moves the wall, Ctrl/⌘ + scroll (or a trackpad pinch) zooms
+  wrap.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey && !w.fs) return; // small frame: the page keeps scrolling normally
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) zoomAt(e.clientX, e.clientY, w.cam.k * Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.01)));
+    else { w.fit = false; w.cam.x -= e.deltaX; w.cam.y -= e.deltaY; apply(); }
+  }, { passive: false });
+  // double click on the background: new post-it right there
+  wrap.addEventListener('dblclick', (e) => {
+    if (ignore(e.target) || e.target.closest('.note')) return;
+    const p = toWorld(e.clientX, e.clientY);
+    w.spawn = { x: Math.round(Math.max(0, Math.min(BOARD_W - WALL.noteW, p.x - WALL.noteW / 2))), y: Math.round(Math.max(10, Math.min(BOARD_H - WALL.noteH, p.y - 60))) };
+    actions['new-note']();
+  });
   wrap.addEventListener('keydown', (e) => {
     const el = e.target.closest('.note');
-    if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); noteSheet(state.data.notes.find((x) => x.id === Number(el.dataset.note))); }
+    if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); noteSheet(state.data.notes.find((x) => x.id === Number(el.dataset.note))); return; }
+    if (el || e.target.closest('input, textarea, select')) return;
+    const step = 80;
+    if (e.key === '+' || e.key === '=') wallApi.zoom(1.25);
+    else if (e.key === '-' || e.key === '_') wallApi.zoom(0.8);
+    else if (e.key === '0') wallApi.fit();
+    else if (e.key === 'ArrowLeft') { w.cam.x += step; w.fit = false; apply(); }
+    else if (e.key === 'ArrowRight') { w.cam.x -= step; w.fit = false; apply(); }
+    else if (e.key === 'ArrowUp') { w.cam.y += step; w.fit = false; apply(); }
+    else if (e.key === 'ArrowDown') { w.cam.y -= step; w.fit = false; apply(); }
+    else if (e.key === 'Escape' && w.fs) setWallFullscreen(false);
+    else return;
+    e.preventDefault();
   });
+  new ResizeObserver(() => wallApi?.refit()).observe(wrap);
+  apply();
 }
 
 // ---------- account ----------
@@ -1137,7 +1398,25 @@ const actions = {
     await db.deleteTask(Number(el.dataset.id));
     closeSheet(); toast('Supprimé'); await reloadProject();
   },
-  'board-view': (el) => { state.boardView = el.dataset.v; store.set('boardView', el.dataset.v); renderProject(); },
+  'board-view': (el) => {
+    state.boardView = el.dataset.v; store.set('boardView', el.dataset.v);
+    if (el.dataset.v === 'wall' && isPhone()) setWallFullscreen(true); else renderProject(); // on a phone the wall needs the whole screen
+  },
+  'wall-fs': () => setWallFullscreen(true),
+  'wall-exit': () => { if (isPhone()) { state.boardView = 'grid'; store.set('boardView', 'grid'); } setWallFullscreen(false); },
+  'wall-zoom': (el) => wallApi?.zoom(el.dataset.v === 'in' ? 1.25 : 0.8),
+  'wall-100': () => wallApi?.zoomTo(1),
+  'wall-fit': () => wallApi?.fit(),
+  'wall-arrange': () => arrangeSheet(),
+  'wall-arrange-do': async (el) => {
+    closeSheet();
+    const notes = state.data.notes;
+    const before = notes.map((n) => ({ id: n.id, x: n.x, y: n.y }));
+    const apply = (list) => { for (const a of list) Object.assign(notes.find((n) => n.id === a.id) || {}, { x: a.x, y: a.y }); renderProject(); wallApi?.fit(); };
+    const after = arrangeLayout(notes, el.dataset.v);
+    await db.moveNotes(after); apply(after);
+    toast('Post-it rangés', false, { label: 'Annuler', fn: run(async () => { await db.moveNotes(before); apply(before); }) });
+  },
   'new-note': () => noteSheet({ text: '', color: ['yellow', 'pink', 'blue', 'green', 'orange', 'purple'][Math.floor(Math.random() * 6)], ...freeSpot() }),
   'open-note': (el) => noteSheet(state.data.notes.find((n) => n.id === Number(el.dataset.id))),
   'note-color': (el) => {
@@ -1248,13 +1527,13 @@ const forms = {
   },
   async 'new-note'(f) {
     const b = formData(f);
-    const spot = freeSpot();
+    const spot = b.x !== '' && b.x !== undefined ? { x: Number(b.x), y: Number(b.y) } : freeSpot();
     await db.addNote(state.pid, { text: b.text, color: b.color, ...spot }, state.data.notes);
     closeSheet(); await reloadProject();
     // Show where the new post-it landed (end of the grid, or its spot on the wall).
     const newest = Math.max(...state.data.notes.map((n) => n.id));
     const el = $app.querySelector(`[data-note="${newest}"]`);
-    el?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    if (state.boardView === 'wall') centerOnNote(newest); else el?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
     el?.classList.add('just-added');
   },
   async 'edit-note'(f) {

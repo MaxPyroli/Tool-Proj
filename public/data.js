@@ -264,6 +264,12 @@ export async function updateNote(id, f, notes) {
   return row;
 }
 
+/** Moves several post-it at once: [{id, x, y}]. */
+export async function moveNotes(items) {
+  const results = await Promise.all(items.map((i) => sb.from('notes').update({ x: clamp(i.x), y: clamp(i.y) }).eq('id', i.id)));
+  results.forEach((r) => { if (r.error) fail(r.error); });
+}
+
 export async function deleteNote(id) { ok(await sb.from('notes').delete().eq('id', id)); }
 
 export async function toggleVote(note, me) {

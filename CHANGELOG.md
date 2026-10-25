@@ -2,6 +2,11 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.10.0
+- Post-it : un vrai plan de travail. Zoom (pincement à deux doigts, Ctrl + molette, boutons − et +), déplacement en glissant le fond, bouton « Tout voir », mini-carte, plein écran.
+- « Ranger » : aligne les post-it en grille (par couleur, par votes ou par ordre d'ajout), avec « Annuler ».
+- Double-clic sur le fond : nouveau post-it à cet endroit. Sur téléphone, « Mur » s'ouvre en plein écran.
+
 ## 0.9.0
 - Mobile : plus de contenu qui dépasse (tableau, aperçu, cartes), champs à 16 px, curseurs qui ne font plus glisser la page.
 - Barre du bas stable (masquée quand le clavier est ouvert), défilement conservé quand l'écran se met à jour.

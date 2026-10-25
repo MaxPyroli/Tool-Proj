@@ -23,7 +23,8 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 7. **Barre du bas et bouton « + »** : masqués quand le clavier est ouvert (classe `kbd` sur `<body>`).
 8. **Clair ET sombre**, et les **6 styles de tâches** (classic, candy, neon, paper, pixel, sticker) : toutes les couleurs passent par des variables (`--c-bug`, `--st-active`, `--on-active`…), jamais une couleur écrite en dur qui ne se lit que sur un thème.
 9. Glisser un post-it : le mettre devant **tout de suite en local**, puis sauvegarder (sinon il passe derrière le temps de la sauvegarde).
-10. Textes de l'interface en français, avec les mêmes mots que le reste : « chantier », « post-it », « idée », « amélioration ».
+10. **Le mur de post-it** (plan de travail zoomable, plein écran) : après toute modification, lancer `node test/wall-e2e.cjs` et `node test/wall-touch.cjs`. Monde de 3000 × 2400 px (la base refuse x, y > 3000), zoom de 10 % à 250 %, caméra gardée dans `state.wall.cam` (et par projet dans le navigateur). Sur téléphone le mur s'ouvre toujours en plein écran (l'ancien cadre piégeait le défilement) ; la touche retour d'Android le ferme (`history.pushState`). Ne rien lancer qui re-rende l'écran pendant un geste (`state.panning`, `state.dragging`).
+11. Textes de l'interface en français, avec les mêmes mots que le reste : « chantier », « post-it », « idée », « amélioration ».
 
 ### Base de données
 1. Modifier `supabase/schema.sql` (toujours rejouable) **et** `supabase/tests/rls_test.sql` ; lancer `npm run test:db` (voir plus bas).

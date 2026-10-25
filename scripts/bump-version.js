@@ -5,7 +5,8 @@ import fs from 'node:fs';
 
 const arg = process.argv[2];
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-let [major, minor, patch] = pkg.version.split('.').map(Number);
+const previous = pkg.version;
+let [major, minor, patch] = previous.split('.').map(Number);
 
 if (arg === 'patch') patch += 1;
 else if (arg === 'minor') { minor += 1; patch = 0; }
@@ -23,4 +24,4 @@ pkg.version = next;
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 edit('public/app.js', /const APP_VERSION = '[^']*';/, `const APP_VERSION = '${next}';`);
 edit('public/sw.js', /const VERSION = '[^']*';/, `const VERSION = '${next}';`);
-console.log(`Version ${pkg.version} → ${next}`);
+console.log(`Version ${previous} → ${next}`);
