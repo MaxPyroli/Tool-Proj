@@ -11,7 +11,7 @@ const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert'
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.11.1';
+const APP_VERSION = '0.11.2';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -158,12 +158,13 @@ function applyTheme() {
 
 // ---------- sheet (modal) ----------
 
-let sheetCleanup = null;
+let sheetCleanup = null, sheetAt = 0;
 function openSheet(html, onMount) {
   sheetCleanup?.();
   sheetCleanup = null;
   sheet.innerHTML = `<div class="sheet-body">${html}</div>`;
   if (!sheet.open) sheet.showModal();
+  sheetAt = Date.now();
   sheetCleanup = onMount?.(sheet) || null;
   const auto = sheet.querySelector('[autofocus]');
   if (auto && !isPhone()) auto.focus();
@@ -173,7 +174,8 @@ function closeSheet() {
   sheetCleanup = null;
   if (sheet.open) sheet.close();
 }
-sheet.addEventListener('click', (e) => { if (e.target === sheet) closeSheet(); });
+// the click that follows a tap lands on the backdrop right after opening: ignore it
+sheet.addEventListener('click', (e) => { if (e.target === sheet && Date.now() - sheetAt > 450) closeSheet(); });
 sheet.addEventListener('close', () => { sheetCleanup?.(); sheetCleanup = null; });
 sheet.addEventListener('input', (e) => {
   const form = e.target.form;
@@ -1049,8 +1051,10 @@ function bindWall(wrap) {
   function clampCam() {
     const { W, H } = view(), c = w.cam;
     c.k = clampK(c.k);
-    c.x = Math.min(W - 80, Math.max(80 - BOARD_W * c.k, c.x));
-    c.y = Math.min(H - 80, Math.max(80 - BOARD_H * c.k, c.y));
+    // never show the empty area around the board, except the room taken by the floating bars
+    const lim = (pos, size, room, lo, hi) => (size <= room - lo - hi ? lo + (room - lo - hi - size) / 2 : Math.min(lo, Math.max(room - hi - size, pos)));
+    c.x = lim(c.x, BOARD_W * c.k, W, 0, 0);
+    c.y = lim(c.y, BOARD_H * c.k, H, w.fs ? 64 : 0, 76);
   }
   function apply(animate = false) {
     clampCam();

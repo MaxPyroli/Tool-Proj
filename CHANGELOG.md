@@ -2,6 +2,10 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.11.2
+- Mur de post-it : on ne voit plus le vide autour du plan (il remplit l'écran, ou se centre quand il est petit).
+- Une fiche de post-it ne se referme plus toute seule juste après l'ouverture (clic fantôme d'un tap).
+
 ## 0.11.1
 - Mur de post-it : on peut zoomer pendant qu'on déplace la vue (molette, boutons, clavier) sans que la vue saute ; un post-it tenu reste sous le doigt ou la souris.
 

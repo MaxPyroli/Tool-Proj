@@ -31,8 +31,8 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   ok(await p.locator('dialog[open]').count() === 1 && await p.locator('#nf-text').count() === 1, 'toucher un post-it ouvre sa fiche');
   await p.click('#sheet [data-action="close"]'); await wait(300);
   // 2. glisser le fond avec un doigt
-  const c0 = await cam(); await touch('touchStart', [{ x: 200, y: 560 }]); for (let i = 1; i <= 8; i++) await touch('touchMove', [{ x: 200 + i * 10, y: 560 + i * 5 }]); await touch('touchEnd', []); await wait(200);
-  const c1 = await cam(); ok(Math.abs(c1.x - c0.x - 80) < 3 && Math.abs(c1.y - c0.y - 40) < 3, 'un doigt sur le fond : le mur suit', `(Δ ${Math.round(c1.x - c0.x)}, ${Math.round(c1.y - c0.y)})`);
+  const c0 = await cam(); await touch('touchStart', [{ x: 200, y: 560 }]); for (let i = 1; i <= 8; i++) await touch('touchMove', [{ x: 200 - i * 10, y: 560 - i * 5 }]); await touch('touchEnd', []); await wait(200);
+  const c1 = await cam(); ok(Math.abs(c1.x - c0.x + 80) < 3 && Math.abs(c1.y - c0.y + 40) < 3, 'un doigt sur le fond : le mur suit', `(Δ ${Math.round(c1.x - c0.x)}, ${Math.round(c1.y - c0.y)})`);
   // 3. pincement à deux doigts : zoom
   await touch('touchStart', [{ x: 150, y: 300 }, { x: 240, y: 300 }]); for (let i = 1; i <= 10; i++) await touch('touchMove', [{ x: 150 - i * 6, y: 300 }, { x: 240 + i * 6, y: 300 }]); await touch('touchEnd', []); await wait(200);
   const c2 = await cam(); ok(c2.k > c1.k * 1.8, 'deux doigts qui s\'écartent : zoom avant', `${Math.round(c1.k * 100)} % → ${Math.round(c2.k * 100)} %`);
@@ -50,7 +50,7 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   await p.evaluate(() => document.querySelector('[data-action="wall-fit"]').click()); await wait(450);
   await p.click('[data-action="wall-zoom"][data-v="in"]'); await wait(450); await p.click('[data-action="wall-zoom"][data-v="in"]'); await wait(450);
   const rect = await p.locator('.board-wrap.fs').boundingBox();
-  const visibleNote = async (skip = []) => p.evaluate((skip) => { const ns = [...document.querySelectorAll('.board .note')].filter((n) => !skip.includes(n.innerText.split('\n')[0])); for (const n of ns) { const r = n.getBoundingClientRect(); const cx = r.x + r.width / 2, cy = r.y + r.height / 2; if (cx > 30 && cx < innerWidth - 30 && cy > 140 && cy < innerHeight - 140 && document.elementFromPoint(cx, cy)?.closest('.note') === n) return { t: n.innerText.split('\n')[0], x: cx, y: cy }; } return null; }, skip);
+  const visibleNote = async (skip = []) => p.evaluate((skip) => { const ns = [...document.querySelectorAll('.board .note')].filter((n) => !skip.includes(n.innerText.split('\n')[0])); for (const n of ns) { const r = n.getBoundingClientRect(); const cx = r.x + r.width / 2, cy = r.y + r.height / 2; if (cx > 30 && cx < innerWidth - 30 && cy > 100 && cy < innerHeight - 110 && document.elementFromPoint(cx, cy)?.closest('.note') === n) return { t: n.innerText.split('\n')[0], x: cx, y: cy }; } return null; }, skip);
 
   // S1 : un doigt tient un post-it, l'autre déplace la vue
   const n1 = await visibleNote(); const g1 = await get(n1.t); const k1 = (await cam()).k; const camA = await cam();
