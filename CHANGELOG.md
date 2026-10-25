@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.11.1
+- Mur de post-it : on peut zoomer pendant qu'on déplace la vue (molette, boutons, clavier) sans que la vue saute ; un post-it tenu reste sous le doigt ou la souris.
+
 ## 0.11.0
 - Mur de post-it : vrais gestes à plusieurs doigts. Pincer pour zoomer et déplacer la vue (même en partant d'un post-it, sans rien déplacer par erreur).
 - Un doigt tient un post-it, l'autre déplace la vue : on peut transporter un post-it loin sans le lâcher. Deux doigts sur deux post-it déjà en mouvement : les deux se déplacent en même temps.

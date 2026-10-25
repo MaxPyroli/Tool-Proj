@@ -11,7 +11,7 @@ const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert'
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.11.1';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1097,6 +1097,9 @@ function bindWall(wrap) {
     const r = wrap.getBoundingClientRect(), p = toWorld(cx, cy);
     k2 = clampK(k2); w.fit = false;
     w.cam.k = k2; w.cam.x = cx - r.left - p.x * k2; w.cam.y = cy - r.top - p.y * k2; apply(animate);
+    // zoom while a finger/mouse is moving the view: carry on from the new view (no jump), held post-it follow
+    if (pan) { const q = ptrs.get(pan.pid); if (q) { pan.sx = q.x; pan.sy = q.y; pan.cx = w.cam.x; pan.cy = w.cam.y; } }
+    keepHeldNotes();
   }
   wallApi = {
     zoom(f) { const r = wrap.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, w.cam.k * f, true); },
