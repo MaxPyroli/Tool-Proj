@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.18.0';
+const APP_VERSION = '0.19.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -272,7 +272,7 @@ function mdPreview(ta) {
 sheet.addEventListener('input', (e) => {
   if (e.target.tagName === 'TEXTAREA') mdPreview(e.target);
   const form = e.target.form;
-  if (e.target.name?.startsWith('tc_') && form?.elements.taskStyle) refreshStylePreview(form);
+  if (e.target.name?.startsWith('tc_') && form?.elements.tc_task) refreshStylePreview(form);
   if (e.target.name === 'displayName' && form?.elements.avatarEmoji) refreshAvatarPreview(form);
 });
 
@@ -468,24 +468,18 @@ const SAMPLE_TASKS = { task: 'Écran de connexion', bug: 'Crash au lancement', i
 function stylePreviewHtml(p) {
   const c = typeColors(p);
   const vars = TYPE_LIST.map((k) => `--c-${k}:${c[k]}`).join(';');
-  return `<div class="style-preview items" data-tstyle="${styleOf(p)}" style="${vars}" aria-hidden="true">
+  return `<div class="style-preview items" style="${vars}" aria-hidden="true">
     ${TYPE_LIST.map((k) => `<div class="task t-${k}"><span class="check"></span><div class="t-main"><span class="t-title">${esc(SAMPLE_TASKS[k])}</span>${typeTag({ type: k }) ? `<span class="t-meta">${typeTag({ type: k })}</span>` : ''}</div></div>`).join('')}
   </div>`;
 }
 
-/** Style presets + one colour per type, with a live preview. */
+/** One colour per task type, with a live preview. */
 function taskStyleField(p) {
   const colors = typeColors(p);
   return `
-  <div class="field style-field"><span>Style des tâches</span>
-    <div class="style-grid" role="radiogroup" aria-label="Style">
-      ${Object.entries(TASK_STYLES).map(([k, st]) => `<button type="button" class="style-card" data-action="pick-style" data-v="${k}" aria-pressed="${k === styleOf(p)}">
-        <span class="style-dots">${TYPE_LIST.map((t) => `<i style="background:${st.colors[t]}"></i>`).join('')}</span><b>${st.name}</b><small>${st.hint}</small></button>`).join('')}
-    </div>
-    <input type="hidden" name="taskStyle" value="${styleOf(p)}">
-    <span class="sub">Couleur de chaque type</span>
+  <div class="field style-field"><span>Couleur de chaque type de tâche</span>
     <div class="type-colors">${TYPE_LIST.map((t) => `<label class="tc-pick"><input type="color" name="tc_${t}" value="${colors[t]}" aria-label="Couleur ${TYPES[t]}"><span>${typeLabel(t)}</span></label>`).join('')}</div>
-    <button type="button" class="link-btn small" data-action="reset-type-colors" style="justify-self:start">Revenir aux couleurs du style</button>
+    <button type="button" class="link-btn small" data-action="reset-type-colors" style="justify-self:start">Revenir aux couleurs d'origine</button>
     <div id="style-preview-box">${stylePreviewHtml(p)}</div>
   </div>`;
 }
@@ -493,11 +487,11 @@ function taskStyleField(p) {
 /** Reads the form's current style + colours and redraws the preview. */
 function refreshStylePreview(form) {
   const f = form.elements;
-  const p = { taskStyle: f.taskStyle.value, typeColors: Object.fromEntries(TYPE_LIST.map((t) => [t, f[`tc_${t}`].value])) };
+  const p = { typeColors: Object.fromEntries(TYPE_LIST.map((t) => [t, f[`tc_${t}`].value])) };
   form.querySelector('#style-preview-box').innerHTML = stylePreviewHtml(p);
 }
-function setFormColors(form, style) {
-  TYPE_LIST.forEach((t) => { form.elements[`tc_${t}`].value = TASK_STYLES[style].colors[t]; });
+function setFormColors(form) {
+  TYPE_LIST.forEach((t) => { form.elements[`tc_${t}`].value = TYPE_COLOR_DEFAULTS[t]; });
 }
 
 function projectForm(p) {
@@ -763,23 +757,14 @@ const quickAdd = (placeholder) => `
 const typeLabel = (k) => `<span class="with-ico">${typeIcon(k)} ${TYPES[k]}</span>`;
 const NEW_TITLE = { task: 'Nouvelle tâche', bug: 'Nouveau bug', idea: 'Nouvelle idée', improvement: 'Nouvelle amélioration' };
 
-// Task look per project: a style (the shape of cards and tags) and one colour per type, editable by admins.
-const TASK_STYLES = {
-  classic: { name: 'Classique', hint: 'Sobre, un liseré de couleur.', colors: { task: '#868e96', bug: '#e03131', idea: '#f59f00', improvement: '#7048c8' } },
-  candy: { name: 'Bonbon', hint: 'Pastel et tout rond.', colors: { task: '#63e6be', bug: '#ff6b9a', idea: '#ffd43b', improvement: '#9775fa' } },
-  neon: { name: 'Néon', hint: 'Ça brille dans le noir.', colors: { task: '#69db7c', bug: '#ff3860', idea: '#ffe600', improvement: '#00c8e6' } },
-  paper: { name: 'Papier', hint: 'Des petits papiers collés.', colors: { task: '#adb5bd', bug: '#f76707', idea: '#fab005', improvement: '#4dabf7' } },
-  pixel: { name: 'Pixel', hint: 'Rétro, façon jeu 8 bits.', colors: { task: '#51cf66', bug: '#fa5252', idea: '#fcc419', improvement: '#339af0' } },
-  sticker: { name: 'Autocollant', hint: 'Gros contours, un peu de travers.', colors: { task: '#38d9a9', bug: '#ff6b6b', idea: '#ffa94d', improvement: '#da77f2' } },
-};
-const styleOf = (p) => (TASK_STYLES[p?.taskStyle] ? p.taskStyle : 'classic');
-const typeColors = (p) => ({ ...TASK_STYLES[styleOf(p)].colors, ...(p?.typeColors || {}) });
+// Task look: one style for everyone (little pieces of paper); each project can change the colour of every type.
+const TYPE_COLOR_DEFAULTS = { task: '#adb5bd', bug: '#f76707', idea: '#fab005', improvement: '#4dabf7' };
+const typeColors = (p) => ({ ...TYPE_COLOR_DEFAULTS, ...(p?.typeColors || {}) });
 
-/** Puts the project's task style and colours on <body>; null clears them (project list, login). */
+/** Puts the project's type colours on <body>; null clears them (project list, login). */
 function applyTaskStyle(p) {
   const b = document.body;
-  if (!p) { delete b.dataset.tstyle; TYPE_LIST.forEach((k) => b.style.removeProperty(`--c-${k}`)); return; }
-  b.dataset.tstyle = styleOf(p);
+  if (!p) { TYPE_LIST.forEach((k) => b.style.removeProperty(`--c-${k}`)); return; }
   const c = typeColors(p);
   TYPE_LIST.forEach((k) => b.style.setProperty(`--c-${k}`, c[k]));
 }
@@ -1568,16 +1553,9 @@ const actions = {
     form.querySelectorAll('[data-action="pick-avatar-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
     refreshAvatarPreview(form);
   },
-  'pick-style': (el) => {
-    const form = el.closest('form');
-    form.elements.taskStyle.value = el.dataset.v;
-    form.querySelectorAll('.style-card').forEach((b) => b.setAttribute('aria-pressed', b === el));
-    setFormColors(form, el.dataset.v);
-    refreshStylePreview(form);
-  },
   'reset-type-colors': (el) => {
     const form = el.closest('form');
-    setFormColors(form, form.elements.taskStyle.value);
+    setFormColors(form);
     refreshStylePreview(form);
   },
   'toggle-activity': () => { state.activityOpen = !state.activityOpen; store.set('activityOpen', state.activityOpen ? '1' : '0'); renderProject(); },
@@ -1690,16 +1668,13 @@ const forms = {
   },
   async 'edit-project'(f) {
     const body = formData(f);
-    const base = TASK_STYLES[body.taskStyle]?.colors;
-    if (base) {
-      body.typeColors = {};
-      for (const t of TYPE_LIST) { const v = (body[`tc_${t}`] || '').toLowerCase(); if (v && v !== base[t].toLowerCase()) body.typeColors[t] = v; }
-    }
+    // Only the colours that differ from the originals are stored.
+    body.typeColors = {};
+    for (const t of TYPE_LIST) { const v = (body[`tc_${t}`] || '').toLowerCase(); if (v && v !== TYPE_COLOR_DEFAULTS[t]) body.typeColors[t] = v; }
     TYPE_LIST.forEach((t) => delete body[`tc_${t}`]);
-    // Only send the style when it changed, so saving other settings never depends on the style columns existing.
     const cur = state.data.project;
-    const same = body.taskStyle === styleOf(cur) && JSON.stringify(Object.entries(body.typeColors || {}).sort()) === JSON.stringify(Object.entries(cur.typeColors || {}).sort());
-    if (same) { delete body.taskStyle; delete body.typeColors; }
+    const same = JSON.stringify(Object.entries(body.typeColors).sort()) === JSON.stringify(Object.entries(cur.typeColors || {}).sort());
+    if (same) delete body.typeColors; // saving other settings never depends on the colour column
     await db.updateProject(state.pid, body);
     closeSheet(); toast('Projet mis à jour'); await reloadProject();
   },

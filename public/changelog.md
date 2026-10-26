@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.19.0
+- Un seul style de tâches : Papier (de petits papiers collés). On garde la personnalisation : chaque projet choisit la couleur de chaque type (Tâche, Bug, Idée, Amélioration), avec « Revenir aux couleurs d'origine ».
+
 ## 0.18.0
 - La vue « Liste » disparaît : il reste deux vues, Feuille de route et Tableau.
 - Tableau : chaque chantier est un grand post-it avec ses tâches collées dessus. Nouveau choix « Par statut » (colonnes À faire / En cours / Fait) ou « Par chantier » (tout sur un seul écran, un post-it par chantier).

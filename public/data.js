@@ -131,7 +131,7 @@ function summary(p, me) {
     .sort((a, b) => (a.role === b.role ? a.displayName.localeCompare(b.displayName) : a.role === 'admin' ? -1 : 1));
   return {
     id: p.id, name: p.name, description: p.description, emoji: p.emoji, color: p.color, status: p.status,
-    taskStyle: p.task_style || 'classic', typeColors: p.type_colors || {},
+    typeColors: p.type_colors || {},
     dueDate: p.due_date, createdAt: p.created_at, updatedAt: p.updated_at,
     role: members.find((m) => m.id === me)?.role ?? null,
     manualProgress: p.manual_progress,
@@ -196,7 +196,6 @@ export async function updateProject(id, f) {
   if (f.status !== undefined) row.status = f.status;
   if (f.manualProgress !== undefined) row.manual_progress = Math.max(0, Math.min(100, Math.round(Number(f.manualProgress) || 0)));
   if (f.dueDate !== undefined) row.due_date = f.dueDate || null;
-  if (f.taskStyle !== undefined) row.task_style = f.taskStyle;
   if (f.typeColors !== undefined) row.type_colors = f.typeColors;
   const data = ok(await sb.from('projects').update(row).eq('id', id).select('id'));
   if (!data.length) throw new Error("Tu n'as pas les droits pour modifier ce projet.");
