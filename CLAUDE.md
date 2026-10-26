@@ -39,7 +39,7 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 6. Un envoi en lot vers l'API (PostgREST) exige les mêmes clés dans chaque ligne.
 
 ### Publication et versions
-1. **Version** `0.x.y` : `npm run bump -- patch` (correction) ou `minor` (nouveauté). Elle met à jour `package.json`, `public/app.js` et `public/sw.js`. Passer à 1.0.0 seulement quand l'utilisateur le décide.
+1. **Version** `0.x.y`, **avec parcimonie** : `patch` par défaut (corrections, petits réglages, petites nouveautés) ; `minor` seulement pour une vraie grosse nouveauté, et rarement. Ne pas changer de version à chaque demande : plusieurs petites demandes d'affilée = une seule version, une seule ligne dans le changelog. Les mises en ligne intermédiaires restent possibles sans bump (le numéro de build change tout seul). Elle met à jour `package.json`, `public/app.js` et `public/sw.js`. Passer à 1.0.0 seulement quand l'utilisateur le décide.
 2. **Build** : ajouté tout seul par l'action GitHub (`github.run_number`), affiché dans *Mon compte* (« version 0.9.0 (build 27) », « build dev » en local). Ne pas l'écrire à la main.
 3. Ajouter une ligne dans `public/changelog.md` (lu par l'app : *Mon compte → Nouveautés* ; garder le format `## x.y.z` puis des lignes `- …`) et mettre à jour `README.md` si une fonction change.
 4. Après le push : attendre que le site serve la nouvelle version (`curl` sur `app.js`), puis dire à l'utilisateur de rouvrir l'app. Les mises à jour se récupèrent seules (le service worker ne fait pas confiance au cache de 10 min de GitHub Pages) ; la première fois après un changement du mécanisme, il faut fermer/rouvrir.
