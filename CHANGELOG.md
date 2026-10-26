@@ -2,6 +2,10 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.16.1
+- Émojis des pastilles (assigné, projet) : recentrés d'après leur forme réelle, plus de décalage.
+- Tâche rapide : le bouton de type affiche son nom (Tâche, Bug, Idée, Amélioration) et prend la couleur du type ; sur téléphone il occupe toute la largeur au-dessus du champ.
+
 ## 0.16.0
 - Texte : taper « - » puis espace donne « • » (et les listes continuent avec « • »).
 - Markdown léger : **gras**, *italique* (ou _italique_) et __souligné__, affichés sur les post-it, les descriptions de projet et de chantier. Un aperçu apparaît sous les champs de description quand il y a du formatage.

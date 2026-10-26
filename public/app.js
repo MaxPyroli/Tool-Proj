@@ -14,6 +14,7 @@ const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨
 const ICON_PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
+  swap: '<path d="M7 8h11l-3-3M17 16H6l3 3"/>',
   out: '<path d="M7 17L17 7M9 7h8v8"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   calendar: '<rect x="3.500" y="5" width="17" height="15.500" rx="3"/><path d="M3.500 10h17M8 3v4M16 3v4"/>',
@@ -61,9 +62,31 @@ const ICON_PATHS = {
 const ico = (n, size = 18) => `<svg class="ico" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[n]}</svg>`;
 // Project and profile pictures are emoji; "i:<name>" values (drawn icons, briefly offered in 0.13.0) still show.
 const glyphName = (v) => (typeof v === 'string' && v.startsWith('i:') && ICON_PATHS[v.slice(2)] ? v.slice(2) : '');
-const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : esc(v));
+// Emoji are drawn in an SVG and re-centred from their real ink bounds (fonts place emoji differently: they never sit in the middle of a round badge by themselves).
+const EMOJI_FONT = "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
+const emojiPos = {};
+function emojiSvg(e) {
+  if (!emojiPos[e]) {
+    let x = 50, y = 50, ok = false;
+    try { // draw it once off-screen and find where the visible pixels really are
+      const c = (emojiSvg.ctx ||= document.createElement('canvas').getContext('2d', { willReadFrequently: true }));
+      const W = 240, ox = 70, oy = 160;
+      c.canvas.width = W; c.canvas.height = W;
+      c.font = `80px ${EMOJI_FONT}`; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+      c.clearRect(0, 0, W, W); c.fillText(e, ox, oy);
+      const px = c.getImageData(0, 0, W, W).data;
+      let x0 = W, x1 = -1, y0 = W, y1 = -1;
+      for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) if (px[(j * W + i) * 4 + 3] > 24) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
+      if (x1 >= 0) { x = 50 - ((x0 + x1) / 2 - ox); y = 50 - ((y0 + y1) / 2 - oy); ok = true; }
+    } catch { /* no canvas: fall back to the font's own centring */ }
+    emojiPos[e] = { x, y, ok };
+  }
+  const { x, y, ok } = emojiPos[e];
+  return `<svg class="emo" viewBox="0 0 100 100" aria-hidden="true"><text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="80" font-family="${EMOJI_FONT}" ${ok ? '' : 'text-anchor="middle" dominant-baseline="central"'}>${esc(e)}</text></svg>`;
+}
+const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.16.0';
+const APP_VERSION = '0.16.1';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -729,7 +752,7 @@ const typeIcon = (k, size = 15) => ico(TYPE_ICON_NAME[k], size);
 const TYPE_LIST = Object.keys(TYPES);
 // Quick-add bar: the type button cycles through the types; what is typed is kept (per project) when you change tab.
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
-const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${typeIcon(k, 20)}</button>`; };
+const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${typeIcon(k, 18)}<span>${TYPES[k]}</span><i class="qa-swap">${ico('swap', 15)}</i></button>`; };
 const draftKey = () => `draft:${state.pid}`;
 const quickAdd = (placeholder) => `
   <form class="quick-add" data-form="add-task">

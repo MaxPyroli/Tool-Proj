@@ -685,11 +685,16 @@ dialog#sheet { overscroll-behavior: contain; }
 .emoji-opt .ico { vertical-align: 0; }
 .avatar.emoji .ico { stroke-width: 2.200; }
 
-/* quick-add type button */
-.qa-type { flex: none; width: 46px; border-radius: var(--r-sm, 12px); border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; display: grid; place-items: center; padding: 0; }
-.qa-type { color: var(--tc, var(--c-task)); }
+/* quick-add type button: filled with the colour of the chosen type, named in text */
+.qa-type { --tc: var(--c-task); flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; min-height: 46px; border: 0; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: .88rem; white-space: nowrap;
+  background: var(--tc); color: #fff; color: oklch(from var(--tc) clamp(0, (0.68 - l) * 1000, 1) 0 0); box-shadow: inset 0 -2px 0 rgb(0 0 0 / .12); }
 .qa-type.ty-bug { --tc: var(--c-bug); } .qa-type.ty-idea { --tc: var(--c-idea); } .qa-type.ty-improvement { --tc: var(--c-improvement); }
-.qa-type:active { background: color-mix(in srgb, var(--tc) 18%, var(--surface)); }
+.qa-type:active { filter: brightness(.92); }
+@media (max-width: 430px) {
+  .quick-add { flex-wrap: wrap; }
+  .qa-type { flex: 1 1 100%; min-height: 40px; }
+  .quick-add .input { flex: 1 1 0; }
+}
 
 /* chantiers: roadmap modes, collapsible list groups, board groups */
 .columns.rm { grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); }
@@ -715,3 +720,8 @@ dialog#sheet { overscroll-behavior: contain; }
 .md-preview { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px dashed var(--line); font-size: .92rem; }
 .note .n-text strong, .description strong, .desc strong { font-weight: 800; }
 .note .n-text u, .description u, .desc u { text-underline-offset: 2px; }
+
+/* emoji drawn in SVG, centred by measurement */
+.emo { width: 1.25em; height: 1.25em; display: block; overflow: visible; }
+.avatar .emo, .emoji-badge .emo { margin: auto; }
+.qa-swap { display: inline-flex; opacity: .65; margin-left: 2px; }
