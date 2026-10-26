@@ -2,6 +2,11 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.14.0
+- Tâche rapide : un bouton à gauche du champ choisit le type (tâche, bug, idée, amélioration) ; il garde le dernier choix.
+- Le texte tapé dans la tâche rapide est gardé quand on change d'onglet (ou qu'on ferme l'app).
+- Une nouvelle tâche est assignée par défaut à la personne qui la crée (modifiable).
+
 ## 0.13.1
 - Icône de projet et de profil : retour au choix d'émojis (seuls ceux de l'interface sont remplacés).
 

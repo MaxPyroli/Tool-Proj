@@ -684,3 +684,9 @@ dialog#sheet { overscroll-behavior: contain; }
 .emoji-opt { display: grid; place-items: center; color: var(--ink); }
 .emoji-opt .ico { vertical-align: 0; }
 .avatar.emoji .ico { stroke-width: 2.200; }
+
+/* quick-add type button */
+.qa-type { flex: none; width: 46px; border-radius: var(--r-sm, 12px); border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.qa-type { color: var(--tc, var(--c-task)); }
+.qa-type.ty-bug { --tc: var(--c-bug); } .qa-type.ty-idea { --tc: var(--c-idea); } .qa-type.ty-improvement { --tc: var(--c-improvement); }
+.qa-type:active { background: color-mix(in srgb, var(--tc) 18%, var(--surface)); }

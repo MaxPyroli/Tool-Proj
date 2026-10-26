@@ -62,7 +62,7 @@ const ico = (n, size = 18) => `<svg class="ico" viewBox="0 0 24 24" width="${siz
 const glyphName = (v) => (typeof v === 'string' && v.startsWith('i:') && ICON_PATHS[v.slice(2)] ? v.slice(2) : '');
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : esc(v));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.13.1';
+const APP_VERSION = '0.14.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -85,6 +85,7 @@ const store = {
 };
 
 const state = {
+  quickType: store.get('quickType', 'task'),
   me: null, authStep: 'email', authEmail: '', authError: '', authInfo: '',
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
@@ -707,6 +708,17 @@ const TYPES = { task: 'Tâche', bug: 'Bug', idea: 'Idée', improvement: 'Amélio
 const TYPE_ICON_NAME = { task: 'check', bug: 'bug', idea: 'bulb', improvement: 'spark' };
 const typeIcon = (k, size = 15) => ico(TYPE_ICON_NAME[k], size);
 const TYPE_LIST = Object.keys(TYPES);
+// Quick-add bar: the type button cycles through the types; what is typed is kept (per project) when you change tab.
+const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
+const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${typeIcon(k, 20)}</button>`; };
+const draftKey = () => `draft:${state.pid}`;
+const quickAdd = (placeholder) => `
+  <form class="quick-add" data-form="add-task">
+    ${quickTypeBtn()}
+    <input class="input" id="task-new" name="title" maxlength="200" placeholder="${placeholder}" value="${esc(store.get(draftKey(), ''))}" autocomplete="off" enterkeyhint="done">
+    <button class="btn primary" type="submit">Ajouter</button>
+  </form>`;
+
 const typeLabel = (k) => `<span class="with-ico">${typeIcon(k)} ${TYPES[k]}</span>`;
 const NEW_TITLE = { task: 'Nouvelle tâche', bug: 'Nouveau bug', idea: 'Nouvelle idée', improvement: 'Nouvelle amélioration' };
 
@@ -825,10 +837,7 @@ function viewList(d) {
   const shown = groups.filter(([e, list]) => (filtering ? list.some((t) => state.showDone || t.status !== 'done')
     : e ? (e.horizon !== 'done' || state.showDone || list.some((t) => t.status !== 'done')) : list.length));
   return `
-  <form class="quick-add" data-form="add-task">
-    <input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche rapide…" autocomplete="off" enterkeyhint="done">
-    <button class="btn primary" type="submit">Ajouter</button>
-  </form>
+  ${quickAdd('Ajouter une tâche rapide…')}
   ${shown.length ? shown.map(([e, list]) => {
     const visible = list.filter((t) => state.showDone || t.status !== 'done').sort(sortItems);
     const pr = e ? epicProgress(d, e.id) : null;
@@ -850,10 +859,7 @@ function viewBoard(d) {
   const draggable = matchMedia('(pointer: fine)').matches;
   const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s && matchesFilter(t)).sort(sortItems)]);
   return `
-  <form class="quick-add" data-form="add-task">
-    <input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche${isPhone() ? ` (${TASK[state.taskCol].toLowerCase()})` : ''}…" autocomplete="off" enterkeyhint="done">
-    <button class="btn primary" type="submit">Ajouter</button>
-  </form>
+  ${quickAdd(`Ajouter une tâche${isPhone() ? ` (${TASK[state.taskCol].toLowerCase()})` : ''}…`)}
   <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
   <div class="columns">
     ${cols.map(([s, list]) => `
@@ -873,7 +879,7 @@ const segField = (name, options, value, label, cls = '') => `
 function taskSheet(t) {
   const d = state.data;
   const isNew = !t.id;
-  t = { title: '', description: '', status: 'todo', type: 'task', priority: 'normal', epicId: null, assigneeId: null, ...t };
+  t = { title: '', description: '', status: 'todo', type: 'task', priority: 'normal', epicId: null, assigneeId: isNew ? state.me.id : null, ...t };
   openSheet(`
     <form class="stack" data-form="${isNew ? 'new-task' : 'edit-task'}" data-id="${t.id || ''}">
       <div class="sheet-head"><h2 id="sheet-title">${isNew ? NEW_TITLE[t.type] : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
@@ -1429,6 +1435,11 @@ const actions = {
   'goto-roadmap': () => { state.taskView = 'roadmap'; store.set('taskView', 'roadmap'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
   'toggle-done': () => { state.showDone = !state.showDone; renderProject(); },
+  'quick-type': (el) => {
+    const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];
+    store.set('quickType', state.quickType);
+    $app.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
+  },
   'new-item': (el) => {
     if (el.dataset.epic) return taskSheet({ epicId: Number(el.dataset.epic) });
     if (state.taskView === 'roadmap') return epicSheet({});
@@ -1599,7 +1610,8 @@ const forms = {
   async 'add-task'(f) {
     const title = f.elements.title.value.trim();
     if (!title) return;
-    await db.addTask(state.pid, { title, status: state.taskView === 'board' && isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
+    await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: state.taskView === 'board' && isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
+    store.set(draftKey(), '');
     await reloadProject();
     $app.querySelector('#task-new')?.focus();
   },
@@ -1684,6 +1696,9 @@ $app.addEventListener('change', run(async (e) => {
   try { await db.setRole(state.pid, el.dataset.id, el.value); toast('Rôle mis à jour'); }
   finally { await reloadProject(); }
 }));
+
+// Keep what is typed in the quick-add bar.
+$app.addEventListener('input', (e) => { if (e.target.id === 'task-new') store.set(draftKey(), e.target.value); });
 
 // Move the ring while the admin drags the progress slider.
 $app.addEventListener('input', (e) => {
