@@ -27,7 +27,8 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
     - **Gestes multi-doigts** (dans `bindWall`) : un doigt sur le fond = déplacer la vue ; un doigt sur un post-it = le déplacer (un tap l'ouvre) ; **deux doigts = zoom + déplacement, même posés sur des post-it** (on ne déplace jamais de post-it par accident en pinçant) ; **un doigt qui tient déjà un post-it en mouvement** + un autre doigt : sur le fond il déplace la vue (le post-it reste sous le doigt), sur un autre post-it il le déplace aussi ; un 3ᵉ doigt, si un post-it est tenu, forme avec le 2ᵉ un pincement (zoom + déplacement) ; la mini-carte montre toujours le mur entier (3000 × 2400). Un doigt « primaire » (`isPrimary`) remet les gestes à zéro (doigt fantôme jamais relevé). Sur iOS : `gesturestart/change/end` et `touchmove` bloqués sur le mur.
 11. **Pas d'émoji dans l'interface** : utiliser `ico('nom')` (icônes dessinées dans `ICON_PATHS`, couleur du texte). Exception voulue : l'icône d'un projet et l'icône de profil restent des **émojis au choix** (colonnes `emoji` / `avatar_emoji`) ; `glyph()` sait aussi afficher une valeur `i:nom`.
 12. Les émojis choisis (projet, profil) sont dessinés par `emojiSvg()` (SVG recentré d'après les pixels réellement dessinés) : ne pas les remettre en simple texte dans une pastille ronde.
-13. Textes de l'interface en français, avec les mêmes mots que le reste : « chantier », « post-it », « idée », « amélioration ».
+13. Vues des tâches : **Feuille de route** et **Tableau** seulement (plus de « Liste »). Tableau = `epicNote()` (post-it de chantier + tâches collées dessus, classes `ep-`) ; regroupement `state.boardGroup` (`status` | `epic`).
+14. Textes de l'interface en français, avec les mêmes mots que le reste : « chantier », « post-it », « idée », « amélioration ».
 
 ### Base de données
 1. Modifier `supabase/schema.sql` (toujours rejouable) **et** `supabase/tests/rls_test.sql` ; lancer `npm run test:db` (voir plus bas).

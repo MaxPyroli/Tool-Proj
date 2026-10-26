@@ -696,7 +696,7 @@ dialog#sheet { overscroll-behavior: contain; }
   .quick-add .input { flex: 1 1 0; }
 }
 
-/* chantiers: roadmap modes, collapsible list groups, board groups */
+/* chantiers: roadmap modes */
 .columns.rm { grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); }
 @media (max-width: 719px) {
   .columns.rm { grid-template-columns: minmax(0, 1fr); }
@@ -704,16 +704,7 @@ dialog#sheet { overscroll-behavior: contain; }
   .columns.rm .col { background: var(--surface-2); border: 1px solid var(--line); padding: 12px; }
   .columns.rm .col-head { display: flex; }
 }
-.grp-toggle { flex: none; width: 34px; height: 34px; border: 0; background: none; color: var(--muted); border-radius: 8px; cursor: pointer; display: grid; place-items: center; padding: 0; }
-.grp-toggle .ico { transition: transform .2s ease; }
-.group.shut .grp-toggle .ico { transform: rotate(-90deg); }
-.group-head .grp-bar { flex: 0 0 100%; height: 5px; margin: 0 0 2px; order: 9; }
-.subgroup { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); min-width: 0; }
 .col { grid-template-columns: minmax(0, 1fr); }
-.subgroup + .subgroup { margin-top: 6px; }
-.sub-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 4px 0; font-size: .8rem; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
-.sub-head .sub-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sub-head:not(.none) .sub-title::before { content: "◆ "; color: var(--accent); }
 
 /* light markdown */
 .md-hint { display: block; margin-top: 4px; }
@@ -741,3 +732,24 @@ dialog#sheet { overscroll-behavior: contain; }
 .cl-ver ul { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: .92rem; }
 .cl-pill { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
 .cl-pill.soon { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+
+/* chantiers as big post-its with the tasks stuck on top */
+.seg.sm { margin-bottom: 12px; } .seg.sm button { min-height: 32px; font-size: .85rem; }
+.ep-grid { display: grid; gap: 22px 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); align-items: start; margin-top: 6px; }
+.ep-sheet { --ep: var(--pi-green); position: relative; min-width: 0; padding: 18px 12px 12px; margin-top: 10px; border-radius: 6px 6px 14px 6px; color: var(--pi-ink);
+  background: color-mix(in srgb, var(--ep) 78%, var(--surface)); box-shadow: 0 6px 14px rgb(0 0 0 / .13), 0 1px 0 rgb(255 255 255 / .35) inset; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.ep-sheet.hz-now { --ep: var(--pi-green); } .ep-sheet.hz-next { --ep: var(--pi-blue); } .ep-sheet.hz-later { --ep: var(--pi-purple); } .ep-sheet.hz-done { --ep: var(--pi-yellow); }
+.ep-tape { position: absolute; top: -10px; left: 50%; width: 74px; height: 20px; translate: -50% 0; rotate: -2deg; background: rgb(255 255 255 / .55); box-shadow: 0 1px 3px rgb(0 0 0 / .15); border-radius: 2px; }
+.ep-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ep-title { flex: 1; min-width: 0; min-height: 0; height: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: inherit; }
+.ep-title h4 { margin: 0; font-family: var(--f-hand); font-size: 1.25rem; line-height: 1.15; overflow-wrap: anywhere; }
+.ep-add { flex: none; min-height: 34px; height: 34px; background: rgb(255 255 255 / .45); color: var(--pi-ink); min-width: 34px; padding: 0; font-size: 1.15rem; }
+.ep-bar { height: 6px; background: rgb(255 255 255 / .55); border-color: transparent; }
+.ep-count { font-size: .78rem; opacity: .75; margin: -2px 0 4px; }
+.ep-stack { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); padding: 0 2px; }
+.ep-stack .task { box-shadow: 0 3px 7px rgb(0 0 0 / .18); min-height: 46px; }
+.ep-stack .task:nth-child(odd) { rotate: -.7deg; } .ep-stack .task:nth-child(even) { rotate: .6deg; translate: 3px 0; }
+.ep-stack .task:hover { rotate: 0deg; }
+.ep-loose { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+.columns > .col > .ep-sheet + .ep-sheet, .columns > .col > .ep-sheet + .ep-loose, .columns > .col > .ep-loose + .ep-sheet { margin-top: 18px; }
+.ep-sheet .hz { background: rgb(255 255 255 / .5); color: var(--pi-ink); }

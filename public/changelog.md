@@ -2,6 +2,11 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.18.0
+- La vue « Liste » disparaît : il reste deux vues, Feuille de route et Tableau.
+- Tableau : chaque chantier est un grand post-it avec ses tâches collées dessus. Nouveau choix « Par statut » (colonnes À faire / En cours / Fait) ou « Par chantier » (tout sur un seul écran, un post-it par chantier).
+- Un « + » sur le post-it du chantier pour y ajouter une tâche, et toucher son titre l'ouvre.
+
 ## 0.17.0
 - Nouveau menu « Nouveautés » (Mon compte) : l'historique des versions, avec une pastille rouge sur ton compte quand il y a du nouveau.
 

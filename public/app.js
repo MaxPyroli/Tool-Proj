@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.17.0';
+const APP_VERSION = '0.18.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -113,7 +113,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', roadmapMode: store.get('roadmapMode', 'active'), taskView: store.get('taskView', 'list'), taskFilter: 'all', showDone: false,
+  taskCol: 'todo', roadmapMode: store.get('roadmapMode', 'active'), taskView: store.get('taskView', 'board') === 'list' ? 'board' : store.get('taskView', 'board'), boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -828,12 +828,12 @@ function viewTasks(d) {
   return `
   <div class="task-tools">
     <div class="seg views" role="tablist" aria-label="Affichage">
-      ${[['roadmap', 'Feuille de route'], ['list', 'Liste'], ['board', 'Tableau']].map(([k, l]) => `<button data-action="task-view" data-v="${k}" aria-pressed="${view === k}">${l}</button>`).join('')}
+      ${[['roadmap', 'Feuille de route'], ['board', 'Tableau']].map(([k, l]) => `<button data-action="task-view" data-v="${k}" aria-pressed="${view === k}">${l}</button>`).join('')}
     </div>
     <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
   </div>
   ${view !== 'roadmap' ? `<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ty-${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>` : ''}
-  ${{ roadmap: viewRoadmap, list: viewList, board: viewBoard }[view](d)}`;
+  ${{ roadmap: viewRoadmap, board: viewBoard }[view](d)}`;
 }
 
 function viewRoadmap(d) {
@@ -867,39 +867,22 @@ function viewRoadmap(d) {
       </section>`).join('')}
   </div>
   ${done.length ? `<details class="done-epics"><summary>${done.length} chantier${done.length > 1 ? 's' : ''} terminé${done.length > 1 ? 's' : ''}</summary><div class="stack" style="gap:8px;margin-top:10px">${done.map(card).join('')}</div></details>` : ''}
-  ${loose ? `<p class="small muted" style="margin-top:14px">${loose} élément${loose > 1 ? 's' : ''} ouvert${loose > 1 ? 's' : ''} hors chantier. <button class="link-btn" data-action="task-view" data-v="list">Voir la liste</button></p>` : ''}`;
+  ${loose ? `<p class="small muted" style="margin-top:14px">${loose} élément${loose > 1 ? 's' : ''} ouvert${loose > 1 ? 's' : ''} hors chantier. <button class="link-btn" data-action="task-view" data-v="board">Voir le tableau</button></p>` : ''}`;
 }
 
-const collapsedGroups = () => new Set(store.get(`collapsed:${state.pid}`, '').split(',').filter(Boolean));
-
-function viewList(d) {
-  const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
-  const items = d.tasks.filter(matchesFilter);
-  const groups = [...d.epics].sort(sortEpics).map((e) => [e, items.filter((t) => t.epicId === e.id)]);
-  groups.push([null, items.filter((t) => !t.epicId)]);
-  const filtering = state.taskFilter !== 'all';
-  const collapsed = collapsedGroups();
-  const doneCount = items.filter((t) => t.status === 'done').length;
-  const shown = groups.filter(([e, list]) => (filtering ? list.some((t) => state.showDone || t.status !== 'done')
-    : e ? (e.horizon !== 'done' || state.showDone || list.some((t) => t.status !== 'done')) : list.length));
-  return `
-  ${quickAdd('Ajouter une tâche rapide…')}
-  ${shown.length ? shown.map(([e, list]) => {
-    const visible = list.filter((t) => state.showDone || t.status !== 'done').sort(sortItems);
-    const pr = e ? epicProgress(d, e.id) : null;
-    const gid = e ? String(e.id) : 'none', shut = collapsed.has(gid);
-    return `<section class="group ${shut ? 'shut' : ''}">
-      <header class="group-head">
-        <button class="grp-toggle" data-action="toggle-group" data-id="${gid}" aria-expanded="${!shut}" aria-label="${shut ? 'Déplier' : 'Replier'}">${ico('chev', 18)}</button>
-        ${e ? `<button class="group-title" data-action="open-epic" data-id="${e.id}"><h3>${esc(e.title)}</h3><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
-          <span class="small muted num">${pr.done}/${pr.total}</span>` : '<h3 class="group-title">Hors chantier</h3>'}
-        <button class="btn sm ghost" data-action="new-item" ${e ? `data-epic="${e.id}"` : ''} aria-label="Ajouter dans ${e ? esc(e.title) : 'hors chantier'}">+ Ajouter</button>
-        ${e ? `<div class="progress grp-bar"><i style="width:${pr.pct}%"></i></div>` : ''}
-      </header>
-      ${shut ? '' : visible.length ? `<div class="items">${visible.map((t) => taskRow(t, byId)).join('')}</div>` : `<p class="col-empty">${list.length ? 'Tout est fait.' : 'Rien ici pour le moment.'}</p>`}
-    </section>`;
-  }).join('') : `<div class="empty"><p>${filtering ? 'Rien ne correspond à ce filtre.' : 'Aucune tâche pour le moment. Ajoute la première au-dessus.'}</p></div>`}
-  ${doneCount ? `<button class="link-btn" data-action="toggle-done">${state.showDone ? 'Masquer' : 'Afficher'} les ${doneCount} élément${doneCount > 1 ? 's' : ''} terminé${doneCount > 1 ? 's' : ''}</button>` : ''}`;
+/** A chantier drawn as a big post-it with its tasks stuck on top of it. */
+function epicNote(d, e, items, byId, draggable) {
+  const pr = epicProgress(d, e.id);
+  return `<article class="ep-sheet hz-${e.horizon}">
+    <span class="ep-tape" aria-hidden="true"></span>
+    <header class="ep-head">
+      <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
+      <button class="btn sm ghost ep-add" data-action="new-item" data-epic="${e.id}" aria-label="Ajouter dans ${esc(e.title)}">+</button>
+    </header>
+    <div class="progress ep-bar"><i style="width:${pr.pct}%"></i></div>
+    <p class="ep-count num">${pr.done}/${pr.total} fait${pr.done > 1 ? 's' : ''}</p>
+    <div class="ep-stack">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>
+  </article>`;
 }
 
 /** Items of one board column, grouped by chantier (chantiers in roadmap order, loose items last). */
@@ -907,22 +890,35 @@ function boardGroups(d, list) {
   const groups = [...d.epics].sort(sortEpics).map((e) => [e, list.filter((t) => t.epicId === e.id)]).filter(([, l]) => l.length);
   const loose = list.filter((t) => !d.epics.some((e) => e.id === t.epicId));
   if (loose.length) groups.push([null, loose]);
-  boardGroups.multi = d.epics.length > 0;
   return groups;
 }
 
 function viewBoard(d) {
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const draggable = matchMedia('(pointer: fine)').matches;
+  const byEpic = state.boardGroup === 'epic';
+  const modes = `<div class="seg sm" role="tablist" aria-label="Regrouper">${[['status', 'Par statut'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}</div>`;
+  const group = (list) => boardGroups(d, list).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
+    : `<div class="ep-loose">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
+  if (byEpic) {
+    const items = d.tasks.filter(matchesFilter).filter((t) => state.showDone || t.status !== 'done').sort(sortItems);
+    const doneCount = d.tasks.filter((t) => matchesFilter(t) && t.status === 'done').length;
+    return `
+  ${quickAdd('Ajouter une tâche rapide…')}
+  ${modes}
+  ${items.length ? `<div class="ep-grid">${group(items)}</div>` : `<div class="empty"><p>${state.taskFilter !== 'all' ? 'Rien ne correspond à ce filtre.' : 'Rien à faire pour le moment.'}</p></div>`}
+  ${doneCount ? `<button class="link-btn" data-action="toggle-done">${state.showDone ? 'Masquer' : 'Afficher'} les ${doneCount} élément${doneCount > 1 ? 's' : ''} terminé${doneCount > 1 ? 's' : ''}</button>` : ''}`;
+  }
   const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s && matchesFilter(t)).sort(sortItems)]);
   return `
   ${quickAdd(`Ajouter une tâche${isPhone() ? ` (${TASK[state.taskCol].toLowerCase()})` : ''}…`)}
+  ${modes}
   <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
   <div class="columns">
     ${cols.map(([s, list]) => `
       <section class="col ${state.taskCol === s ? 'shown' : ''}" data-drop-status="${s}" aria-label="${TASK[s]}">
         <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR[s]}"></span>${TASK[s]}</h3><span class="muted num small">${list.length}</span></div>
-        ${boardGroups(d, list).map(([e, items]) => `<div class="subgroup">${boardGroups.multi ? `<div class="sub-head ${e ? '' : 'none'}">${e ? `<span class="sub-title">${esc(e.title)}</span>` : '<span class="sub-title">Hors chantier</span>'}<span class="num small muted">${items.length}</span></div>` : ''}${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`).join('') || `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
+        ${group(list) || `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
       </section>`).join('')}
   </div>`;
 }
@@ -1530,12 +1526,7 @@ const actions = {
   },
   'task-col': (el) => { state.taskCol = el.dataset.v; renderProject(); },
   'roadmap-mode': (el) => { state.roadmapMode = el.dataset.v; store.set('roadmapMode', el.dataset.v); renderProject(); },
-  'toggle-group': (el) => {
-    const id = el.dataset.id, set = collapsedGroups();
-    if (set.has(id)) set.delete(id); else set.add(id);
-    store.set(`collapsed:${state.pid}`, [...set].join(','));
-    renderProject();
-  },
+  'board-group': (el) => { state.boardGroup = el.dataset.v; store.set('boardGroup', el.dataset.v); renderProject(); },
   'task-view': (el) => { state.taskView = el.dataset.v; store.set('taskView', el.dataset.v); renderProject(); },
   'goto-roadmap': () => { state.taskView = 'roadmap'; store.set('taskView', 'roadmap'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },

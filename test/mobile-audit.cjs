@@ -57,7 +57,7 @@ async function audit(p, label) {
   await p.reload(); await p.waitForSelector('.ring');
   await audit(p, 'liste des projets'); await p.goto(`${BASE}#/`); await p.waitForSelector('.pcard'); await audit(p, 'liste des projets');
   await p.goto(`${BASE}#/p/${pid}`); await p.waitForSelector('.ring'); await audit(p, 'aperçu');
-  for (const [view, sel] of [['list', '.group'], ['board', '[data-drop-status]'], ['roadmap', '.epic-card']]) {
+  for (const [view, sel] of [['board', '[data-drop-status]'], ['roadmap', '.epic-card']]) {
     await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click(`[data-action="task-view"][data-v="${view}"]`); await p.waitForSelector(sel); await audit(p, `tâches · ${view}`);
   }
   await p.goto(`${BASE}#/p/${pid}/idees`); await p.waitForSelector('.board-tools'); await p.click('[data-action="board-view"][data-v="grid"]'); await p.waitForSelector('.note-grid .note'); await audit(p, 'post-it · grille');
@@ -67,9 +67,9 @@ async function audit(p, label) {
     ['mon compte', async () => { await p.click('[data-action="account"]'); await p.waitForSelector('.avatar-picker'); }],
     ['paramètres du projet', async () => { await p.goto(`${BASE}#/p/${pid}`); await p.waitForSelector('.ring'); await p.click('[data-action="edit-project"]'); await p.waitForSelector('.style-card'); }],
     ['liens du projet', async () => { await p.goto(`${BASE}#/p/${pid}`); await p.waitForSelector('.ring'); await p.click('[data-action="manage-links"]'); await p.waitForSelector('#lk-url'); }],
-    ['fiche tâche', async () => { await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="list"]'); await p.waitForSelector('.task'); await p.click('.task >> nth=0'); await p.waitForSelector('#tf-title'); }],
+    ['fiche tâche', async () => { await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="board"]'); await p.waitForSelector('.task'); await p.click('.task >> nth=0'); await p.waitForSelector('#tf-title'); }],
     ['fiche chantier', async () => { await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="roadmap"]'); await p.click('.epic-card >> nth=0'); await p.waitForSelector('#ef-title'); }],
-    ['choix « ajouter »', async () => { await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="list"]'); await p.click('.fab'); await p.waitForSelector('.chooser'); }],
+    ['choix « ajouter »', async () => { await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="board"]'); await p.click('.fab'); await p.waitForSelector('.chooser'); }],
     ['fiche post-it', async () => { await p.goto(`${BASE}#/p/${pid}/idees`); await p.waitForSelector('.board-tools'); await p.click('.note >> nth=0'); await p.waitForSelector('#nf-text'); }],
   ];
   for (const [name, open] of sheets) { await open(); await wait(350); await audit(p, `fenêtre · ${name}`); await p.keyboard.press('Escape'); await wait(200); if (await p.locator('dialog[open]').count()) await p.evaluate(() => document.getElementById('sheet').close()); }
@@ -84,7 +84,7 @@ async function audit(p, label) {
   await p.click('a.tab >> nth=3'); await p.waitForSelector('.member'); await audit(p, 'équipe (projet vide)');
   // ---- barre de navigation et défilement ----
   log('— barre du bas —');
-  await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="list"]'); await p.waitForSelector('.group');
+  await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="board"]'); await p.waitForSelector('[data-drop-status]');
   const bar = () => p.evaluate(() => { const t = document.querySelector('.tabs'); if (!t) return null; const r = t.getBoundingClientRect(); return { bottom: Math.round(r.bottom), vis: getComputedStyle(t).display !== 'none', h: innerHeight }; });
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await wait(300);
   const y0 = await p.evaluate(() => Math.round(scrollY)); const b0 = await bar();
