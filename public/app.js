@@ -63,7 +63,7 @@ const ico = (n, size = 18) => `<svg class="ico" viewBox="0 0 24 24" width="${siz
 const glyphName = (v) => (typeof v === 'string' && v.startsWith('i:') && ICON_PATHS[v.slice(2)] ? v.slice(2) : '');
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : esc(v));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.15.0';
+const APP_VERSION = '0.16.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -99,6 +99,14 @@ const state = {
 // ---------- utils ----------
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/** Escaped text with light markdown: **bold**, *italic* / _italic_, __underline__ (one line at a time). */
+const md = (text) => esc(text)
+  .replace(/\*\*(?=\S)([^\n]+?)(?<=\S)\*\*/g, '<strong>$1</strong>')
+  .replace(/(?<!_)__(?=\S)([^\n]+?)(?<=\S)__(?!_)/g, '<u>$1</u>')
+  .replace(/(?<![\w*])\*(?=[^\s*])([^\n*]+?)(?<=[^\s*])\*(?![\w*])/g, '<em>$1</em>')
+  .replace(/(?<![\w_])_(?=[^\s_])([^\n_]+?)(?<=[^\s_])_(?![\w_])/g, '<em>$1</em>');
+const MD_HINT = '<small class="muted md-hint">**gras** · *italique* · __souligné__</small>';
 const isPhone = () => matchMedia('(max-width: 719px)').matches;
 const initials = (name = '?') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const hue = (id) => [...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
@@ -217,6 +225,7 @@ function openSheet(html, onMount) {
   sheetCleanup = null;
   sheet.innerHTML = `<div class="sheet-body">${html}</div>`;
   if (!sheet.open) sheet.showModal();
+  sheet.querySelectorAll('textarea').forEach(mdPreview);
   sheetAt = Date.now();
   sheetCleanup = onMount?.(sheet) || null;
   const auto = sheet.querySelector('[autofocus]');
@@ -230,7 +239,16 @@ function closeSheet() {
 // the click that follows a tap lands on the backdrop right after opening: ignore it
 sheet.addEventListener('click', (e) => { if (e.target === sheet && Date.now() - sheetAt > 450) closeSheet(); });
 sheet.addEventListener('close', () => { sheetCleanup?.(); sheetCleanup = null; });
+// Live preview of **bold** / *italic* / __underline__ under long text fields (only when there is some markup).
+function mdPreview(ta) {
+  const box = ta.closest('.field')?.querySelector('.md-preview');
+  if (!box) return;
+  const html = md(ta.value);
+  box.hidden = html === esc(ta.value);
+  if (!box.hidden) box.innerHTML = html;
+}
 sheet.addEventListener('input', (e) => {
+  if (e.target.tagName === 'TEXTAREA') mdPreview(e.target);
   const form = e.target.form;
   if (e.target.name?.startsWith('tc_') && form?.elements.taskStyle) refreshStylePreview(form);
   if (e.target.name === 'displayName' && form?.elements.avatarEmoji) refreshAvatarPreview(form);
@@ -382,7 +400,7 @@ function projectCard(p) {
         <div class="row" style="gap:6px"><span class="pill ${p.status}">${STATUS[p.status]}</span>${p.role === 'admin' ? '<span class="role admin">admin</span>' : ''}</div>
       </div>
     </div>
-    ${p.description ? `<p class="desc">${esc(p.description)}</p>` : ''}
+    ${p.description ? `<p class="desc">${md(p.description)}</p>` : ''}
     <div class="pcard-progress">
       <div class="row between small"><span class="muted">Avancement</span><strong class="num">${p.progress} %</strong></div>
       <div class="progress"><i style="width:${p.progress}%"></i></div>
@@ -476,7 +494,7 @@ function projectForm(p) {
         <input type="color" class="color-input" id="pf-color" name="color" value="${esc(p.color)}" aria-label="Autre couleur"></div>
       </div>
       <label class="field"><span>Statut</span><select class="input" id="pf-status" name="status">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}" ${k === p.status ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-      <label class="field"><span>Description</span><textarea class="input" id="pf-desc" name="description" maxlength="2000" placeholder="Le but de l'app, pour qui, la stack…">${esc(p.description)}</textarea></label>
+      <label class="field"><span>Description</span><textarea class="input" id="pf-desc" name="description" maxlength="2000" placeholder="Le but de l'app, pour qui, la stack…">${esc(p.description)}</textarea>${MD_HINT}<div class="md-preview description" hidden></div></label>
       ${editing ? `
         <label class="field"><span>Échéance</span><input class="input" id="pf-due" type="date" name="dueDate" value="${esc(p.dueDate || '')}"></label>
         <label class="field"><span>Avancement : <b class="num" id="pf-prog-v">${p.manualProgress} %</b></span>
@@ -598,7 +616,7 @@ function viewOverview(d) {
         <div class="${bugs ? 'warn' : ''}"><span class="label">Bugs ouverts</span><strong class="num">${bugs}</strong></div>
       </div>
       ${linksBlock(d)}
-      ${p.description ? `<div class="stack" style="gap:6px"><span class="label">Description</span><p class="description">${esc(p.description)}</p></div>`
+      ${p.description ? `<div class="stack" style="gap:6px"><span class="label">Description</span><p class="description">${md(p.description)}</p></div>`
         : p.role === 'admin' ? '<p class="muted small">Pas encore de description. <button class="link-btn" data-action="edit-project">En ajouter une</button></p>' : ''}
     </section>
     <div class="stack" style="gap:16px">
@@ -632,7 +650,7 @@ function noteHtml(n, wall) {
   return `
   <article class="note c-${n.color}" data-note="${n.id}" ${wall ? '' : `data-action="open-note" data-id="${n.id}"`}
     style="--rot:${rot}deg;${wall ? `left:${n.x}px;top:${n.y}px;z-index:${n.z}` : ''}" tabindex="0" aria-label="Post-it : ${esc(n.text.slice(0, 60))}">
-    <div class="n-text">${esc(n.text)}</div>
+    <div class="n-text">${md(n.text)}</div>
     <div class="n-foot"><span class="who">${esc(n.author || '')}</span>
       <button class="vote ${n.voted ? 'on' : ''}" data-action="vote" data-id="${n.id}" aria-pressed="${n.voted}" aria-label="Voter">${ico('thumb', 14)} <span class="num">${n.votes}</span></button></div>
   </article>`;
@@ -812,7 +830,7 @@ function viewRoadmap(d) {
     const bugs = pr.items.filter((t) => t.type === 'bug' && t.status !== 'done').length;
     return `<article class="epic-card" data-action="open-epic" data-id="${e.id}" ${draggable ? 'draggable="true" data-drag="epic"' : ''}>
       <h3>${esc(e.title)}</h3>
-      ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ''}
+      ${e.description ? `<p class="desc">${md(e.description)}</p>` : ''}
       <div class="progress"><i style="width:${pr.pct}%"></i></div>
       <div class="row between small muted"><span class="num">${pr.total ? `${pr.done}/${pr.total} fait${pr.done > 1 ? 's' : ''}` : 'Aucun élément'}</span>${bugs ? `<span class="type-tag ty-bug">${bugs} bug${bugs > 1 ? 's' : ''}</span>` : ''}</div>
     </article>`;
@@ -902,7 +920,7 @@ function taskSheet(t) {
       <div class="sheet-head"><h2 id="sheet-title">${isNew ? NEW_TITLE[t.type] : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       ${segField('type', Object.fromEntries(TYPE_LIST.map((k) => [k, typeLabel(k)])), t.type, 'Type', 'type-opt')}
       <label class="field"><span>Titre</span><input class="input" id="tf-title" name="title" maxlength="200" required value="${esc(t.title)}" placeholder="${t.type === 'bug' ? 'ex. Crash quand on ouvre la carte' : 'ex. Écran de connexion'}" autofocus></label>
-      <label class="field"><span>Description <small class="muted">(facultatif)</small></span><textarea class="input" id="tf-desc" name="description" maxlength="5000" placeholder="${t.type === 'bug' ? 'Comment le reproduire, sur quel appareil…' : 'Détails, étapes, liens…'}">${esc(t.description)}</textarea></label>
+      <label class="field"><span>Description <small class="muted">(facultatif)</small></span><textarea class="input" id="tf-desc" name="description" maxlength="5000" placeholder="${t.type === 'bug' ? 'Comment le reproduire, sur quel appareil…' : 'Détails, étapes, liens…'}">${esc(t.description)}</textarea>${MD_HINT}<div class="md-preview description" hidden></div></label>
       ${segField('status', TASK, t.status, 'Statut')}
       ${segField('priority', PRIORITY, t.priority, 'Priorité')}
       <label class="field"><span>Chantier</span><select class="input" id="tf-epic" name="epicId"><option value="">Hors chantier</option>
@@ -925,7 +943,7 @@ function epicSheet(e) {
     <form class="stack" data-form="${isNew ? 'new-epic' : 'edit-epic'}" data-id="${e.id || ''}">
       <div class="sheet-head"><h2 id="sheet-title">${isNew ? 'Nouveau chantier' : 'Chantier'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       <label class="field"><span>Titre</span><input class="input" id="ef-title" name="title" maxlength="200" required value="${esc(e.title)}" placeholder="ex. Mode hors-ligne" autofocus></label>
-      <label class="field"><span>Description</span><textarea class="input" id="ef-desc" name="description" maxlength="5000" style="min-height:130px" placeholder="L'idée, pourquoi, les grandes étapes…&#10;- point 1&#10;- point 2">${esc(e.description)}</textarea></label>
+      <label class="field"><span>Description</span><textarea class="input" id="ef-desc" name="description" maxlength="5000" style="min-height:130px" placeholder="L'idée, pourquoi, les grandes étapes…&#10;- point 1&#10;- point 2">${esc(e.description)}</textarea>${MD_HINT}<div class="md-preview description" hidden></div></label>
       ${segField('horizon', HORIZON, e.horizon, 'Quand ?')}
       ${isNew ? '' : `<div class="stack" style="gap:8px">
         <div class="row between"><h3>${items.length} élément${items.length > 1 ? 's' : ''}</h3><button type="button" class="btn sm" data-action="new-item" data-epic="${e.id}">+ Ajouter</button></div>
@@ -989,6 +1007,7 @@ function noteSheet(n) {
     <form class="stack" data-form="${isNew ? 'new-note' : 'edit-note'}" data-id="${n.id || ''}">
       <div class="sheet-head"><h2 id="sheet-title">${isNew ? 'Nouveau post-it' : 'Post-it'}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       <div class="sheet-note c-${n.color}" id="nf-paper"><textarea id="nf-text" name="text" maxlength="1000" placeholder="Une idée, un bug, une envie…" autofocus>${esc(n.text)}</textarea></div>
+      ${MD_HINT}
       <div class="swatches" role="radiogroup" aria-label="Couleur">${Object.entries(NOTE_COLORS).map(([k, l]) => `<button type="button" class="swatch c-${k}" data-action="note-color" data-v="${k}" aria-pressed="${k === n.color}" aria-label="${l}"></button>`).join('')}</div>
       <input type="hidden" name="color" value="${n.color}">
       ${isNew ? `<input type="hidden" name="x" value="${n.x ?? ''}"><input type="hidden" name="y" value="${n.y ?? ''}">` : ''}
@@ -1810,13 +1829,21 @@ function signedIn() {
   if (state.me) signedIn(); else render();
 })();
 
-// Lists in text areas: Enter continues "- ", "• ", "* " and "1. " lines; Enter on an empty item ends the list.
+// Text areas: "- " becomes "• "; Enter continues "• ", "* " and "1. " lines; Enter on an empty item ends the list.
 document.addEventListener('beforeinput', (e) => {
   const ta = e.target;
-  if (ta.tagName !== 'TEXTAREA' || (e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph')) return;
-  if (ta.selectionStart !== ta.selectionEnd) return;
+  if (ta.tagName !== 'TEXTAREA' || ta.selectionStart !== ta.selectionEnd) return;
   const pos = ta.selectionStart, start = ta.value.lastIndexOf('\n', pos - 1) + 1;
   const line = ta.value.slice(start, pos);
+  if (e.inputType === 'insertText' && e.data === ' ') {
+    const d = line.match(/^(\s*)-$/);
+    if (!d) return;
+    e.preventDefault();
+    ta.setRangeText('• ', start + d[1].length, pos, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    return;
+  }
+  if (e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph') return;
   const m = line.match(/^(\s*)([-*•]|\d+[.)])\s+(.*)$/);
   if (!m) return;
   e.preventDefault();
@@ -1824,7 +1851,7 @@ document.addEventListener('beforeinput', (e) => {
   if (!rest.trim()) { // empty item: remove the marker and end the list
     ta.setRangeText('', start, pos, 'end');
   } else {
-    const next = /\d/.test(mark) ? `${parseInt(mark, 10) + 1}${mark.slice(-1)}` : mark;
+    const next = /\d/.test(mark) ? `${parseInt(mark, 10) + 1}${mark.slice(-1)}` : mark === '-' ? '•' : mark;
     ta.setRangeText(`\n${indent}${next} `, pos, pos, 'end');
   }
   ta.dispatchEvent(new Event('input', { bubbles: true }));

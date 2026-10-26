@@ -709,3 +709,9 @@ dialog#sheet { overscroll-behavior: contain; }
 .sub-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 4px 0; font-size: .8rem; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
 .sub-head .sub-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sub-head:not(.none) .sub-title::before { content: "◆ "; color: var(--accent); }
+
+/* light markdown */
+.md-hint { display: block; margin-top: 4px; }
+.md-preview { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px dashed var(--line); font-size: .92rem; }
+.note .n-text strong, .description strong, .desc strong { font-weight: 800; }
+.note .n-text u, .description u, .desc u { text-underline-offset: 2px; }

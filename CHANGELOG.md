@@ -2,6 +2,10 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.16.0
+- Texte : taper « - » puis espace donne « • » (et les listes continuent avec « • »).
+- Markdown léger : **gras**, *italique* (ou _italique_) et __souligné__, affichés sur les post-it, les descriptions de projet et de chantier. Un aperçu apparaît sous les champs de description quand il y a du formatage.
+
 ## 0.15.0
 - Feuille de route : deux modes, « En cours » (Maintenant + Ensuite) et « Plus tard ».
 - Liste : chaque chantier a sa barre d'avancement et se replie d'un toucher (le repli est gardé).
