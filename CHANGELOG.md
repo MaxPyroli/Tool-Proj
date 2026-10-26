@@ -2,6 +2,12 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.15.0
+- Feuille de route : deux modes, « En cours » (Maintenant + Ensuite) et « Plus tard ».
+- Liste : chaque chantier a sa barre d'avancement et se replie d'un toucher (le repli est gardé).
+- Tableau : dans chaque colonne, les tâches sont regroupées par chantier.
+- Texte : dans les champs longs, Entrée continue les listes (« - », « • », « 1. ») et Entrée sur un point vide la termine.
+
 ## 0.14.0
 - Tâche rapide : un bouton à gauche du champ choisit le type (tâche, bug, idée, amélioration) ; il garde le dernier choix.
 - Le texte tapé dans la tâche rapide est gardé quand on change d'onglet (ou qu'on ferme l'app).

@@ -13,6 +13,7 @@ const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨
 // Drawn icons (follow the text colour): interface, project and profile pictures.
 const ICON_PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  chev: '<path d="M6 9l6 6 6-6"/>',
   out: '<path d="M7 17L17 7M9 7h8v8"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   calendar: '<rect x="3.500" y="5" width="17" height="15.500" rx="3"/><path d="M3.500 10h17M8 3v4M16 3v4"/>',
@@ -62,7 +63,7 @@ const ico = (n, size = 18) => `<svg class="ico" viewBox="0 0 24 24" width="${siz
 const glyphName = (v) => (typeof v === 'string' && v.startsWith('i:') && ICON_PATHS[v.slice(2)] ? v.slice(2) : '');
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : esc(v));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.14.0';
+const APP_VERSION = '0.15.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -90,7 +91,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', roadmapCol: 'now', taskView: store.get('taskView', 'list'), taskFilter: 'all', showDone: false,
+  taskCol: 'todo', roadmapMode: store.get('roadmapMode', 'active'), taskView: store.get('taskView', 'list'), taskFilter: 'all', showDone: false,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -797,7 +798,9 @@ function viewTasks(d) {
 
 function viewRoadmap(d) {
   const draggable = matchMedia('(pointer: fine)').matches;
-  const cols = ['now', 'next', 'later'].map((h) => [h, d.epics.filter((e) => e.horizon === h).sort(sortEpics)]);
+  const later = state.roadmapMode === 'later';
+  const cols = (later ? ['later'] : ['now', 'next']).map((h) => [h, d.epics.filter((e) => e.horizon === h).sort(sortEpics)]);
+  const count = (hs) => d.epics.filter((e) => hs.includes(e.horizon)).length;
   const done = d.epics.filter((e) => e.horizon === 'done');
   const loose = d.tasks.filter((t) => !t.epicId && t.status !== 'done').length;
   if (!d.epics.length) {
@@ -815,17 +818,19 @@ function viewRoadmap(d) {
     </article>`;
   };
   return `
-  <div class="seg hide-lg">${cols.map(([h, list]) => `<button data-action="roadmap-col" data-v="${h}" aria-pressed="${state.roadmapCol === h}">${HORIZON[h]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
-  <div class="columns">
+  <div class="seg" role="tablist" aria-label="Quand ?">${[['active', 'En cours', count(['now', 'next'])], ['later', 'Plus tard', count(['later'])]].map(([k, l, n]) => `<button data-action="roadmap-mode" data-v="${k}" aria-pressed="${(k === 'later') === later}">${l} <span class="num muted">${n}</span></button>`).join('')}</div>
+  <div class="columns rm" style="--n:${cols.length}">
     ${cols.map(([h, list]) => `
-      <section class="col ${state.roadmapCol === h ? 'shown' : ''}" data-drop-horizon="${h}" aria-label="${HORIZON[h]}">
+      <section class="col shown" data-drop-horizon="${h}" aria-label="${HORIZON[h]}">
         <div class="col-head"><h3><span class="dot" style="--c:var(--h-${h})"></span>${HORIZON[h]}</h3><span class="muted num small">${list.length}</span></div>
-        ${list.map(card).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Glisse un chantier ici.' : 'Aucun chantier.'}</p>`}
+        ${list.map(card).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Change le moment d\'un chantier pour le mettre ici.' : 'Aucun chantier.'}</p>`}
       </section>`).join('')}
   </div>
   ${done.length ? `<details class="done-epics"><summary>${done.length} chantier${done.length > 1 ? 's' : ''} terminé${done.length > 1 ? 's' : ''}</summary><div class="stack" style="gap:8px;margin-top:10px">${done.map(card).join('')}</div></details>` : ''}
   ${loose ? `<p class="small muted" style="margin-top:14px">${loose} élément${loose > 1 ? 's' : ''} ouvert${loose > 1 ? 's' : ''} hors chantier. <button class="link-btn" data-action="task-view" data-v="list">Voir la liste</button></p>` : ''}`;
 }
+
+const collapsedGroups = () => new Set(store.get(`collapsed:${state.pid}`, '').split(',').filter(Boolean));
 
 function viewList(d) {
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
@@ -833,6 +838,7 @@ function viewList(d) {
   const groups = [...d.epics].sort(sortEpics).map((e) => [e, items.filter((t) => t.epicId === e.id)]);
   groups.push([null, items.filter((t) => !t.epicId)]);
   const filtering = state.taskFilter !== 'all';
+  const collapsed = collapsedGroups();
   const doneCount = items.filter((t) => t.status === 'done').length;
   const shown = groups.filter(([e, list]) => (filtering ? list.some((t) => state.showDone || t.status !== 'done')
     : e ? (e.horizon !== 'done' || state.showDone || list.some((t) => t.status !== 'done')) : list.length));
@@ -841,21 +847,32 @@ function viewList(d) {
   ${shown.length ? shown.map(([e, list]) => {
     const visible = list.filter((t) => state.showDone || t.status !== 'done').sort(sortItems);
     const pr = e ? epicProgress(d, e.id) : null;
-    return `<section class="group">
+    const gid = e ? String(e.id) : 'none', shut = collapsed.has(gid);
+    return `<section class="group ${shut ? 'shut' : ''}">
       <header class="group-head">
+        <button class="grp-toggle" data-action="toggle-group" data-id="${gid}" aria-expanded="${!shut}" aria-label="${shut ? 'Déplier' : 'Replier'}">${ico('chev', 18)}</button>
         ${e ? `<button class="group-title" data-action="open-epic" data-id="${e.id}"><h3>${esc(e.title)}</h3><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
           <span class="small muted num">${pr.done}/${pr.total}</span>` : '<h3 class="group-title">Hors chantier</h3>'}
         <button class="btn sm ghost" data-action="new-item" ${e ? `data-epic="${e.id}"` : ''} aria-label="Ajouter dans ${e ? esc(e.title) : 'hors chantier'}">+ Ajouter</button>
+        ${e ? `<div class="progress grp-bar"><i style="width:${pr.pct}%"></i></div>` : ''}
       </header>
-      ${visible.length ? `<div class="items">${visible.map((t) => taskRow(t, byId)).join('')}</div>` : `<p class="col-empty">${list.length ? 'Tout est fait.' : 'Rien ici pour le moment.'}</p>`}
+      ${shut ? '' : visible.length ? `<div class="items">${visible.map((t) => taskRow(t, byId)).join('')}</div>` : `<p class="col-empty">${list.length ? 'Tout est fait.' : 'Rien ici pour le moment.'}</p>`}
     </section>`;
   }).join('') : `<div class="empty"><p>${filtering ? 'Rien ne correspond à ce filtre.' : 'Aucune tâche pour le moment. Ajoute la première au-dessus.'}</p></div>`}
   ${doneCount ? `<button class="link-btn" data-action="toggle-done">${state.showDone ? 'Masquer' : 'Afficher'} les ${doneCount} élément${doneCount > 1 ? 's' : ''} terminé${doneCount > 1 ? 's' : ''}</button>` : ''}`;
 }
 
+/** Items of one board column, grouped by chantier (chantiers in roadmap order, loose items last). */
+function boardGroups(d, list) {
+  const groups = [...d.epics].sort(sortEpics).map((e) => [e, list.filter((t) => t.epicId === e.id)]).filter(([, l]) => l.length);
+  const loose = list.filter((t) => !d.epics.some((e) => e.id === t.epicId));
+  if (loose.length) groups.push([null, loose]);
+  boardGroups.multi = d.epics.length > 0;
+  return groups;
+}
+
 function viewBoard(d) {
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
-  const epicName = Object.fromEntries(d.epics.map((e) => [e.id, e.title]));
   const draggable = matchMedia('(pointer: fine)').matches;
   const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s && matchesFilter(t)).sort(sortItems)]);
   return `
@@ -865,7 +882,7 @@ function viewBoard(d) {
     ${cols.map(([s, list]) => `
       <section class="col ${state.taskCol === s ? 'shown' : ''}" data-drop-status="${s}" aria-label="${TASK[s]}">
         <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR[s]}"></span>${TASK[s]}</h3><span class="muted num small">${list.length}</span></div>
-        ${list.map((t) => taskRow(t, byId, { draggable, showEpic: epicName[t.epicId] })).join('') || `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
+        ${boardGroups(d, list).map(([e, items]) => `<div class="subgroup">${boardGroups.multi ? `<div class="sub-head ${e ? '' : 'none'}">${e ? `<span class="sub-title">${esc(e.title)}</span>` : '<span class="sub-title">Hors chantier</span>'}<span class="num small muted">${items.length}</span></div>` : ''}${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`).join('') || `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
       </section>`).join('')}
   </div>`;
 }
@@ -901,7 +918,7 @@ function taskSheet(t) {
 function epicSheet(e) {
   const d = state.data;
   const isNew = !e.id;
-  e = { title: '', description: '', horizon: state.taskView === 'roadmap' && isPhone() ? state.roadmapCol : 'next', ...e };
+  e = { title: '', description: '', horizon: state.taskView === 'roadmap' ? (state.roadmapMode === 'later' ? 'later' : 'now') : 'next', ...e };
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const items = isNew ? [] : d.tasks.filter((t) => t.epicId === e.id).sort(sortItems);
   openSheet(`
@@ -1430,7 +1447,13 @@ const actions = {
     state.data = null; location.hash = '#/';
   },
   'task-col': (el) => { state.taskCol = el.dataset.v; renderProject(); },
-  'roadmap-col': (el) => { state.roadmapCol = el.dataset.v; renderProject(); },
+  'roadmap-mode': (el) => { state.roadmapMode = el.dataset.v; store.set('roadmapMode', el.dataset.v); renderProject(); },
+  'toggle-group': (el) => {
+    const id = el.dataset.id, set = collapsedGroups();
+    if (set.has(id)) set.delete(id); else set.add(id);
+    store.set(`collapsed:${state.pid}`, [...set].join(','));
+    renderProject();
+  },
   'task-view': (el) => { state.taskView = el.dataset.v; store.set('taskView', el.dataset.v); renderProject(); },
   'goto-roadmap': () => { state.taskView = 'roadmap'; store.set('taskView', 'roadmap'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
@@ -1786,3 +1809,23 @@ function signedIn() {
   if (db.urlAuthError && !state.me) state.authError = db.urlAuthError;
   if (state.me) signedIn(); else render();
 })();
+
+// Lists in text areas: Enter continues "- ", "• ", "* " and "1. " lines; Enter on an empty item ends the list.
+document.addEventListener('beforeinput', (e) => {
+  const ta = e.target;
+  if (ta.tagName !== 'TEXTAREA' || (e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph')) return;
+  if (ta.selectionStart !== ta.selectionEnd) return;
+  const pos = ta.selectionStart, start = ta.value.lastIndexOf('\n', pos - 1) + 1;
+  const line = ta.value.slice(start, pos);
+  const m = line.match(/^(\s*)([-*•]|\d+[.)])\s+(.*)$/);
+  if (!m) return;
+  e.preventDefault();
+  const [, indent, mark, rest] = m;
+  if (!rest.trim()) { // empty item: remove the marker and end the list
+    ta.setRangeText('', start, pos, 'end');
+  } else {
+    const next = /\d/.test(mark) ? `${parseInt(mark, 10) + 1}${mark.slice(-1)}` : mark;
+    ta.setRangeText(`\n${indent}${next} `, pos, pos, 'end');
+  }
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+});

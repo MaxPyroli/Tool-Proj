@@ -11,13 +11,14 @@ Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur
   - *Admin* : modifie le projet, ajoute ou retire des personnes, change les rôles, supprime le projet.
   - *Membre* : ajoute et gère les tâches et les post-it.
   - Un projet garde toujours au moins un admin.
+- **Listes dans les textes** : Entrée continue une liste (« - », « 1. »).
 - **Avancement** estimé par les admins (curseur dans l'aperçu), plus un indicateur automatique pour les chantiers « Maintenant ».
 - **Avatars** : chacun choisit son emoji et sa couleur (ou garde ses initiales).
 - **Tâches organisées** :
   - **grands chantiers** pour les grosses idées (titre, longue description, avancement propre), rangés en *Maintenant / Ensuite / Plus tard / Terminé* ;
   - **éléments** de type *Tâche*, *Bug*, *Idée* ou *Amélioration*, chacun avec sa couleur, avec titre, description, statut, priorité (haute / normale / basse), personne assignée, rattachés ou non à un chantier ;
   - tâche rapide avec choix du type (le brouillon est gardé entre les onglets), nouvelles tâches assignées à leur créateur par défaut ;
-  - trois affichages : **Feuille de route** (les chantiers), **Liste** (par chantier, triée par priorité, filtres Bugs / Améliorations / À moi), **Tableau** (À faire / En cours / Fait). Glisser-déposer sur ordinateur.
+  - trois affichages : **Feuille de route** (les chantiers, en deux modes « En cours » / « Plus tard »), **Liste** (par chantier, repliable, avec avancement, triée par priorité, filtres Bugs / Améliorations / À moi), **Tableau** (À faire / En cours / Fait, regroupé par chantier). Glisser-déposer sur ordinateur.
   - **style par projet** : les admins choisissent un look (Classique, Bonbon, Néon, Papier, Pixel, Autocollant) et peuvent changer la couleur de chaque type, dans les paramètres du projet ;
 - **Plan de travail de post-it** pour le brouillon : un grand mur qu'on zoome (pincement, Ctrl + molette) et qu'on parcourt en glissant, avec « Tout voir », une mini-carte du mur entier, le plein écran, « Ranger » (par couleur, votes ou date, avec annulation) et un double-clic pour poser un post-it où on veut. Notes de couleur qu'on déplace librement (souris ou doigt), vue « Grille » triée par votes, 👍 pour voter, et « Transformer en… » chantier, tâche, bug ou amélioration quand l'idée est mûre.
 - **Liens du projet** : autant de liens que voulu (GitHub, Supabase, conversation Claude, maquette, site, store…), reconnus par leur adresse avec leur icône et affichés en boutons dans l'aperçu. Les admins les gèrent, tous les membres les voient.
