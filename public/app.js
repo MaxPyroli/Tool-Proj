@@ -14,7 +14,6 @@ const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨
 const ICON_PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
-  swap: '<path d="M7 8h11l-3-3M17 16H6l3 3"/>',
   out: '<path d="M7 17L17 7M9 7h8v8"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   calendar: '<rect x="3.500" y="5" width="17" height="15.500" rx="3"/><path d="M3.500 10h17M8 3v4M16 3v4"/>',
@@ -86,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.16.1';
+const APP_VERSION = '0.16.2';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -752,7 +751,7 @@ const typeIcon = (k, size = 15) => ico(TYPE_ICON_NAME[k], size);
 const TYPE_LIST = Object.keys(TYPES);
 // Quick-add bar: the type button cycles through the types; what is typed is kept (per project) when you change tab.
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
-const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${typeIcon(k, 18)}<span>${TYPES[k]}</span><i class="qa-swap">${ico('swap', 15)}</i></button>`; };
+const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span></button>`; };
 const draftKey = () => `draft:${state.pid}`;
 const quickAdd = (placeholder) => `
   <form class="quick-add" data-form="add-task">

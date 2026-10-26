@@ -724,4 +724,7 @@ dialog#sheet { overscroll-behavior: contain; }
 /* emoji drawn in SVG, centred by measurement */
 .emo { width: 1.25em; height: 1.25em; display: block; overflow: visible; }
 .avatar .emo, .emoji-badge .emo { margin: auto; }
-.qa-swap { display: inline-flex; opacity: .65; margin-left: 2px; }
+/* the 4 names share one cell: the button is always as wide as the longest, whatever is chosen */
+.qa-lbl { display: inline-grid; justify-items: start; }
+.qa-lbl > span { grid-area: 1 / 1; }
+.qa-lbl > .off { visibility: hidden; }
