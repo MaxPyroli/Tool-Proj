@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.17.0
+- Nouveau menu « Nouveautés » (Mon compte) : l'historique des versions, avec une pastille rouge sur ton compte quand il y a du nouveau.
+
 ## 0.16.2
 - Tâche rapide : plus d'icône « changer » ; le bouton de type garde toujours la largeur du nom le plus long, donc le champ de texte ne bouge plus.
 

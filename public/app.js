@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.16.2';
+const APP_VERSION = '0.17.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -458,7 +458,7 @@ function renderList() {
 
 function topbar(inner) {
   return `<header class="topbar"><div class="topbar-inner">${inner}
-    <button class="btn ghost icon" data-action="account" aria-label="Mon compte">${avatar(state.me)}</button></div></header>`;
+    <button class="btn ghost icon" data-action="account" aria-label="Mon compte${hasNews() ? ' (nouveautés)' : ''}">${avatar(state.me)}${hasNews() ? '<i class="news-dot"></i>' : ''}</button></div></header>`;
 }
 
 // ---------- project form ----------
@@ -1399,6 +1399,45 @@ function bindWall(wrap) {
 
 // ---------- account ----------
 
+// ---------- changelog ("Nouveautés") ----------
+const hasNews = () => store.get('seenVersion', '') !== APP_VERSION;
+
+/** public/changelog.md: "## x.y.z" then "- …" lines. Kept offline in localStorage. */
+async function loadChangelog() {
+  let text = '';
+  try {
+    const res = await fetch('changelog.md', { cache: 'no-cache' });
+    if (res.ok) { text = await res.text(); store.set('changelogText', text); }
+  } catch { /* offline */ }
+  text ||= store.get('changelogText', '');
+  const versions = [];
+  for (const line of text.split('\n')) {
+    const h = line.match(/^##\s+(\S+)/), b = line.match(/^-\s+(.*)/);
+    if (h) versions.push({ v: h[1], items: [] });
+    else if (b && versions.length) versions.at(-1).items.push(b[1]);
+  }
+  return versions;
+}
+const cmpVersion = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
+
+function changelogSheet() {
+  store.set('seenVersion', APP_VERSION);
+  document.querySelectorAll('.news-dot').forEach((d) => d.remove());
+  openSheet(`
+    <div class="sheet-head"><h2 id="sheet-title">Nouveautés</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+    <div id="changelog" class="stack"><p class="muted small">Chargement…</p></div>`, () => {
+    loadChangelog().then((versions) => {
+      const box = sheet.querySelector('#changelog');
+      if (!box) return;
+      box.innerHTML = versions.length ? versions.map((r, i) => `
+        <details class="cl-ver" ${i < 2 ? 'open' : ''}>
+          <summary><b>Version ${esc(r.v)}</b>${r.v === APP_VERSION ? `<span class="cl-pill">en cours · build ${esc(APP_BUILD)}</span>` : cmpVersion(r.v, APP_VERSION) > 0 ? '<span class="cl-pill soon">à venir</span>' : ''}</summary>
+          <ul>${r.items.map((t) => `<li>${md(t)}</li>`).join('')}</ul>
+        </details>`).join('') : '<p class="muted small">Impossible de charger l\'historique pour le moment.</p>';
+    });
+  });
+}
+
 function accountSheet() {
   const me = state.me;
   const theme = store.get('theme', 'auto');
@@ -1407,6 +1446,7 @@ function accountSheet() {
   openSheet(`
     <div class="sheet-head"><div class="row">${avatar(me, 'lg')}<div><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div></div>
       <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+    <button class="news-row" data-action="changelog"><span><b>Nouveautés</b><small>Version ${APP_VERSION} · ce qui a changé</small></span>${hasNews() ? '<span class="cl-pill">Nouveau</span>' : ''}${ico('chev', 18)}</button>
     ${!standalone ? `<div class="panel" style="background:var(--accent-soft);border-color:transparent">
       <h3>Installer l'app</h3>
       ${state.installPrompt ? '<p class="small">Ajoute Tool Proj à ton écran d\'accueil pour l\'ouvrir comme une vraie app.</p><button class="btn primary" data-action="install">Installer</button>'
@@ -1472,6 +1512,7 @@ const actions = {
   },
   close: closeSheet,
   account: accountSheet,
+  changelog: changelogSheet,
   filter: (el) => { state.filter = el.dataset.v; renderList(); },
   'new-project': () => projectForm(null),
   'edit-project': () => projectForm(state.data.project),

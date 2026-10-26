@@ -728,3 +728,16 @@ dialog#sheet { overscroll-behavior: contain; }
 .qa-lbl { display: inline-grid; justify-items: start; }
 .qa-lbl > span { grid-area: 1 / 1; }
 .qa-lbl > .off { visibility: hidden; }
+
+/* changelog */
+.topbar [data-action="account"] { position: relative; }
+.news-dot { position: absolute; top: 4px; right: 4px; width: 11px; height: 11px; border-radius: 50%; background: var(--danger, #e03131); border: 2px solid var(--bg); }
+.news-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--ink); text-align: left; cursor: pointer; }
+.news-row > span:first-child { flex: 1; min-width: 0; display: grid; }
+.news-row small { color: var(--muted); }
+.news-row .ico { color: var(--muted); transform: rotate(-90deg); }
+.cl-ver { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); padding: 0 12px; }
+.cl-ver summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 0; cursor: pointer; }
+.cl-ver ul { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: .92rem; }
+.cl-pill { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.cl-pill.soon { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
