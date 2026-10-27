@@ -30,6 +30,11 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 13. Vues des tâches : **Feuille de route** et **Tableau** seulement (plus de « Liste »). Tableau = `epicNote()` (post-it de chantier + tâches collées dessus, classes `ep-`) ; regroupement `state.boardGroup` (`status` | `epic`).
 14. Textes de l'interface en français, avec les mêmes mots que le reste : « chantier », « post-it », « idée », « amélioration ».
 
+### Notifications (Web Push)
+- Base → `private.push_to()` (pg_net) → fonction Edge `send-push` (`supabase/functions/send-push`, **verify_jwt = false**, protégée par un secret) → service push du navigateur → `sw.js` (`push`, `notificationclick`). Les clés et le secret sont dans `private.push_config` (remplie à la main, **jamais dans le dépôt**) ; la clé publique est `VAPID_PUBLIC_KEY` dans `app.js`.
+- Un déclencheur ne doit **jamais** bloquer l'écriture : tout est dans un bloc `exception when others`. Sans configuration, tout est muet.
+- Pour vérifier un envoi réel : bouton « Envoyer un test » (Mon compte), puis `select * from net._http_response order by id desc limit 5`.
+
 ### Base de données
 1. Modifier `supabase/schema.sql` (toujours rejouable) **et** `supabase/tests/rls_test.sql` ; lancer `npm run test:db` (voir plus bas).
 2. Tester aussi la **mise à jour d'une base existante** (appliquer l'ancien schéma, des données, puis le nouveau, deux fois).

@@ -96,6 +96,20 @@ export async function deletePasskey(id) { ok(await sb.auth.passkey.delete({ pass
 
 export async function signOut() { await sb.auth.signOut(); }
 
+// ---------- notifications (Web Push) ----------
+/** Saves this device's push subscription for the signed-in person (replaces an older one with the same address). */
+export async function savePushSubscription(userId, sub) {
+  const j = sub.toJSON();
+  ok(await sb.from('push_subscriptions').delete().eq('endpoint', j.endpoint));
+  ok(await sb.from('push_subscriptions').insert({ user_id: userId, endpoint: j.endpoint, p256dh: j.keys?.p256dh, auth: j.keys?.auth }));
+}
+export async function deletePushSubscription(endpoint) { ok(await sb.from('push_subscriptions').delete().eq('endpoint', endpoint)); }
+export async function hasPushSubscription(endpoint) {
+  const rows = ok(await sb.from('push_subscriptions').select('id').eq('endpoint', endpoint).limit(1));
+  return rows.length > 0;
+}
+export async function pushTest() { return ok(await sb.rpc('push_test')); }
+
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
 
 export async function updateProfile(userId, { displayName, username, avatarEmoji, avatarColor }) {

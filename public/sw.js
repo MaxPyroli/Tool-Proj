@@ -1,6 +1,6 @@
 // Service worker: caches the app shell so it opens instantly and works as an installed app.
 // Supabase calls always go to the network (data must stay fresh and shared).
-const VERSION = '0.19.0';
+const VERSION = '0.20.0';
 const BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 const CACHE = `tool-proj-${VERSION}-${BUILD}`;
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'data.js', 'config.js', 'manifest.webmanifest', 'changelog.md', 'icons/icon.svg', 'icons/icon-192.png'];
@@ -29,4 +29,24 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request).then((r) => r || (e.request.mode === 'navigate' ? caches.match('index.html') : Response.error()))),
   );
+});
+
+// ---------- notifications ----------
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { /* not JSON */ }
+  e.waitUntil(self.registration.showNotification(d.title || 'Tool Proj', {
+    body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.url || 'tool-proj', data: { url: d.url || '#/' },
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const target = new URL(e.notification.data?.url || '#/', self.registration.scope).href;
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = wins.find((c) => c.url.startsWith(self.registration.scope));
+    if (open) { await open.focus(); if ('navigate' in open) { try { await open.navigate(target); } catch { /* ignore */ } } return; }
+    await self.clients.openWindow(target);
+  })());
 });

@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.19.0';
+const APP_VERSION = '0.20.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1380,6 +1380,39 @@ function bindWall(wrap) {
 
 // ---------- account ----------
 
+// ---------- notifications (Web Push) ----------
+const VAPID_PUBLIC_KEY = 'BIDS_jwrwZ0j4mzNnl7ihtI7kMiEfg8lZo0-3Ux2JyIEpm4zKLdiDFzRuOnI3Wej2FtGaM-Kr88vyK2KiV3fcAQ';
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const b64ToBytes = (b64) => Uint8Array.from(atob(b64.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(b64.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+async function thisDeviceSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+
+/** The "Notifications" block of the account sheet: shows what is possible on this device and the right button. */
+async function renderPushBox() {
+  const box = sheet.querySelector('#push-box');
+  if (!box) return;
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (!pushSupported()) {
+    box.innerHTML = `<p class="small muted">${ios && !standalone ? 'Sur iPhone, installe d\'abord l\'app : <b>Partager</b> puis <b>Sur l\'écran d\'accueil</b>, ouvre-la depuis l\'écran d\'accueil et reviens ici.' : 'Ce navigateur ne sait pas envoyer de notifications.'}</p>`;
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    box.innerHTML = '<p class="small muted">Les notifications sont bloquées pour Tool Proj. Autorise-les dans les réglages du téléphone ou du navigateur, puis reviens ici.</p>';
+    return;
+  }
+  let on = false;
+  try { const sub = await thisDeviceSubscription(); on = !!sub && Notification.permission === 'granted' && await db.hasPushSubscription(sub.endpoint); } catch { /* offline */ }
+  box.innerHTML = on
+    ? `<p class="small">Activées sur cet appareil. Tu es prévenu quand une tâche t'est assignée ou quand on t'ajoute à un projet.</p>
+       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-action="push-test">Envoyer un test</button><button class="btn ghost" data-action="push-off">Désactiver</button></div>`
+    : `<p class="small muted">Sois prévenu quand une tâche t'est assignée ou quand on t'ajoute à un projet.</p>
+       <button class="btn primary" data-action="push-on">Activer sur cet appareil</button>`;
+}
+
 // ---------- changelog ("Nouveautés") ----------
 const hasNews = () => store.get('seenVersion', '') !== APP_VERSION;
 
@@ -1448,8 +1481,12 @@ function accountSheet() {
       <div class="passkeys" id="pk-list"><p class="small muted">Chargement…</p></div>
       <button class="btn" data-action="passkey-add">${icon.key} Ajouter une clé sur cet appareil</button>
     </section>` : ''}
+    <section class="stack" style="gap:10px">
+      <h3>Notifications</h3>
+      <div id="push-box"><p class="small muted">Chargement…</p></div>
+    </section>
     <button class="btn danger" data-action="logout">Se déconnecter</button>
-    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span></p>`, () => { if (db.passkeysSupported()) loadPasskeys(); });
+    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span></p>`, () => { renderPushBox(); if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {
@@ -1638,7 +1675,28 @@ const actions = {
     const p = state.installPrompt; if (!p) return;
     p.prompt(); await p.userChoice; state.installPrompt = null; closeSheet();
   },
+  'push-on': async () => {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Notifications refusées', true); return renderPushBox(); }
+    const reg = await navigator.serviceWorker.ready;
+    const make = () => reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC_KEY) });
+    let sub = (await reg.pushManager.getSubscription()) || await make();
+    try { await db.savePushSubscription(state.me.id, sub); }
+    catch { // this address already belongs to someone else (shared device): start again with a fresh one
+      await sub.unsubscribe(); sub = await make(); await db.savePushSubscription(state.me.id, sub);
+    }
+    toast('Notifications activées'); renderPushBox();
+  },
+  'push-off': async () => {
+    const sub = await thisDeviceSubscription();
+    if (sub) { await db.deletePushSubscription(sub.endpoint); await sub.unsubscribe(); }
+    toast('Notifications désactivées'); renderPushBox();
+  },
+  'push-test': async () => {
+    toast((await db.pushTest()) ? 'Test envoyé : la notification arrive dans quelques secondes' : 'Aucun appareil enregistré', false);
+  },
   logout: async () => {
+    try { const sub = await thisDeviceSubscription(); if (sub) { await db.deletePushSubscription(sub.endpoint); await sub.unsubscribe(); } } catch { /* offline: it will be cleaned on the next failed send */ }
     await db.signOut();
     closeSheet(); subscribe(null); state.me = null; state.authStep = 'email'; state.projects = []; state.data = null; state.pid = null;
     location.hash = '#/'; render();

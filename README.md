@@ -22,6 +22,7 @@ Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur
   - **couleurs par projet** : un seul style (Papier, de petits papiers collés) ; les admins changent la couleur de chaque type dans les paramètres du projet ;
 - **Plan de travail de post-it** pour le brouillon : un grand mur qu'on zoome (pincement, Ctrl + molette) et qu'on parcourt en glissant, avec « Tout voir », une mini-carte du mur entier, le plein écran, « Ranger » (par couleur, votes ou date, avec annulation) et un double-clic pour poser un post-it où on veut. Notes de couleur qu'on déplace librement (souris ou doigt), vue « Grille » triée par votes, 👍 pour voter, et « Transformer en… » chantier, tâche, bug ou amélioration quand l'idée est mûre.
 - **Liens du projet** : autant de liens que voulu (GitHub, Supabase, conversation Claude, maquette, site, store…), reconnus par leur adresse avec leur icône et affichés en boutons dans l'aperçu. Les admins les gèrent, tous les membres les voient.
+- **Notifications** (Web Push) : prévenu quand une tâche t'est assignée par quelqu'un d'autre ou quand on t'ajoute à un projet. Activation par appareil dans *Mon compte → Notifications* (iPhone : app installée, iOS 16.4 ou plus). Mise en place : voir « Notifications » plus bas.
 - **Temps réel** : les changements des autres apparaissent tout seuls.
 - **Aperçu** : jauge d'avancement, chantiers en cours, bugs ouverts, idées les plus votées, activité récente (repliée par défaut, elle se vide toute seule : 20 événements au plus, 14 jours). Thème clair / sombre / auto.
 
@@ -81,6 +82,15 @@ Une clé d'accès est liée à un appareil (ou synchronisée par iCloud / Google
 
 Pour inviter quelqu'un : **Authentication → Users → Add user → Send invitation**, entre son email.
 La personne clique sur le lien reçu, choisit son nom et son identifiant, crée sa clé d'accès. Ajoute-la ensuite à tes projets depuis l'onglet **Équipe** avec son identifiant.
+
+## Notifications (mise en place, une seule fois)
+
+1. Relancer [`supabase/schema.sql`](supabase/schema.sql) (tables `push_subscriptions` et `private.push_config`, déclencheurs).
+2. Déployer la fonction Edge [`supabase/functions/send-push`](supabase/functions/send-push/index.ts) **sans vérification JWT** (`supabase functions deploy send-push --no-verify-jwt`).
+3. Générer des clés VAPID (`npx web-push generate-vapid-keys`) et remplir **une fois**, dans *SQL Editor*, la table `private.push_config` : `url` (adresse de la fonction), `secret` (une longue chaîne au hasard), `vapid_public`, `vapid_private`, `subject` (l'adresse du site). Ne jamais mettre ces valeurs dans le dépôt.
+4. Mettre la clé **publique** dans `VAPID_PUBLIC_KEY` (`public/app.js`).
+
+Sans cette configuration, rien ne casse : les notifications restent simplement muettes.
 
 ## Mettre à jour
 

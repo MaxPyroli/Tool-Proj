@@ -156,4 +156,50 @@ select create_project('Solo');
 reset role;
 delete from auth.users where email = 'zoe@ex.fr';
 
+
+-- ===== Notifications =====
+insert into auth.users (id, email, raw_user_meta_data) values ('00000000-0000-0000-0000-0000000000e1', 'ned@ex.fr', '{"username":"ned"}'), ('00000000-0000-0000-0000-0000000000e2', 'ola@ex.fr', '{"username":"ola"}');
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e1', false);
+select create_project('Notifs') as npid \gset
+select add_member(:npid, '@ola', 'member');
+insert into push_subscriptions (user_id, endpoint, p256dh, auth) values (auth.uid(), 'https://push.example/abcdefghijklmnop', repeat('p', 40), repeat('a', 20));
+select pg_temp.expect_error($$insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-0000000000e2', 'https://push.example/zzzzzzzzzzzzzzzz', repeat('p', 40), repeat('a', 20))$$, 'row-level security');
+select pg_temp.expect_error($$select * from private.push_config$$, 'permission denied');
+select pg_temp.expect_error($$select public.push_payload('x', auth.uid())$$, 'permission denied');
+do $$ begin
+  assert (select count(*) from push_subscriptions) = 1, 'je vois mon appareil';
+  assert public.push_test() = true, 'test avec un appareil';
+end $$;
+-- une tâche assignée à une autre personne ne casse rien (même sans configuration)
+insert into tasks (project_id, title, assignee_id) values (:npid, 'Pour Ola', '00000000-0000-0000-0000-0000000000e2');
+update tasks set assignee_id = null where title = 'Pour Ola';
+update tasks set assignee_id = '00000000-0000-0000-0000-0000000000e2' where title = 'Pour Ola';
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e2', false);
+do $$ begin
+  assert (select count(*) from push_subscriptions) = 0, 'je ne vois pas les appareils des autres';
+  assert public.push_test() = false, 'test sans appareil';
+end $$;
+delete from push_subscriptions;
+reset role;
+do $$ begin assert (select count(*) from push_subscriptions) = 1, 'je ne peux pas effacer les appareils des autres'; end $$;
+-- configuration : la fonction ne sert qu'avec le bon secret
+insert into private.push_config (id, url, secret, vapid_public, vapid_private, subject) values (1, 'https://exemple.invalid/send-push', 's3cret', 'pub', 'priv', 'https://exemple.invalid/');
+do $$ begin
+  assert public.push_payload('mauvais', '00000000-0000-0000-0000-0000000000e1') is null, 'mauvais secret refusé';
+  assert (public.push_payload('s3cret', '00000000-0000-0000-0000-0000000000e1')->'subscriptions'->0->>'endpoint') = 'https://push.example/abcdefghijklmnop', 'bon secret : les appareils';
+end $$;
+-- avec la configuration, une assignation ne casse toujours rien (pg_net absent ou injoignable)
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e1', false);
+update tasks set assignee_id = null where title = 'Pour Ola';
+update tasks set assignee_id = '00000000-0000-0000-0000-0000000000e2' where title = 'Pour Ola';
+select public.push_test();
+reset role;
+delete from private.push_config;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e1', false);
+delete from projects;
+reset role;
+
 \echo 'OK : tous les tests de sécurité passent'

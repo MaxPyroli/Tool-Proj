@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.20.0
+- Notifications : sur téléphone ou ordinateur, tu es prévenu quand une tâche t'est assignée par quelqu'un d'autre ou quand on t'ajoute à un projet. À activer dans *Mon compte → Notifications* (avec un bouton « Envoyer un test »). Sur iPhone, il faut d'abord installer l'app sur l'écran d'accueil.
+
 ## 0.19.0
 - Un seul style de tâches : Papier (de petits papiers collés). On garde la personnalisation : chaque projet choisit la couleur de chaque type (Tâche, Bug, Idée, Amélioration), avec « Revenir aux couleurs d'origine ».
 

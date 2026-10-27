@@ -491,6 +491,128 @@ alter function public.notes_before_update() set search_path = '';
 alter function public.epics_before_update() set search_path = '';
 
 -- =========================================================
+-- Notifications (Web Push)
+-- Un appareil s'abonne depuis l'app ; un déclencheur prévient une fonction Edge (« send-push ») qui envoie la notification.
+-- Les clés et l'adresse de la fonction sont dans private.push_config, remplie à la main (jamais dans ce fichier).
+-- Sans cette configuration, tout reste muet : rien ne casse.
+-- =========================================================
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+
+do $$ begin
+  begin create extension if not exists pg_net; exception when others then null; end;
+end $$;
+
+create table if not exists public.push_subscriptions (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  endpoint text not null unique check (char_length(endpoint) between 20 and 2000),
+  p256dh text not null check (char_length(p256dh) between 20 and 200),
+  auth text not null check (char_length(auth) between 10 and 100),
+  created_at timestamptz not null default now()
+);
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "push_select" on public.push_subscriptions;
+drop policy if exists "push_insert" on public.push_subscriptions;
+drop policy if exists "push_delete" on public.push_subscriptions;
+create policy "push_select" on public.push_subscriptions for select to authenticated using (user_id = auth.uid());
+create policy "push_insert" on public.push_subscriptions for insert to authenticated with check (user_id = auth.uid());
+create policy "push_delete" on public.push_subscriptions for delete to authenticated using (user_id = auth.uid());
+grant select, insert, delete on public.push_subscriptions to authenticated;
+
+create table if not exists private.push_config (
+  id int primary key default 1 check (id = 1),
+  url text,            -- adresse de la fonction Edge send-push
+  secret text,         -- secret partagé entre la base et la fonction
+  vapid_public text,
+  vapid_private text,
+  subject text
+);
+alter table private.push_config enable row level security;
+
+-- Envoie (sans jamais bloquer l'écriture en cours) une notification à tous les appareils d'une personne.
+create or replace function private.push_to(p_user uuid, p_title text, p_body text, p_url text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare c record;
+begin
+  select * into c from private.push_config where id = 1;
+  if c.url is null or c.secret is null then return; end if;
+  if not exists (select 1 from public.push_subscriptions where user_id = p_user) then return; end if;
+  begin
+    perform net.http_post(
+      url := c.url,
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-secret', c.secret),
+      body := jsonb_build_object('user_id', p_user, 'title', p_title, 'body', p_body, 'url', p_url));
+  exception when others then null;
+  end;
+end $$;
+
+-- Tâche assignée à quelqu'un d'autre que soi.
+create or replace function public.tasks_notify() returns trigger language plpgsql security definer set search_path = '' as $$
+declare who text; proj text;
+begin
+  if new.assignee_id is null or new.assignee_id is not distinct from auth.uid() then return null; end if;
+  if tg_op = 'UPDATE' and old.assignee_id is not distinct from new.assignee_id then return null; end if;
+  select coalesce(display_name, username) into who from public.profiles where id = auth.uid();
+  select name into proj from public.projects where id = new.project_id;
+  perform private.push_to(new.assignee_id, 'Une tâche pour toi',
+    coalesce(who, 'Quelqu''un') || ' t''a assigné « ' || new.title || ' » (' || coalesce(proj, 'projet') || ')',
+    '#/p/' || new.project_id || '/taches');
+  return null;
+exception when others then return null;
+end $$;
+drop trigger if exists tasks_notify on public.tasks;
+create trigger tasks_notify after insert or update of assignee_id on public.tasks
+  for each row execute function public.tasks_notify();
+
+-- Ajouté à un projet par quelqu'un d'autre.
+create or replace function public.memberships_notify() returns trigger language plpgsql security definer set search_path = '' as $$
+declare who text; proj text;
+begin
+  if new.user_id is not distinct from auth.uid() then return null; end if;
+  select coalesce(display_name, username) into who from public.profiles where id = auth.uid();
+  select name into proj from public.projects where id = new.project_id;
+  perform private.push_to(new.user_id, 'Nouveau projet',
+    coalesce(who, 'Quelqu''un') || ' t''a ajouté au projet « ' || coalesce(proj, 'projet') || ' »',
+    '#/p/' || new.project_id);
+  return null;
+exception when others then return null;
+end $$;
+drop trigger if exists memberships_notify on public.memberships;
+create trigger memberships_notify after insert on public.memberships
+  for each row execute function public.memberships_notify();
+
+-- Bouton « Tester » de l'app : une notification vers ses propres appareils.
+create or replace function public.push_test() returns boolean language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'Connecte-toi d''abord.'; end if;
+  if not exists (select 1 from public.push_subscriptions where user_id = auth.uid()) then return false; end if;
+  perform private.push_to(auth.uid(), 'Tool Proj', 'Les notifications fonctionnent sur cet appareil.', '#/');
+  return true;
+end $$;
+
+-- Réservée à la fonction Edge (clé serveur) : donne les clés et les appareils si le secret est bon.
+create or replace function public.push_payload(p_secret text, p_user uuid) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare c record;
+begin
+  select * into c from private.push_config where id = 1;
+  if c.secret is null or p_secret is distinct from c.secret then return null; end if;
+  return jsonb_build_object('vapid_public', c.vapid_public, 'vapid_private', c.vapid_private, 'subject', c.subject,
+    'subscriptions', coalesce((select jsonb_agg(jsonb_build_object('endpoint', endpoint, 'p256dh', p256dh, 'auth', auth))
+                               from public.push_subscriptions where user_id = p_user), '[]'::jsonb));
+end $$;
+revoke execute on function public.tasks_notify(), public.memberships_notify(), public.push_test(),
+  public.push_payload(text, uuid) from public, anon, authenticated;
+grant execute on function public.push_test() to authenticated;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.push_payload(text, uuid) to service_role;
+  end if;
+end $$;
+
+-- =========================================================
 -- Temps réel (les changements des autres apparaissent en direct)
 -- =========================================================
 do $$
