@@ -30,6 +30,9 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 13. Vues des tâches : **Feuille de route** et **Tableau** seulement (plus de « Liste »). Tableau = `epicNote()` (post-it de chantier + tâches collées dessus, classes `ep-`) ; regroupement `state.boardGroup` (`status` | `epic`).
 14. Textes de l'interface en français, avec les mêmes mots que le reste : « chantier », « post-it », « idée », « amélioration ».
 
+### Adresse du site
+- Adresse officielle : **https://toolproj.panamedev.fr/** (CNAME OVH → `maxpyroli.github.io`, domaine personnalisé réglé dans GitHub Pages ; l'ancienne adresse redirige). Les clés d'accès (passkeys) sont liées au domaine : `NEW_HOST` dans `app.js` affiche le message « clés à recréer » ; réglage Supabase attendu : Relying Party ID `panamedev.fr`, origine `https://toolproj.panamedev.fr`.
+
 ### Notifications (Web Push)
 - Base → `private.push_to()` (pg_net) → fonction Edge `send-push` (`supabase/functions/send-push`, **verify_jwt = false**, protégée par un secret) → service push du navigateur → `sw.js` (`push`, `notificationclick`). Les clés et le secret sont dans `private.push_config` (remplie à la main, **jamais dans le dépôt**) ; la clé publique est `VAPID_PUBLIC_KEY` dans `app.js`.
 - Un déclencheur ne doit **jamais** bloquer l'écriture : tout est dans un bloc `exception when others`. Sans configuration, tout est muet.

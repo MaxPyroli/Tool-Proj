@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.20.1
+- Nouvelle adresse (toolproj.panamedev.fr) : un message explique que les anciennes clés d'accès doivent être recréées (sur l'écran de connexion, une fois après la connexion, et dans Mon compte).
+
 ## 0.20.0
 - Notifications : sur téléphone ou ordinateur, tu es prévenu quand une tâche t'est assignée par quelqu'un d'autre ou quand on t'ajoute à un projet. À activer dans *Mon compte → Notifications* (avec un bouton « Envoyer un test »). Sur iPhone, il faut d'abord installer l'app sur l'écran d'accueil.
 

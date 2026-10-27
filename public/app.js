@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.20.0';
+const APP_VERSION = '0.20.1';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -377,7 +377,8 @@ function renderAuth() {
           <button class="btn primary" type="submit">Recevoir un lien de connexion</button>
         </form>
         ${passkeys ? `<div class="or" aria-hidden="true">ou</div>
-        <button class="btn" type="button" data-action="passkey-login">${icon.key} Utiliser une clé d'accès</button>` : ''}
+        <button class="btn" type="button" data-action="passkey-login">${icon.key} Utiliser une clé d'accès</button>
+        ${passkeysMoved() ? '<p class="small muted">Ta clé ne marche plus ? Le site a changé d\'adresse : connecte-toi avec le lien reçu par email, puis crée une nouvelle clé.</p>' : ''}` : ''}
         <p class="small muted">Pas de mot de passe ici. ${db.allowSignup ? 'Première visite ? Le lien reçu par email crée ton compte.' : "Pas de compte ? Demande à un admin de t'inviter."}${passkeys ? " Une fois connecté, tu pourras créer une clé d'accès pour entrer en un geste (Face ID, empreinte…)." : ''}</p>`}
       </div>
     </div>
@@ -398,6 +399,21 @@ function welcomeSheet() {
       ${avatarPicker(me)}
       <div class="row end"><button class="btn primary" type="submit">Continuer</button></div>
     </form>`);
+}
+
+// The site moved to its own domain: passkeys are tied to the address, so the old ones stop working.
+const NEW_HOST = 'toolproj.panamedev.fr';
+const passkeysMoved = () => location.hostname === NEW_HOST && db.passkeysSupported();
+
+function passkeyMovedSheet() {
+  openSheet(`
+    <div class="stack">
+      <div class="key-badge" aria-hidden="true">${icon.key}</div>
+      <h2 id="sheet-title">Nouvelle adresse, nouvelle clé d'accès</h2>
+      <p>Le site a changé d'adresse (<b>${NEW_HOST}</b>). Les clés d'accès créées avant ne fonctionnent plus : c'est normal, elles sont liées à l'ancienne adresse.</p>
+      <p class="small muted">Crée-en une nouvelle pour entrer en un geste. Tu pourras supprimer les anciennes dans <b>Mon compte</b>. Sans clé, le lien reçu par email marche toujours.</p>
+      <div class="row end"><button class="btn ghost" data-action="close">Plus tard</button><button class="btn primary" data-action="passkey-add" data-then="close">Créer une nouvelle clé</button></div>
+    </div>`);
 }
 
 function passkeyOfferSheet() {
@@ -1478,6 +1494,7 @@ function accountSheet() {
     ${db.passkeysSupported() ? `<section class="stack" style="gap:10px">
       <h3>Clés d'accès</h3>
       <p class="small muted">Pour te connecter avec Face ID, ton empreinte ou le code de l'appareil. Crée une clé sur chaque appareil que tu utilises.</p>
+      ${passkeysMoved() ? '<p class="small muted"><b>Nouvelle adresse :</b> une clé créée avant le changement d\'adresse ne marche plus. Supprime-la et crée-en une nouvelle.</p>' : ''}
       <div class="passkeys" id="pk-list"><p class="small muted">Chargement…</p></div>
       <button class="btn" data-action="passkey-add">${icon.key} Ajouter une clé sur cet appareil</button>
     </section>` : ''}
@@ -1892,6 +1909,10 @@ function signedIn() {
   if (location.href.endsWith('#')) history.replaceState(null, '', location.pathname + location.search);
   render();
   if (state.me && !state.me.onboarded) welcomeSheet();
+  else if (state.me && passkeysMoved() && store.get('passkeysMoved', '') !== '1') {
+    store.set('passkeysMoved', '1');
+    setTimeout(passkeyMovedSheet, 700);
+  }
 }
 
 // ---------- boot ----------
