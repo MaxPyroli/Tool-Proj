@@ -36,7 +36,7 @@ Les droits sont vérifiés **dans la base** (règles RLS de Postgres) : même en
 2. Colle tout le contenu de [`supabase/schema.sql`](supabase/schema.sql) et clique **Run**.
    Le script ne touche qu'à ses propres tables. On peut le relancer sans perdre de données (utile après une mise à jour).
 3. **Authentication → URL Configuration** :
-   - *Site URL* : l'adresse GitHub Pages, par ex. `https://maxpyroli.github.io/Tool-Proj/`
+   - *Site URL* : l'adresse du site, ici `https://toolproj.panamedev.fr/` (ou l'adresse GitHub Pages `https://<compte>.github.io/Tool-Proj/` si tu n'as pas de domaine)
    - ajoute la même adresse dans *Redirect URLs*.
    (C'est là que mènent les liens de confirmation envoyés par email.)
 4. Récupère l'**URL du projet** et la **clé publique** (*publishable* ou *anon*) : bouton **Connect** en haut, ou **Project Settings → API Keys**.
@@ -62,11 +62,11 @@ Remplace le contenu des modèles **Magic link** et **Confirm signup** par ceux d
 Ils sont en français et contiennent le lien **et un code**. Le code est indispensable pour l'app installée sur iPhone : là-bas, un lien s'ouvre dans Safari et pas dans l'app.
 
 **Clés d'accès** : Supabase → **Authentication → Passkeys** → active-les avec :
-- *Relying Party ID* : `maxpyroli.github.io`
-- *Origins* : `https://maxpyroli.github.io`
+- *Relying Party ID* : `panamedev.fr` (le domaine, pour que toutes les apps en sous-domaine partagent le réglage)
+- *Origins* : `https://toolproj.panamedev.fr`
 - *Display name* : `Tool Proj`
 
-Ne change plus le *Relying Party ID* ensuite : les clés déjà créées ne marcheraient plus.
+Ne change plus le *Relying Party ID* ensuite : les clés déjà créées ne marcheraient plus (c'est ce qui s'est passé au passage de GitHub Pages à toolproj.panamedev.fr : chacun recrée sa clé).
 
 ### 4. Créer ton compte
 
