@@ -87,7 +87,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.22.0';
+const APP_VERSION = '0.21.3';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1612,7 +1612,8 @@ async function maybeNewsPopup() {
     if (res.ok) { const text = await res.text(); store.set('newsPopups', text); list = JSON.parse(text); }
   } catch { /* offline */ }
   if (!list.length) { try { list = JSON.parse(store.get('newsPopups', '[]')); } catch { list = []; } }
-  const seen = store.get('seenNews', '0.0.0');
+  let seen = store.get('seenNews', '0.0.0');
+  if (cmpVersion(seen, APP_VERSION) > 0) seen = APP_VERSION; // the version number was lowered: do not hide later pop-ups
   const next = list.filter((n) => cmpVersion(n.version, APP_VERSION) <= 0 && cmpVersion(n.version, seen) > 0).sort((a, b) => cmpVersion(b.version, a.version))[0];
   if (!next || sheet.open) return;
   store.set('seenNews', next.version);

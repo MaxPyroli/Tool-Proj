@@ -129,7 +129,7 @@ node test/mobile-audit.cjs <dossier> <clé-secrète-locale> 390   # audit mobile
 
 ## Versions
 
-Numérotation `0.x.y` (voir [`public/changelog.md`](public/changelog.md), aussi affiché dans l'app : *Mon compte → Nouveautés*) : `npm run bump -- minor` pour une nouveauté, `patch` pour une correction.
+Numérotation `0.x.y` (voir [`public/changelog.md`](public/changelog.md), aussi affiché dans l'app : *Mon compte → Nouveautés*) : `npm run bump -- patch` par défaut (petits pas) ; le chiffre du milieu ne change que sur décision.
 Le **numéro de build** est ajouté tout seul à chaque mise en ligne : on le voit avec la version dans *Mon compte* (« version 0.9.0 (build 27) »).
 Les règles de travail et les vérifications à refaire à chaque ajout sont dans [`CLAUDE.md`](CLAUDE.md).
 

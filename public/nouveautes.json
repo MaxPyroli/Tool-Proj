@@ -22,7 +22,7 @@
     }
   },
   {
-    "version": "0.22.0",
+    "version": "0.21.3",
     "icon": "image",
     "title": "Des images dans tes tâches",
     "text": "Colle une capture d'écran ou touche l'icône image dans la description d'une tâche, d'un bug ou d'une idée. Elles restent dans la zone de texte, bien rangées.",
