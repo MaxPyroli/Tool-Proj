@@ -1604,6 +1604,21 @@ async function renderPushBox() {
 
 // ---------- pop-up "big news" (public/nouveautes.json) ----------
 /** After an update, shows once the latest big feature (only that one, never a queue). Entries: version, icon, title, text, button {label, action, target}. */
+const NEWS_MAX = 2; // a short run of cards, never a long parade
+let newsRun = [];
+
+function showNews(i) {
+  const n = newsRun[i], last = i === newsRun.length - 1;
+  openSheet(`
+    <div class="stack news-pop">
+      <div class="key-badge" aria-hidden="true">${ICON_PATHS[n.icon] ? ico(n.icon, 28) : ico('spark', 28)}</div>
+      <span class="cl-pill">Nouveau · version ${esc(n.version)}${newsRun.length > 1 ? ` · ${i + 1}/${newsRun.length}` : ''}</span>
+      <h2 id="sheet-title">${esc(n.title)}</h2>
+      <p>${esc(n.text)}</p>
+      <div class="row end">${last ? '<button class="btn ghost" data-action="close">Plus tard</button>' : `<button class="btn ghost" data-action="news-next" data-i="${i + 1}">Suivant</button>`}${n.button ? `<button class="btn primary" data-action="news-go" data-go="${esc(n.button.action)}" data-target="${esc(n.button.target || '')}">${esc(n.button.label)}</button>` : ''}</div>
+    </div>`);
+}
+
 async function maybeNewsPopup() {
   if (!state.me || !state.me.onboarded || sheet.open) return;
   let list = [];
@@ -1612,19 +1627,13 @@ async function maybeNewsPopup() {
     if (res.ok) { const text = await res.text(); store.set('newsPopups', text); list = JSON.parse(text); }
   } catch { /* offline */ }
   if (!list.length) { try { list = JSON.parse(store.get('newsPopups', '[]')); } catch { list = []; } }
-  let seen = store.get('seenNews', '0.0.0');
+  let seen = store.get('seenNews2', '0.0.0');
   if (cmpVersion(seen, APP_VERSION) > 0) seen = APP_VERSION; // the version number was lowered: do not hide later pop-ups
-  const next = list.filter((n) => cmpVersion(n.version, APP_VERSION) <= 0 && cmpVersion(n.version, seen) > 0).sort((a, b) => cmpVersion(b.version, a.version))[0];
-  if (!next || sheet.open) return;
-  store.set('seenNews', next.version);
-  openSheet(`
-    <div class="stack news-pop">
-      <div class="key-badge" aria-hidden="true">${ICON_PATHS[next.icon] ? ico(next.icon, 28) : ico('spark', 28)}</div>
-      <span class="cl-pill">Nouveau · version ${esc(next.version)}</span>
-      <h2 id="sheet-title">${esc(next.title)}</h2>
-      <p>${esc(next.text)}</p>
-      <div class="row end"><button class="btn ghost" data-action="close">Plus tard</button>${next.button ? `<button class="btn primary" data-action="news-go" data-go="${esc(next.button.action)}" data-target="${esc(next.button.target || '')}">${esc(next.button.label)}</button>` : ''}</div>
-    </div>`);
+  const fresh = list.filter((n) => cmpVersion(n.version, APP_VERSION) <= 0 && cmpVersion(n.version, seen) > 0).sort((a, b) => cmpVersion(a.version, b.version));
+  if (!fresh.length || sheet.open) return;
+  newsRun = fresh.slice(-NEWS_MAX); // the most recent ones, oldest first
+  store.set('seenNews2', fresh.at(-1).version);
+  showNews(0);
 }
 
 // ---------- changelog ("Nouveautés") ----------
@@ -1909,6 +1918,7 @@ const actions = {
     const p = state.installPrompt; if (!p) return;
     p.prompt(); await p.userChoice; state.installPrompt = null; closeSheet();
   },
+  'news-next': (el) => showNews(Number(el.dataset.i)),
   'news-go': (el) => {
     const go = actions[el.dataset.go]; if (!go) return closeSheet();
     go(el);

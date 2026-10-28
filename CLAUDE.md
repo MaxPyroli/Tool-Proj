@@ -38,7 +38,7 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 - Pour tester en local : lancer la pile Supabase **sans** exclure `storage-api`.
 
 ### Pop-up « Nouveau » (grosses nouveautés)
-- `public/nouveautes.json` : une entrée `{version, icon, title, text, button:{label, action, target}}` par **grosse** nouveauté (pas pour les petits réglages). L'app montre **une seule fois** la plus récente non vue (`seenNews` dans le navigateur), jamais une file. `action` = une action de l'app (ex. `account`), `target` = id de la section à faire défiler. Phrases courtes, tutoiement, ce que ça change pour la personne.
+- `public/nouveautes.json` : une entrée `{version, icon, title, text, button:{label, action, target}}` par **grosse** nouveauté (pas pour les petits réglages). L'app montre **une seule fois** les nouveautés non vues, **au plus 2** (les plus récentes, la plus ancienne d'abord, bouton « Suivant »), mémorisées dans `seenNews2` dans le navigateur. `action` = une action de l'app (ex. `account`), `target` = id de la section à faire défiler. Phrases courtes, tutoiement, ce que ça change pour la personne.
 
 ### Adresse du site
 - Adresse officielle : **https://toolproj.panamedev.fr/** (CNAME OVH → `maxpyroli.github.io`, domaine personnalisé réglé dans GitHub Pages ; l'ancienne adresse redirige). Les clés d'accès (passkeys) sont liées au domaine : `NEW_HOST` dans `app.js` affiche le message « clés à recréer » ; réglage Supabase attendu : Relying Party ID `panamedev.fr`, origine `https://toolproj.panamedev.fr`.

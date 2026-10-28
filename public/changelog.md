@@ -9,7 +9,7 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 - Accès pour Claude : les instructions disent maintenant quoi choisir dans la fenêtre de Claude (« Aucune connexion », en-têtes vides) et pourquoi le message d'avertissement est normal.
 
 ## 0.21.1
-- Pop-up « Nouveau » : après une mise à jour, une grosse nouveauté s'explique en une fenêtre, une seule fois (avec un bouton pour l'essayer tout de suite).
+- Pop-up « Nouveau » : après une mise à jour, les grosses nouveautés non vues s'expliquent en une fenêtre (deux au plus, avec « Suivant »), une seule fois, avec un bouton pour essayer tout de suite.
 
 ## 0.21.0
 - Accès pour Claude : dans *Mon compte → Accès pour Claude*, crée une adresse personnelle à coller dans Claude (claude.ai, l'app ou Claude Code). Claude peut alors lister tes projets et tâches, et, si tu le permets, ajouter ou modifier des tâches, des post-it et des chantiers, avec tes droits. Rien ne peut être supprimé. Chaque accès se révoque d'un geste.
