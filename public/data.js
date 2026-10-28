@@ -178,7 +178,8 @@ export async function listProjects(me) {
   return rows.map((p) => summary(p, me));
 }
 
-const taskDto = (t) => ({
+const taskDto = (t, images = []) => ({
+  images,
   id: t.id, title: t.title, description: t.description ?? '', status: t.status, type: t.type ?? 'task', priority: t.priority ?? 'normal',
   epicId: t.epic_id ?? null, position: t.position, assigneeId: t.assignee_id, createdAt: t.created_at, doneAt: t.done_at,
 });
@@ -191,20 +192,23 @@ const noteDto = (n, me) => ({
 });
 
 export async function getProject(id, me) {
-  const [p, tasks, epics, links, notes, activity] = await Promise.all([
+  const [p, tasks, epics, links, notes, activity, imgRows] = await Promise.all([
     sb.from('projects').select(PROJECT_SELECT).eq('id', id).maybeSingle().then(ok),
     sb.from('tasks').select('*').eq('project_id', id).order('position').order('id').then(ok),
     sb.from('epics').select('*').eq('project_id', id).order('position').order('id').then(ok),
     sb.from('project_links').select('*').eq('project_id', id).order('position').order('id').then(ok),
     sb.from('notes').select('*, author:profiles!notes_created_by_fkey(display_name), note_votes(user_id)').eq('project_id', id).order('z').order('id').then(ok),
     sb.from('activity').select('id, message, created_at, profiles(display_name)').eq('project_id', id).order('id', { ascending: false }).limit(30).then(ok),
+    sb.from('task_images').select('id, task_id, path').eq('project_id', id).order('id').then((r) => (r.error ? [] : r.data)), // tolerates a database without images yet
   ]);
+  const imagesOf = {};
+  for (const i of imgRows) (imagesOf[i.task_id] ||= []).push({ id: i.id, path: i.path });
   if (!p) throw new Error('Projet introuvable.');
   const project = summary(p, me);
   return {
     project,
     members: project.members,
-    tasks: tasks.map(taskDto),
+    tasks: tasks.map((t) => taskDto(t, imagesOf[t.id] || [])),
     epics: epics.map(epicDto),
     links: links.map(linkDto),
     notes: notes.map((n) => noteDto(n, me)),
@@ -231,8 +235,10 @@ export async function updateProject(id, f) {
 }
 
 export async function deleteProject(id) {
+  const imgs = (await sb.from('task_images').select('path').eq('project_id', id)).data || [];
   const data = ok(await sb.from('projects').delete().eq('id', id).select('id'));
   if (!data.length) throw new Error("Tu n'as pas les droits pour supprimer ce projet.");
+  await removeImageFiles(imgs); // files of the deleted project (best effort)
 }
 
 // ---------- members ----------
@@ -264,12 +270,51 @@ function taskRow(f) {
 
 export async function addTask(pid, f, tasks) {
   const position = Math.max(0, ...tasks.map((t) => t.position)) + 1;
-  ok(await sb.from('tasks').insert({ project_id: pid, status: 'todo', position, ...taskRow(f) }));
+  return ok(await sb.from('tasks').insert({ project_id: pid, status: 'todo', position, ...taskRow(f) }).select('id').single()).id;
 }
 
 export async function updateTask(id, f) { ok(await sb.from('tasks').update(taskRow(f)).eq('id', id)); }
 
-export async function deleteTask(id) { ok(await sb.from('tasks').delete().eq('id', id)); }
+export async function deleteTask(id) {
+  const imgs = (await sb.from('task_images').select('id, path').eq('task_id', id)).data || []; // read now: the screen may be out of date
+  ok(await sb.from('tasks').delete().eq('id', id));
+  await removeImageFiles(imgs); // the rows disappeared with the task: now the files (best effort)
+}
+
+// ---------- images des tâches ----------
+const IMG_BUCKET = 'task-images';
+const thumbPath = (path) => path.replace(/\.jpg$/, '_t.jpg');
+
+/** Short-lived web addresses for private images: { path: url } (thumbnails when `thumbs`, else full size). */
+export async function signImages(paths, thumbs = true) {
+  if (!paths.length) return {};
+  const names = paths.map((p) => (thumbs ? thumbPath(p) : p));
+  const { data, error } = await sb.storage.from(IMG_BUCKET).createSignedUrls(names, 3600);
+  if (error) throw new Error(error.message);
+  return Object.fromEntries(paths.map((p, i) => [p, data[i]?.signedUrl || '']));
+}
+
+/** Uploads one prepared image ({ full, thumb } blobs) to a task and records it. */
+export async function addTaskImage(pid, taskId, { full, thumb }) {
+  const path = `${pid}/${taskId}/${crypto.randomUUID()}.jpg`;
+  const bucket = sb.storage.from(IMG_BUCKET);
+  for (const [name, blob] of [[path, full], [thumbPath(path), thumb]]) {
+    const { error } = await bucket.upload(name, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: false });
+    if (error) { await bucket.remove([path, thumbPath(path)]); throw new Error(error.message); }
+  }
+  const { data, error } = await sb.from('task_images').insert({ task_id: taskId, project_id: pid, path }).select('id, path').single();
+  if (error) { await bucket.remove([path, thumbPath(path)]); throw new Error(error.message); }
+  return data;
+}
+
+async function removeImageFiles(images) {
+  if (!images.length) return;
+  await sb.storage.from(IMG_BUCKET).remove(images.flatMap((i) => [i.path, thumbPath(i.path)])); // best effort
+}
+export async function deleteTaskImage(img) {
+  ok(await sb.from('task_images').delete().eq('id', img.id));
+  await removeImageFiles([img]);
+}
 
 // ---------- notes ----------
 
@@ -362,7 +407,7 @@ export async function convertNote(pid, note, kind, data) {
 /** Calls onChange whenever teammates change something in the project. Returns an unsubscribe function. */
 export function subscribeProject(pid, onChange) {
   const ch = sb.channel(`project-${pid}`);
-  for (const table of ['tasks', 'epics', 'project_links', 'notes', 'memberships']) {
+  for (const table of ['tasks', 'epics', 'project_links', 'notes', 'memberships', 'task_images']) {
     ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `project_id=eq.${pid}` }, onChange);
   }
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'projects', filter: `id=eq.${pid}` }, onChange);

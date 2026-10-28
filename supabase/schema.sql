@@ -613,6 +613,66 @@ do $$ begin
 end $$;
 
 -- =========================================================
+-- Images des tâches
+-- Les fichiers sont dans le stockage Supabase (espace privé « task-images », dossier <projet>/<tâche>/), réduits dans le navigateur :
+-- une version 1600 px et une vignette « _t ». Cette table dit lesquels appartiennent à quelle tâche.
+-- =========================================================
+create table if not exists public.task_images (
+  id bigint generated always as identity primary key,
+  task_id bigint not null references public.tasks (id) on delete cascade,
+  project_id bigint not null references public.projects (id) on delete cascade,
+  path text not null unique check (path ~ '^[0-9]+/[0-9]+/[0-9a-f-]{36}\.jpg$'),
+  created_by uuid default auth.uid() references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists task_images_task_idx on public.task_images (task_id);
+create index if not exists task_images_project_idx on public.task_images (project_id);
+
+create or replace function public.task_images_before_insert() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if not exists (select 1 from public.tasks where id = new.task_id and project_id = new.project_id) then
+    raise exception 'Cette tâche n''est pas dans ce projet';
+  end if;
+  if split_part(new.path, '/', 1) <> new.project_id::text or split_part(new.path, '/', 2) <> new.task_id::text then
+    raise exception 'Chemin d''image invalide';
+  end if;
+  if (select count(*) from public.task_images where task_id = new.task_id) >= 8 then
+    raise exception 'Huit images au plus par tâche';
+  end if;
+  return new;
+end $$;
+drop trigger if exists task_images_before_insert on public.task_images;
+create trigger task_images_before_insert before insert on public.task_images for each row execute function public.task_images_before_insert();
+
+alter table public.task_images enable row level security;
+drop policy if exists "task_images_select" on public.task_images;
+drop policy if exists "task_images_insert" on public.task_images;
+drop policy if exists "task_images_delete" on public.task_images;
+create policy "task_images_select" on public.task_images for select to authenticated using (public.is_member(project_id));
+create policy "task_images_insert" on public.task_images for insert to authenticated with check (public.is_member(project_id) and created_by = auth.uid());
+create policy "task_images_delete" on public.task_images for delete to authenticated using (public.is_member(project_id));
+grant select, insert, delete on public.task_images to authenticated;
+revoke execute on function public.task_images_before_insert() from public, anon, authenticated;
+
+-- Stockage (seulement là où le stockage Supabase existe) : espace privé, JPEG de 2 Mo au plus, accès aux membres du projet.
+do $$ begin
+  if exists (select 1 from information_schema.tables where table_schema = 'storage' and table_name = 'buckets') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    values ('task-images', 'task-images', false, 2097152, array['image/jpeg'])
+    on conflict (id) do update set public = false, file_size_limit = 2097152, allowed_mime_types = array['image/jpeg'];
+    drop policy if exists "task_images_read" on storage.objects;
+    drop policy if exists "task_images_write" on storage.objects;
+    drop policy if exists "task_images_remove" on storage.objects;
+    create policy "task_images_read" on storage.objects for select to authenticated
+      using (bucket_id = 'task-images' and case when (storage.foldername(name))[1] ~ '^[0-9]+$' then public.is_member(((storage.foldername(name))[1])::bigint) else false end);
+    create policy "task_images_write" on storage.objects for insert to authenticated
+      with check (bucket_id = 'task-images' and case when (storage.foldername(name))[1] ~ '^[0-9]+$' then public.is_member(((storage.foldername(name))[1])::bigint) else false end);
+    create policy "task_images_remove" on storage.objects for delete to authenticated
+      using (bucket_id = 'task-images' and case when (storage.foldername(name))[1] ~ '^[0-9]+$' then public.is_member(((storage.foldername(name))[1])::bigint) else false end);
+  end if;
+end $$;
+
+-- =========================================================
 -- Accès pour Claude (connecteur MCP)
 -- La personne crée un accès dans l'app : la clé est fabriquée dans son navigateur, seule son empreinte (SHA-256) est gardée ici.
 -- La fonction Edge « mcp » reçoit la clé, calcule l'empreinte et appelle mcp_call() (réservée à la clé serveur) :
@@ -689,7 +749,8 @@ begin
     n := least(greatest(coalesce(nullif(a->>'limit', '')::int, 50), 1), 200);
     return jsonb_build_object('tasks', coalesce((select jsonb_agg(row_to_json(q)) from (
       select x.id, x.project_id, pr.name as project, x.title, left(x.description, 600) as description, x.status, x.type, x.priority,
-             e.title as epic, x.epic_id, a2.username as assignee, x.created_at, x.done_at
+             e.title as epic, x.epic_id, a2.username as assignee, x.created_at, x.done_at,
+             (select count(*) from public.task_images i where i.task_id = x.id) as images
       from public.tasks x
       join public.projects pr on pr.id = x.project_id
       left join public.epics e on e.id = x.epic_id
@@ -791,7 +852,7 @@ do $$
 declare t text;
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    foreach t in array array['projects', 'memberships', 'tasks', 'epics', 'project_links', 'notes', 'note_votes'] loop
+    foreach t in array array['projects', 'memberships', 'tasks', 'epics', 'project_links', 'notes', 'note_votes', 'task_images'] loop
       if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
         execute format('alter publication supabase_realtime add table public.%I', t);
       end if;

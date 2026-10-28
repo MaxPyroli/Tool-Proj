@@ -14,6 +14,7 @@ const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨
 const ICON_PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
+  image: '<rect x="3.500" y="5" width="17" height="14" rx="2.500"/><path d="M3.500 16l4.500-4.500 4 4 3-3 5.500 5.500M15.500 9.500h.01"/>',
   bell: '<path d="M6 16.500V11a6 6 0 0 1 12 0v5.500l1.500 2h-15l1.500-2zM10 20.500a2 2 0 0 0 4 0"/>',
   out: '<path d="M7 17L17 7M9 7h8v8"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
@@ -86,7 +87,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.21.2';
+const APP_VERSION = '0.22.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -843,7 +844,7 @@ function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
     <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? CHECK_SVG : t.status === 'doing' ? '<i class="dot-doing"></i>' : ''}</button>
     <div class="t-main">
       <span class="t-title">${esc(t.title)}</span>
-      ${typeTag(t) || prioTag(t) || t.description || showEpic ? `<span class="t-meta">${typeTag(t)}${prioTag(t)}${t.description ? '<span class="has-desc" title="A une description">≡ détails</span>' : ''}${showEpic ? `<span class="t-epic">${esc(showEpic)}</span>` : ''}</span>` : ''}
+      ${typeTag(t) || prioTag(t) || t.description || t.images?.length || showEpic ? `<span class="t-meta">${typeTag(t)}${prioTag(t)}${t.description ? '<span class="has-desc" title="A une description">≡ détails</span>' : ''}${t.images?.length ? `<span class="has-desc with-ico" title="${t.images.length} image${t.images.length > 1 ? 's' : ''}">${ico('image', 13)} ${t.images.length}</span>` : ''}${showEpic ? `<span class="t-epic">${esc(showEpic)}</span>` : ''}</span>` : ''}
     </div>
     ${avatar(byId[t.assigneeId])}
   </div>`;
@@ -960,6 +961,99 @@ const segField = (name, options, value, label, cls = '') => `
     <input type="hidden" name="${name}" value="${value}"></div>`;
 
 /** Create or edit an item (tâche, bug, amélioration). */
+// ---------- images des tâches ----------
+const IMG_MAX = 8;
+const imgState = { pid: null, taskId: null, items: [], queue: Promise.resolve() };
+
+/** Shrinks a picture in the browser: a 1600 px JPEG (2 MB at most, no hidden location data) and a small thumbnail. */
+async function prepareImage(file) {
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { throw new Error('Cette image ne peut pas être lue.'); }
+  const draw = (max, q) => new Promise((resolve, reject) => {
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0, c.width, c.height);
+    c.toBlob((b) => (b ? resolve(b) : reject(new Error('Cette image ne peut pas être lue.'))), 'image/jpeg', q);
+  });
+  let full = await draw(1600, 0.82);
+  for (let q = 0.7; full.size > 1.9 * 1024 * 1024 && q > 0.3; q -= 0.15) full = await draw(1600, q);
+  const thumb = await draw(360, 0.75);
+  bmp.close?.();
+  return { full, thumb };
+}
+
+function renderImageGrid() {
+  const box = sheet.querySelector('#tf-images');
+  if (!box) return;
+  box.innerHTML = imgState.items.map((it, i) => `<div class="img-th">
+      <button type="button" class="img-open" data-action="img-open" data-i="${i}" aria-label="Agrandir l'image">${it.thumb ? `<img src="${esc(it.thumb)}" alt="">` : '<span class="img-wait"></span>'}</button>
+      <button type="button" class="img-del" data-action="img-del" data-i="${i}" aria-label="Retirer l'image">${ico('x', 14)}</button></div>`).join('')
+    + (imgState.items.length < IMG_MAX ? `<button type="button" class="img-add" data-action="img-pick" title="Ajouter une image (ou colle-la dans le texte)" aria-label="Ajouter une image">${ico('image', 20)}<span aria-hidden="true">+</span></button><input type="file" accept="image/*" multiple hidden data-img-input>` : '');
+}
+
+function initTaskImages(t, isNew) {
+  imgState.pid = state.pid; imgState.taskId = isNew ? null : t.id; imgState.queue = Promise.resolve();
+  imgState.items = (t.images || []).map((i) => ({ id: i.id, path: i.path, thumb: '' }));
+  renderImageGrid();
+  const saved = imgState.items.filter((i) => i.path);
+  if (saved.length) {
+    db.signImages(saved.map((i) => i.path)).then((urls) => { for (const i of saved) i.thumb = urls[i.path] || ''; renderImageGrid(); }).catch(() => {});
+  }
+  return () => { for (const i of imgState.items) { if (i.blobs) { URL.revokeObjectURL(i.thumb); URL.revokeObjectURL(i.full); } } imgState.items = []; imgState.taskId = null; };
+}
+
+/** Adds pictures (pasted, dropped or picked): prepared one by one, sent at once for an existing task, kept until "Ajouter" for a new one. */
+function addImageFiles(files) {
+  const list = [...files].filter((f) => f.type.startsWith('image/'));
+  if (!list.length) return;
+  const room = IMG_MAX - imgState.items.length;
+  if (list.length > room) toast(`${IMG_MAX} images au plus par tâche.`, true);
+  for (const f of list.slice(0, Math.max(0, room))) {
+    const item = { thumb: '' }; imgState.items.push(item);
+    imgState.queue = imgState.queue.then(async () => {
+      try {
+        const blobs = await prepareImage(f);
+        item.blobs = blobs; item.thumb = URL.createObjectURL(blobs.thumb); item.full = URL.createObjectURL(blobs.full);
+        if (imgState.taskId) { const row = await db.addTaskImage(imgState.pid, imgState.taskId, blobs); item.id = row.id; item.path = row.path; item.blobs = null; }
+      } catch (e) { const k = imgState.items.indexOf(item); if (k >= 0) imgState.items.splice(k, 1); toast(e.message, true); }
+      renderImageGrid();
+    });
+  }
+  renderImageGrid();
+}
+
+/** Full-size viewer (a dialog of its own, so it sits above the open sheet). */
+async function openLightbox(index) {
+  const items = imgState.items.filter((i) => i.thumb || i.path); let k = items.findIndex((i) => i === imgState.items[index]); if (k < 0) k = 0;
+  const dlg = document.createElement('dialog'); dlg.className = 'lightbox';
+  dlg.innerHTML = `<button type="button" class="lb-close" aria-label="Fermer">${ico('x', 22)}</button>
+    <img class="lb-img" alt=""><span class="lb-count"></span>
+    ${items.length > 1 ? '<button type="button" class="lb-nav prev" aria-label="Précédente">‹</button><button type="button" class="lb-nav next" aria-label="Suivante">›</button>' : ''}`;
+  document.body.append(dlg); dlg.showModal();
+  const img = dlg.querySelector('.lb-img');
+  const show = async () => {
+    const it = items[k]; dlg.querySelector('.lb-count').textContent = items.length > 1 ? `${k + 1} / ${items.length}` : '';
+    img.src = it.thumb || ''; // the small one first, then the big one
+    try { const url = it.full || (it.path ? (await db.signImages([it.path], false))[it.path] : ''); if (url && items[k] === it) img.src = url; } catch { /* keep the thumbnail */ }
+  };
+  const go = (d) => { k = (k + d + items.length) % items.length; show(); };
+  dlg.addEventListener('click', (e) => { if (e.target.closest('.lb-close') || e.target === dlg || e.target === img) dlg.close(); else if (e.target.closest('.prev')) go(-1); else if (e.target.closest('.next')) go(1); });
+  dlg.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft' && items.length > 1) go(-1); if (e.key === 'ArrowRight' && items.length > 1) go(1); });
+  dlg.addEventListener('close', () => dlg.remove());
+  show();
+}
+
+// pasted pictures (a screenshot has no text) and dropped files, while a task sheet is open
+document.addEventListener('paste', (e) => {
+  if (!sheet.open || !sheet.querySelector('#tf-images')) return;
+  const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
+  if (!files.length || (e.clipboardData.getData('text/plain') || '').trim()) return;
+  e.preventDefault(); addImageFiles(files);
+});
+sheet.addEventListener('dragover', (e) => { if (sheet.querySelector('#tf-images') && [...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+sheet.addEventListener('drop', (e) => { if (!sheet.querySelector('#tf-images') || !e.dataTransfer?.files?.length) return; e.preventDefault(); addImageFiles(e.dataTransfer.files); });
+sheet.addEventListener('change', (e) => { if (e.target.matches('[data-img-input]')) { addImageFiles(e.target.files); e.target.value = ''; } });
+
 function taskSheet(t) {
   const d = state.data;
   const isNew = !t.id;
@@ -969,7 +1063,9 @@ function taskSheet(t) {
       <div class="sheet-head"><h2 id="sheet-title">${isNew ? NEW_TITLE[t.type] : TYPES[t.type]}</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       ${segField('type', Object.fromEntries(TYPE_LIST.map((k) => [k, typeLabel(k)])), t.type, 'Type', 'type-opt')}
       <label class="field"><span>Titre</span><input class="input" id="tf-title" name="title" maxlength="200" required value="${esc(t.title)}" placeholder="${t.type === 'bug' ? 'ex. Crash quand on ouvre la carte' : 'ex. Écran de connexion'}" autofocus></label>
-      <label class="field"><span>Description <small class="muted">(facultatif)</small></span><textarea class="input" id="tf-desc" name="description" maxlength="5000" placeholder="${t.type === 'bug' ? 'Comment le reproduire, sur quel appareil…' : 'Détails, étapes, liens…'}">${esc(t.description)}</textarea>${MD_HINT}<div class="md-preview description" hidden></div></label>
+      <div class="field"><span>Description <small class="muted">(facultatif)</small></span>
+        <div class="desc-box"><textarea class="input" id="tf-desc" name="description" maxlength="5000" aria-label="Description" placeholder="${t.type === 'bug' ? 'Comment le reproduire, sur quel appareil…' : 'Détails, étapes, liens…'}">${esc(t.description)}</textarea><div class="img-strip" id="tf-images"></div></div>
+        ${MD_HINT.replace('</small>', ' · image : colle-la ou touche l\'icône</small>')}<div class="md-preview description" hidden></div></div>
       ${segField('status', TASK, t.status, 'Statut')}
       ${segField('priority', PRIORITY, t.priority, 'Priorité')}
       <label class="field"><span>Chantier</span><select class="input" id="tf-epic" name="epicId"><option value="">Hors chantier</option>
@@ -978,7 +1074,7 @@ function taskSheet(t) {
         ${d.members.map((m) => `<option value="${m.id}" ${m.id === t.assigneeId ? 'selected' : ''}>${esc(m.displayName)}</option>`).join('')}</select></label>
       ${isNew ? '' : `<p class="small muted">Créée ${timeAgo(t.createdAt)}${t.doneAt ? ` · terminée ${timeAgo(t.doneAt)}` : ''}</p>`}
       <div class="row ${isNew ? 'end' : 'between'}">${isNew ? '' : `<button type="button" class="btn danger" data-action="delete-task" data-id="${t.id}">Supprimer</button>`}<button class="btn primary" type="submit">${isNew ? 'Ajouter' : 'Enregistrer'}</button></div>
-    </form>`);
+    </form>`, () => initTaskImages(t, isNew));
 }
 
 /** Create or edit a grand chantier. */
@@ -1745,6 +1841,14 @@ const actions = {
     await db.updateTask(t.id, { status: t.status === 'done' ? 'todo' : 'done' });
     await reloadProject();
   },
+  'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
+  'img-open': (el) => openLightbox(Number(el.dataset.i)),
+  'img-del': async (el) => {
+    const it = imgState.items[Number(el.dataset.i)]; if (!it) return;
+    if (it.path) await db.deleteTaskImage({ id: it.id, path: it.path });
+    if (it.blobs) { URL.revokeObjectURL(it.thumb); URL.revokeObjectURL(it.full); }
+    imgState.items.splice(imgState.items.indexOf(it), 1); renderImageGrid();
+  },
   'delete-task': async (el) => {
     await db.deleteTask(Number(el.dataset.id));
     closeSheet(); toast('Supprimé'); await reloadProject();
@@ -1891,8 +1995,12 @@ const forms = {
     $app.querySelector('#task-new')?.focus();
   },
   async 'new-task'(f) {
-    await db.addTask(state.pid, formData(f), state.data.tasks);
-    closeSheet(); toast('Ajouté'); await reloadProject();
+    await imgState.queue; // pictures still being shrunk
+    const pending = imgState.items.filter((i) => i.blobs), pid = state.pid;
+    const id = await db.addTask(pid, formData(f), state.data.tasks);
+    closeSheet(); toast(pending.length ? 'Ajouté, envoi des images…' : 'Ajouté');
+    for (const it of pending) { try { await db.addTaskImage(pid, id, it.blobs); } catch (e) { toast(e.message, true); } }
+    await reloadProject();
   },
   async 'edit-task'(f) {
     await db.updateTask(Number(f.dataset.id), formData(f));

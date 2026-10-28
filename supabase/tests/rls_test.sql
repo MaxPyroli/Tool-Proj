@@ -283,4 +283,40 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f1
 delete from projects where name = 'Projet Claude';
 reset role;
 
+
+-- ===== Images des tâches =====
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000a1', 'ila@ex.fr', '{"username":"ila"}'),
+  ('00000000-0000-0000-0000-0000000000a2', 'ivo@ex.fr', '{"username":"ivo"}');
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+select create_project('Images') as ipid \gset
+insert into tasks (project_id, title) values (:ipid, 'Avec images') returning id as itid \gset
+select set_config('t.ipid', :'ipid', false), set_config('t.itid', :'itid', false);
+insert into task_images (task_id, project_id, path) values (:itid, :ipid, :'ipid' || '/' || :'itid' || '/11111111-1111-1111-1111-111111111111.jpg');
+select pg_temp.expect_error(format($f$insert into task_images (task_id, project_id, path) values (%s, %s, '%s/%s/zzz.jpg')$f$, :itid, :ipid, :ipid, :itid), 'check constraint');
+select pg_temp.expect_error(format($f$insert into task_images (task_id, project_id, path) values (%s, %s, '999/%s/22222222-2222-2222-2222-222222222222.jpg')$f$, :itid, :ipid, :itid), 'Chemin');
+select pg_temp.expect_error(format($f$insert into task_images (task_id, project_id, path, created_by) values (%s, %s, '%s/%s/33333333-3333-3333-3333-333333333333.jpg', '00000000-0000-0000-0000-0000000000a2')$f$, :itid, :ipid, :ipid, :itid), 'row-level security');
+do $$ declare i int; pidv text := current_setting('t.ipid'); tidv text := current_setting('t.itid'); begin
+  for i in 2..8 loop
+    insert into task_images (task_id, project_id, path) values (tidv::bigint, pidv::bigint, pidv || '/' || tidv || '/00000000-0000-0000-0000-00000000000' || i || '.jpg');
+  end loop;
+  begin
+    insert into task_images (task_id, project_id, path) values (tidv::bigint, pidv::bigint, pidv || '/' || tidv || '/00000000-0000-0000-0000-000000000099.jpg');
+    raise exception 'ÉCHEC : la 9e image aurait dû être refusée';
+  exception when others then
+    if sqlerrm like 'ÉCHEC%' or position('Huit images' in sqlerrm) = 0 then raise; end if;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a2', false);
+do $$ begin assert (select count(*) from task_images) = 0, 'un non-membre ne voit pas les images'; end $$;
+select pg_temp.expect_error(format($f$insert into task_images (task_id, project_id, path) values (%s, %s, '%s/%s/44444444-4444-4444-4444-444444444444.jpg')$f$, :itid, :ipid, :ipid, :itid), 'pas dans ce projet');
+delete from task_images;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', false);
+do $$ begin assert (select count(*) from task_images) = 8, 'un non-membre ne peut pas supprimer'; end $$;
+delete from tasks where title = 'Avec images';
+do $$ begin assert (select count(*) from task_images) = 0, 'supprimer la tâche supprime ses images'; end $$;
+delete from projects where name = 'Images';
+reset role;
+
 \echo 'OK : tous les tests de sécurité passent'

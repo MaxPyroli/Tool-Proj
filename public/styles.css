@@ -744,3 +744,25 @@ dialog#sheet { overscroll-behavior: contain; }
 
 .steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 .news-pop .cl-pill { justify-self: start; padding: 3px 10px; }
+
+/* task images: they live inside the description box, like attachments in a message box */
+.desc-box { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); overflow: hidden; }
+.desc-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.desc-box textarea.input { border: 0; border-radius: 0; background: transparent; box-shadow: none; display: block; width: 100%; }
+.img-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px 8px; }
+.img-strip:not(:has(.img-th)) { padding-top: 0; }
+.img-th { position: relative; width: 52px; height: 52px; flex: none; }
+.img-open { width: 100%; height: 100%; padding: 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--surface); cursor: zoom-in; display: block; }
+.img-open img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.img-wait { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, var(--surface-2), var(--line), var(--surface-2)); background-size: 200% 100%; animation: img-wait 1.2s linear infinite; }
+@keyframes img-wait { to { background-position: -200% 0; } }
+.img-del { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface-2); background: var(--ink); color: var(--surface); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.img-add { height: 36px; min-width: 36px; padding: 0 10px; border-radius: 99px; border: 1px dashed var(--line); background: transparent; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 1rem; line-height: 1; }
+.img-add:hover, .img-add:focus-visible { border-color: var(--accent); color: var(--accent); }
+dialog.lightbox { position: fixed; inset: 0; width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: 0; background: rgb(8 10 14 / .94); display: grid; place-items: center; }
+dialog.lightbox::backdrop { background: transparent; }
+.lb-img { max-width: 96vw; max-height: 88dvh; object-fit: contain; border-radius: 8px; cursor: zoom-out; }
+.lb-close { position: absolute; top: max(12px, env(safe-area-inset-top, 0px)); right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgb(255 255 255 / .16); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.lb-nav { position: absolute; top: 50%; translate: 0 -50%; width: 44px; height: 64px; border: 0; background: rgb(255 255 255 / .12); color: #fff; font-size: 2rem; cursor: pointer; border-radius: 12px; }
+.lb-nav.prev { left: 8px; } .lb-nav.next { right: 8px; }
+.lb-count { position: absolute; bottom: max(14px, env(safe-area-inset-bottom, 0px)); left: 50%; translate: -50% 0; color: #fff; font-size: .9rem; }

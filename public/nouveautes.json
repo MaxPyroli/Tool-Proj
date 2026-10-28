@@ -4,13 +4,32 @@
     "icon": "bell",
     "title": "Les notifications arrivent",
     "text": "Sois prévenu sur ton téléphone quand une tâche t'est assignée ou quand on t'ajoute à un projet.",
-    "button": { "label": "Les activer", "action": "account", "target": "push-box" }
+    "button": {
+      "label": "Les activer",
+      "action": "account",
+      "target": "push-box"
+    }
   },
   {
     "version": "0.21.0",
     "icon": "spark",
     "title": "Branche Claude sur tes projets",
     "text": "Crée un accès dans Mon compte, colle l'adresse dans Claude, et demande-lui tes tâches du jour ou d'ajouter une idée. Il n'a que tes droits et ne peut rien supprimer.",
-    "button": { "label": "Voir comment", "action": "account", "target": "claude-box" }
+    "button": {
+      "label": "Voir comment",
+      "action": "account",
+      "target": "claude-box"
+    }
+  },
+  {
+    "version": "0.22.0",
+    "icon": "image",
+    "title": "Des images dans tes tâches",
+    "text": "Colle une capture d'écran ou touche l'icône image dans la description d'une tâche, d'un bug ou d'une idée. Elles restent dans la zone de texte, bien rangées.",
+    "button": {
+      "label": "Essayer",
+      "action": "new-item",
+      "target": ""
+    }
   }
 ]
