@@ -140,4 +140,4 @@ supabase/tests/            tests SQL des règles de sécurité
 .github/workflows/pages.yml  déploiement automatique
 ```
 
-© 2026 Paname Dev · Conçu et codé avec Claude · contact@panamedev.fr
+© 2026 Paname Dev · Codé par Claude · contact@panamedev.fr
