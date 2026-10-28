@@ -98,7 +98,7 @@ Sans cette configuration, rien ne casse : les notifications restent simplement m
 1. Relancer [`supabase/schema.sql`](supabase/schema.sql) (table `claude_tokens` et fonction `mcp_call`).
 2. Déployer la fonction Edge [`supabase/functions/mcp`](supabase/functions/mcp/index.ts) **sans vérification JWT** (`supabase functions deploy mcp --no-verify-jwt`) : la clé personnelle contenue dans l'adresse fait foi.
 
-Rien d'autre à configurer : la clé est fabriquée dans le navigateur de chacun et seule son empreinte est enregistrée.
+Rien d'autre à configurer : la clé est fabriquée dans le navigateur de chacun et seule son empreinte est enregistrée. Dans Claude, choisir **Aucune connexion** (pas d'OAuth, pas d'en-tête) : la clé est dans l'adresse.
 
 ## Mettre à jour
 

@@ -86,7 +86,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.21.1';
+const APP_VERSION = '0.21.2';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1466,7 +1466,7 @@ function claudeTokenSheet({ url }) {
       <label class="field"><span>Adresse du connecteur</span><input class="input" id="claude-url" readonly value="${esc(url)}" onfocus="this.select()"></label>
       <button class="btn primary" data-action="claude-copy" data-text="${esc(url)}">Copier l'adresse</button>
       <h3>Dans Claude (claude.ai ou l'app)</h3>
-      <ol class="small steps"><li>Ouvre <b>Réglages → Connecteurs</b>.</li><li>Touche <b>Ajouter un connecteur personnalisé</b>.</li><li>Donne-lui un nom (« Tool Proj ») et colle l'adresse.</li><li>Dans une conversation, active le connecteur, puis demande par exemple « Quelles sont mes tâches en cours ? ».</li></ol>
+      <ol class="small steps"><li>Ouvre <b>Réglages → Connecteurs</b>.</li><li>Touche <b>Ajouter un connecteur personnalisé</b>.</li><li>Nom : « Tool Proj ». Adresse : colle celle de ci-dessus.</li><li><b>Authentification : laisse « Aucune connexion »</b> (la clé est déjà dans l'adresse). Ne touche pas aux en-têtes de requête : laisse-les vides.</li><li>Valide avec <b>Ajouter</b>. Le message « toute personne disposant de l'URL peut utiliser ce connecteur » est normal : c'est pour ça que l'adresse doit rester secrète.</li><li>Dans une conversation, active le connecteur, puis demande par exemple « Quelles sont mes tâches en cours ? ».</li></ol>
       <h3>Dans Claude Code</h3>
       <p class="small muted">Colle cette commande dans ton terminal :</p>
       <input class="input" readonly value="${esc(`claude mcp add --transport http tool-proj ${url}`)}" onfocus="this.select()">

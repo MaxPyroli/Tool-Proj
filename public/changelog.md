@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.21.2
+- Accès pour Claude : les instructions disent maintenant quoi choisir dans la fenêtre de Claude (« Aucune connexion », en-têtes vides) et pourquoi le message d'avertissement est normal.
+
 ## 0.21.1
 - Pop-up « Nouveau » : après une mise à jour, une grosse nouveauté s'explique en une fenêtre, une seule fois (avec un bouton pour l'essayer tout de suite).
 
