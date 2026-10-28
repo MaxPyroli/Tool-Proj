@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.20.1';
+const APP_VERSION = '0.20.2';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -380,6 +380,7 @@ function renderAuth() {
         <button class="btn" type="button" data-action="passkey-login">${icon.key} Utiliser une clé d'accès</button>
         ${passkeysMoved() ? '<p class="small muted">Ta clé ne marche plus ? Le site a changé d\'adresse : connecte-toi avec le lien reçu par email, puis crée une nouvelle clé.</p>' : ''}` : ''}
         <p class="small muted">Pas de mot de passe ici. ${db.allowSignup ? 'Première visite ? Le lien reçu par email crée ton compte.' : "Pas de compte ? Demande à un admin de t'inviter."}${passkeys ? " Une fois connecté, tu pourras créer une clé d'accès pour entrer en un geste (Face ID, empreinte…)." : ''}</p>`}
+        <p class="small muted legal-line"><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · © 2026 Paname Dev</p>
       </div>
     </div>
   </main>`;
@@ -1503,7 +1504,7 @@ function accountSheet() {
       <div id="push-box"><p class="small muted">Chargement…</p></div>
     </section>
     <button class="btn danger" data-action="logout">Se déconnecter</button>
-    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span></p>`, () => { renderPushBox(); if (db.passkeysSupported()) loadPasskeys(); });
+    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span><br>© 2026 Paname Dev · Conçu et codé avec Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { renderPushBox(); if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {

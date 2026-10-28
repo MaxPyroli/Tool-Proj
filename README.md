@@ -132,8 +132,12 @@ public/                    l'app (HTML/CSS/JS, sans étape de build) : c'est ce 
   data.js                  accès à Supabase (auth, données, temps réel)
   config.js                URL + clé publique Supabase
   sw.js, manifest…         installation sur téléphone
+  fonts/, vendor/          polices et bibliothèque Supabase, copiées dans l'app (aucune ressource externe)
+  confidentialite.html     politique de confidentialité
 supabase/schema.sql        tables, règles de sécurité, triggers
 supabase/templates/        emails de connexion en français (lien + code)
 supabase/tests/            tests SQL des règles de sécurité
 .github/workflows/pages.yml  déploiement automatique
 ```
+
+© 2026 Paname Dev · Conçu et codé avec Claude · contact@panamedev.fr

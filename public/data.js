@@ -1,5 +1,5 @@
 // Accès aux données : Supabase (auth, base Postgres protégée par RLS, temps réel).
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
+import { createClient } from './vendor/supabase-js.js'; // supabase-js 2.117.2, copié dans l'app (aucun CDN)
 
 const cfg = window.TOOL_PROJ_CONFIG || {};
 export const configured = !!(cfg.supabaseUrl && cfg.supabaseKey);

@@ -2,6 +2,10 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.20.2
+- Une page de confidentialité explique ce qui est enregistré et où (lien sur l'écran de connexion et dans Mon compte), avec le contact et le crédit de l'éditeur.
+- Les polices et la bibliothèque de connexion sont maintenant dans l'application : plus aucune requête vers Google ni vers un service extérieur pour afficher l'app.
+
 ## 0.20.1
 - Nouvelle adresse (toolproj.panamedev.fr) : un message explique que les anciennes clés d'accès doivent être recréées (sur l'écran de connexion, une fois après la connexion, et dans Mon compte).
 
