@@ -1,6 +1,6 @@
 {
   "name": "tool-proj",
-  "version": "0.20.2",
+  "version": "0.20.3",
   "private": true,
   "description": "Suivi de projets d'applications avec post-it, tâches et membres (GitHub Pages + Supabase)",
   "type": "module",

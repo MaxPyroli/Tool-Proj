@@ -65,7 +65,7 @@ async function audit(p, label) {
   await p.goto(`${BASE}#/p/${pid}/equipe`); await p.waitForSelector('.member'); await audit(p, 'équipe');
   const sheets = [
     ['mon compte', async () => { await p.click('[data-action="account"]'); await p.waitForSelector('.avatar-picker'); }],
-    ['paramètres du projet', async () => { await p.goto(`${BASE}#/p/${pid}`); await p.waitForSelector('.ring'); await p.click('[data-action="edit-project"]'); await p.waitForSelector('.tc-pick'); }],
+    ['paramètres du projet', async () => { await p.goto(`${BASE}#/p/${pid}`); await p.waitForSelector('.ring'); await p.click('[data-action="edit-project"]'); await p.waitForSelector('.tc-row'); }],
     ['liens du projet', async () => { await p.goto(`${BASE}#/p/${pid}`); await p.waitForSelector('.ring'); await p.click('[data-action="manage-links"]'); await p.waitForSelector('#lk-url'); }],
     ['fiche tâche', async () => { await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="board"]'); await p.waitForSelector('.task'); await p.click('.task >> nth=0'); await p.waitForSelector('#tf-title'); }],
     ['fiche chantier', async () => { await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="task-view"][data-v="roadmap"]'); await p.click('.epic-card >> nth=0'); await p.waitForSelector('#ef-title'); }],

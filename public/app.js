@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.20.2';
+const APP_VERSION = '0.20.3';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -271,8 +271,9 @@ function mdPreview(ta) {
 }
 sheet.addEventListener('input', (e) => {
   if (e.target.tagName === 'TEXTAREA') mdPreview(e.target);
+  if (e.target.id === 'pf-color') syncProjectColor();
   const form = e.target.form;
-  if (e.target.name?.startsWith('tc_') && form?.elements.tc_task) refreshStylePreview(form);
+  if (e.target.name?.startsWith('tc_') && form?.elements.tc_task) { refreshStylePreview(form); syncTypeColors(form); }
   if (e.target.name === 'displayName' && form?.elements.avatarEmoji) refreshAvatarPreview(form);
 });
 
@@ -482,6 +483,8 @@ function topbar(inner) {
 
 const SAMPLE_TASKS = { task: 'Écran de connexion', bug: 'Crash au lancement', idea: 'Et si on avait un mode sombre ?', improvement: 'Chargement plus rapide' };
 
+const COLOR_PRESETS = ['#e03131', '#f76707', '#fab005', '#94d82d', '#2f9e44', '#12b886', '#15aabf', '#4dabf7', '#4c6ef5', '#7048c8', '#e64980', '#adb5bd'];
+
 function stylePreviewHtml(p) {
   const c = typeColors(p);
   const vars = TYPE_LIST.map((k) => `--c-${k}:${c[k]}`).join(';');
@@ -495,7 +498,14 @@ function taskStyleField(p) {
   const colors = typeColors(p);
   return `
   <div class="field style-field"><span>Couleur de chaque type de tâche</span>
-    <div class="type-colors">${TYPE_LIST.map((t) => `<label class="tc-pick"><input type="color" name="tc_${t}" value="${colors[t]}" aria-label="Couleur ${TYPES[t]}"><span>${typeLabel(t)}</span></label>`).join('')}</div>
+    <div class="type-colors">${TYPE_LIST.map((t) => {
+      const cur = colors[t].toLowerCase(), custom = !COLOR_PRESETS.includes(cur);
+      return `<div class="tc-row"><div class="tc-name">${typeLabel(t)}</div>
+        <div class="tc-swatches" role="radiogroup" aria-label="Couleur ${TYPES[t]}">
+          ${COLOR_PRESETS.map((c) => `<button type="button" class="tc-sw" data-action="pick-type-color" data-t="${t}" data-v="${c}" style="--sw:${c}" aria-pressed="${c === cur}" aria-label="${c}"></button>`).join('')}
+          <label class="tc-sw tc-custom" ${custom ? `style="--sw:${cur}"` : ''} aria-pressed="${custom}" title="Autre couleur"><input type="color" name="tc_${t}" value="${colors[t]}" aria-label="Autre couleur pour ${TYPES[t]}"></label>
+        </div></div>`;
+    }).join('')}</div>
     <button type="button" class="link-btn small" data-action="reset-type-colors" style="justify-self:start">Revenir aux couleurs d'origine</button>
     <div id="style-preview-box">${stylePreviewHtml(p)}</div>
   </div>`;
@@ -506,6 +516,24 @@ function refreshStylePreview(form) {
   const f = form.elements;
   const p = { typeColors: Object.fromEntries(TYPE_LIST.map((t) => [t, f[`tc_${t}`].value])) };
   form.querySelector('#style-preview-box').innerHTML = stylePreviewHtml(p);
+}
+/** Keeps the colour swatches in step with the (hidden) colour fields. */
+/** Project colour swatches follow the colour field ("other" shows a custom colour). */
+function syncProjectColor() {
+  const input = sheet.querySelector('#pf-color'); if (!input) return;
+  const cur = input.value.toLowerCase(); let hit = false;
+  sheet.querySelectorAll('[data-action="pick-color"]').forEach((b) => { const on = b.dataset.v.toLowerCase() === cur; if (on) hit = true; b.setAttribute('aria-pressed', on); });
+  const c = input.closest('.tc-custom'); c.setAttribute('aria-pressed', !hit);
+  if (hit) { c.style.removeProperty('--sw'); c.style.removeProperty('--note'); } else { c.style.setProperty('--sw', cur); c.style.setProperty('--note', cur); }
+}
+function syncTypeColors(form) {
+  for (const t of TYPE_LIST) {
+    const cur = form.elements[`tc_${t}`].value.toLowerCase(), row = form.elements[`tc_${t}`].closest('.tc-row');
+    let hit = false;
+    row.querySelectorAll('button.tc-sw').forEach((b) => { const on = b.dataset.v === cur; if (on) hit = true; b.setAttribute('aria-pressed', on); });
+    const c = row.querySelector('.tc-custom'); c.setAttribute('aria-pressed', !hit); c.style.setProperty('--sw', hit ? '' : cur);
+    if (hit) c.style.removeProperty('--sw');
+  }
 }
 function setFormColors(form) {
   TYPE_LIST.forEach((t) => { form.elements[`tc_${t}`].value = TYPE_COLOR_DEFAULTS[t]; });
@@ -524,7 +552,7 @@ function projectForm(p) {
       </div>
       <div class="field"><span>Couleur</span>
         <div class="swatches">${PROJECT_COLORS.map((c) => `<button type="button" class="swatch" style="--note:${c}" data-action="pick-color" data-v="${c}" aria-pressed="${c === p.color}" aria-label="Couleur ${c}"></button>`).join('')}
-        <input type="color" class="color-input" id="pf-color" name="color" value="${esc(p.color)}" aria-label="Autre couleur"></div>
+        <label class="swatch tc-custom" ${PROJECT_COLORS.includes(p.color) ? '' : `style="--sw:${esc(p.color)};--note:${esc(p.color)}"`} aria-pressed="${!PROJECT_COLORS.includes(p.color)}" title="Autre couleur"><input type="color" id="pf-color" name="color" value="${esc(p.color)}" aria-label="Autre couleur"></label></div>
       </div>
       <label class="field"><span>Statut</span><select class="input" id="pf-status" name="status">${Object.entries(STATUS).map(([k, l]) => `<option value="${k}" ${k === p.status ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label class="field"><span>Description</span><textarea class="input" id="pf-desc" name="description" maxlength="2000" placeholder="Le but de l'app, pour qui, la stack…">${esc(p.description)}</textarea>${MD_HINT}<div class="md-preview description" hidden></div></label>
@@ -913,7 +941,7 @@ function viewBoard(d) {
   }
   const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s && matchesFilter(t)).sort(sortItems)]);
   return `
-  ${quickAdd(`Ajouter une tâche${isPhone() ? ` (${TASK[state.taskCol].toLowerCase()})` : ''}…`)}
+  ${quickAdd('Ajouter une tâche rapide…')}
   ${modes}
   <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
   <div class="columns">
@@ -1555,7 +1583,7 @@ const actions = {
   'pick-emoji': (el) => { sheet.querySelector('#pf-emoji').value = el.dataset.v; },
   'pick-color': (el) => {
     sheet.querySelector('#pf-color').value = el.dataset.v;
-    sheet.querySelectorAll('[data-action="pick-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
+    syncProjectColor();
   },
   'delete-project': async () => {
     const p = state.data.project;
@@ -1611,7 +1639,12 @@ const actions = {
   'reset-type-colors': (el) => {
     const form = el.closest('form');
     setFormColors(form);
-    refreshStylePreview(form);
+    refreshStylePreview(form); syncTypeColors(form);
+  },
+  'pick-type-color': (el) => {
+    const form = el.closest('form');
+    form.elements[`tc_${el.dataset.t}`].value = el.dataset.v;
+    refreshStylePreview(form); syncTypeColors(form);
   },
   'toggle-activity': () => { state.activityOpen = !state.activityOpen; store.set('activityOpen', state.activityOpen ? '1' : '0'); renderProject(); },
   'pick-seg': (el) => {

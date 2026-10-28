@@ -583,9 +583,15 @@ h3.group-title { cursor: default; color: var(--muted); }
 
 /* style picker in project settings */
 .style-field .sub { font-size: .8rem; font-weight: 600; color: var(--muted); margin-top: 6px; }
-.type-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-.tc-pick { display: flex; align-items: center; gap: 8px; font-size: .88rem; font-weight: 600; color: var(--ink); }
-.tc-pick input { width: 40px; height: 36px; padding: 2px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+.type-colors { display: grid; gap: 14px; }
+.tc-row { display: grid; gap: 8px; }
+.tc-name { font-size: .88rem; font-weight: 700; color: var(--ink); }
+.tc-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.tc-sw { position: relative; width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgb(0 0 0 / .12); background: var(--sw, #ccc); cursor: pointer; padding: 0; display: block; }
+.tc-sw[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); }
+.tc-custom { background: conic-gradient(#e03131, #fab005, #94d82d, #15aabf, #4c6ef5, #e64980, #e03131); overflow: hidden; }
+.tc-custom[style*="--sw"] { background: var(--sw); }
+.tc-custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; padding: 0; border: 0; }
 .style-preview { padding: 14px 6px 8px; border-radius: 12px; border: 1px dashed var(--line); margin-top: 4px; }
 .style-preview .task { cursor: default; }
 
@@ -725,3 +731,13 @@ dialog#sheet { overscroll-behavior: contain; }
 .ep-loose { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
 .columns > .col > .ep-sheet + .ep-sheet, .columns > .col > .ep-sheet + .ep-loose, .columns > .col > .ep-loose + .ep-sheet { margin-top: 18px; }
 .ep-sheet .hz { background: rgb(255 255 255 / .5); color: var(--pi-ink); }
+
+/* the Save / Add buttons of a sheet stay pinned at the bottom while the form scrolls */
+.sheet-body form > .row:last-child:has([type="submit"]) {
+  position: sticky; bottom: calc(-1 * (20px + env(safe-area-inset-bottom, 0px))); z-index: 3;
+  margin: 0 -20px calc(-1 * (20px + env(safe-area-inset-bottom, 0px))); padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+
+.swatch.tc-custom { position: relative; display: block; }
+.swatch.tc-custom[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 2px; }

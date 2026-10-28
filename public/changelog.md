@@ -2,6 +2,11 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.20.3
+- Les boutons « Enregistrer » / « Ajouter » des fenêtres restent épinglés en bas pendant qu'on fait défiler.
+- Sélecteurs de couleur : des pastilles à toucher (12 couleurs) et une pastille « autre » pour une couleur libre, pour les types de tâche et pour la couleur du projet.
+- La barre « Ajouter une tâche rapide » garde le même texte en vue « Par statut » et « Par chantier ».
+
 ## 0.20.2
 - Une page de confidentialité explique ce qui est enregistré et où (lien sur l'écran de connexion et dans Mon compte), avec le contact et le crédit de l'éditeur.
 - Les polices et la bibliothèque de connexion sont maintenant dans l'application : plus aucune requête vers Google ni vers un service extérieur pour afficher l'app.
