@@ -11,7 +11,7 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
 (async () => {
   const email = `tc${Date.now()}@ex.fr`;
   await fetch('http://127.0.0.1:54321/auth/v1/admin/users', { method: 'POST', headers: H, body: JSON.stringify({ email, email_confirm: true, user_metadata: { onboarded: true, username: 'tc' + Date.now() % 100000, display_name: 'Touch' } }) });
-  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 13'] }); const p = await ctx.newPage(); const errors = [];
+  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 13'] }); await ctx.addInitScript(() => { try { localStorage.setItem('seenNews2', '99.0.0'); } catch { /* ignore */ } }); const p = await ctx.newPage(); const errors = [];
   p.on('pageerror', (e) => errors.push(e.message)); p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   await p.goto(BASE); await p.fill('#auth-email', email); await p.click('form[data-form="email-link"] button[type=submit]'); await p.waitForSelector('#auth-code');
   let code; for (let i = 0; i < 40 && !code; i++) { const l = await (await fetch(`${MAIL}/search?query=${encodeURIComponent('to:' + email)}`)).json(); if (l.messages?.length) code = (await (await fetch(`${MAIL}/message/${l.messages[0].ID}`)).json()).Text.match(/\b\d{6,10}\b/)[0]; else await wait(400); }

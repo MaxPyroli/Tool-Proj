@@ -39,6 +39,7 @@ async function audit(p, label) {
   await fetch('http://127.0.0.1:54321/auth/v1/admin/users', { method: 'POST', headers: H, body: JSON.stringify({ email, email_confirm: true, user_metadata: { onboarded: true, username: 'mo' + Date.now() % 100000, display_name: 'Mobile Tester' } }) });
   const b = await chromium.launch();
   const ctx = await b.newContext({ ...devices['iPhone 13'], viewport: { width: WIDTH, height: 780 } });
+  await ctx.addInitScript(() => { try { localStorage.setItem('seenNews2', '99.0.0'); } catch { /* ignore */ } }); // no « Nouveau » pop-up in the way
   const p = await ctx.newPage(); globalThis.__p = p;
   p.on('pageerror', (e) => errors.push(e.message)); p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   await p.goto(BASE); await p.fill('#auth-email', email); await p.click('form[data-form="email-link"] button[type=submit]'); await p.waitForSelector('#auth-code');

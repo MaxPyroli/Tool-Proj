@@ -12,7 +12,7 @@ const ok = (cond, msg, extra = '') => { console.log(cond ? '✓' : '✗', msg, e
 async function login(b, opts, tag) {
   const email = `w${tag}${Date.now()}@ex.fr`;
   await fetch('http://127.0.0.1:54321/auth/v1/admin/users', { method: 'POST', headers: H, body: JSON.stringify({ email, email_confirm: true, user_metadata: { onboarded: true, username: 'w' + tag + Date.now() % 100000, display_name: 'Wall' } }) });
-  const ctx = await b.newContext(opts); const p = await ctx.newPage();
+  const ctx = await b.newContext(opts); await ctx.addInitScript(() => { try { localStorage.setItem('seenNews2', '99.0.0'); } catch { /* ignore */ } }); const p = await ctx.newPage();
   p.on('pageerror', (e) => errors.push(e.message)); p.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   await p.goto(BASE); await p.fill('#auth-email', email); await p.click('form[data-form="email-link"] button[type=submit]'); await p.waitForSelector('#auth-code');
   let code; for (let i = 0; i < 40 && !code; i++) { const l = await (await fetch(`${MAIL}/search?query=${encodeURIComponent('to:' + email)}`)).json(); if (l.messages?.length) code = (await (await fetch(`${MAIL}/message/${l.messages[0].ID}`)).json()).Text.match(/\b\d{6,10}\b/)[0]; else await wait(400); }
