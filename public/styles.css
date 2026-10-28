@@ -743,3 +743,4 @@ dialog#sheet { overscroll-behavior: contain; }
 .swatch.tc-custom[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 2px; }
 
 .steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.news-pop .cl-pill { justify-self: start; padding: 3px 10px; }

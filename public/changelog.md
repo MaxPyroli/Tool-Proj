@@ -2,6 +2,9 @@
 
 Numérotation `0.x.y` : `x` pour une nouveauté, `y` pour une correction. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
+## 0.21.1
+- Pop-up « Nouveau » : après une mise à jour, une grosse nouveauté s'explique en une fenêtre, une seule fois (avec un bouton pour l'essayer tout de suite).
+
 ## 0.21.0
 - Accès pour Claude : dans *Mon compte → Accès pour Claude*, crée une adresse personnelle à coller dans Claude (claude.ai, l'app ou Claude Code). Claude peut alors lister tes projets et tâches, et, si tu le permets, ajouter ou modifier des tâches, des post-it et des chantiers, avec tes droits. Rien ne peut être supprimé. Chaque accès se révoque d'un geste.
 

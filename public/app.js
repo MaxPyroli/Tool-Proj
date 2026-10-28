@@ -14,6 +14,7 @@ const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨
 const ICON_PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
+  bell: '<path d="M6 16.500V11a6 6 0 0 1 12 0v5.500l1.500 2h-15l1.500-2zM10 20.500a2 2 0 0 0 4 0"/>',
   out: '<path d="M7 17L17 7M9 7h8v8"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   calendar: '<rect x="3.500" y="5" width="17" height="15.500" rx="3"/><path d="M3.500 10h17M8 3v4M16 3v4"/>',
@@ -85,7 +86,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.21.0';
+const APP_VERSION = '0.21.1';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1505,6 +1506,30 @@ async function renderPushBox() {
        <button class="btn primary" data-action="push-on">Activer sur cet appareil</button>`;
 }
 
+// ---------- pop-up "big news" (public/nouveautes.json) ----------
+/** After an update, shows once the latest big feature (only that one, never a queue). Entries: version, icon, title, text, button {label, action, target}. */
+async function maybeNewsPopup() {
+  if (!state.me || !state.me.onboarded || sheet.open) return;
+  let list = [];
+  try {
+    const res = await fetch('nouveautes.json', { cache: 'no-cache' });
+    if (res.ok) { const text = await res.text(); store.set('newsPopups', text); list = JSON.parse(text); }
+  } catch { /* offline */ }
+  if (!list.length) { try { list = JSON.parse(store.get('newsPopups', '[]')); } catch { list = []; } }
+  const seen = store.get('seenNews', '0.0.0');
+  const next = list.filter((n) => cmpVersion(n.version, APP_VERSION) <= 0 && cmpVersion(n.version, seen) > 0).sort((a, b) => cmpVersion(b.version, a.version))[0];
+  if (!next || sheet.open) return;
+  store.set('seenNews', next.version);
+  openSheet(`
+    <div class="stack news-pop">
+      <div class="key-badge" aria-hidden="true">${ICON_PATHS[next.icon] ? ico(next.icon, 28) : ico('spark', 28)}</div>
+      <span class="cl-pill">Nouveau · version ${esc(next.version)}</span>
+      <h2 id="sheet-title">${esc(next.title)}</h2>
+      <p>${esc(next.text)}</p>
+      <div class="row end"><button class="btn ghost" data-action="close">Plus tard</button>${next.button ? `<button class="btn primary" data-action="news-go" data-go="${esc(next.button.action)}" data-target="${esc(next.button.target || '')}">${esc(next.button.label)}</button>` : ''}</div>
+    </div>`);
+}
+
 // ---------- changelog ("Nouveautés") ----------
 const hasNews = () => store.get('seenVersion', '') !== APP_VERSION;
 
@@ -1779,6 +1804,11 @@ const actions = {
     const p = state.installPrompt; if (!p) return;
     p.prompt(); await p.userChoice; state.installPrompt = null; closeSheet();
   },
+  'news-go': (el) => {
+    const go = actions[el.dataset.go]; if (!go) return closeSheet();
+    go(el);
+    const t = el.dataset.target; if (t) setTimeout(() => sheet.querySelector(`#${t}`)?.scrollIntoView({ block: 'center' }), 350);
+  },
   'claude-new': () => claudeNewSheet(),
   'claude-copy': async (el) => { toast((await copyText(el.dataset.text)) ? 'Adresse copiée' : 'Touche l\'adresse puis copie-la', false); },
   'claude-revoke': async (el) => {
@@ -2011,7 +2041,7 @@ function signedIn() {
   else if (state.me && passkeysMoved() && store.get('passkeysMoved', '') !== '1') {
     store.set('passkeysMoved', '1');
     setTimeout(passkeyMovedSheet, 700);
-  }
+  } else setTimeout(maybeNewsPopup, 1500);
 }
 
 // ---------- boot ----------

@@ -1,0 +1,16 @@
+[
+  {
+    "version": "0.20.0",
+    "icon": "bell",
+    "title": "Les notifications arrivent",
+    "text": "Sois prévenu sur ton téléphone quand une tâche t'est assignée ou quand on t'ajoute à un projet.",
+    "button": { "label": "Les activer", "action": "account", "target": "push-box" }
+  },
+  {
+    "version": "0.21.0",
+    "icon": "spark",
+    "title": "Branche Claude sur tes projets",
+    "text": "Crée un accès dans Mon compte, colle l'adresse dans Claude, et demande-lui tes tâches du jour ou d'ajouter une idée. Il n'a que tes droits et ne peut rien supprimer.",
+    "button": { "label": "Voir comment", "action": "account", "target": "claude-box" }
+  }
+]

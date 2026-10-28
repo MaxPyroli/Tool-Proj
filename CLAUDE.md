@@ -32,6 +32,9 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 15. **Aucune ressource externe pour afficher l'app** : polices dans `public/fonts/`, bibliothèque Supabase dans `public/vendor/supabase-js.js` (copie de la version 2.117.2), jamais de lien vers Google Fonts, jsDelivr, unpkg ou un autre CDN (ces services voient l'adresse IP de l'utilisateur). Seul Supabase (données) reste appelé. Tout fichier ajouté à `public/` qui doit marcher hors-ligne va dans `SHELL` de `sw.js`.
 16. **Page de confidentialité** (`public/confidentialite.html`) : la mettre à jour (et sa date) dès qu'on change ce qui est enregistré ou les services utilisés.
 
+### Pop-up « Nouveau » (grosses nouveautés)
+- `public/nouveautes.json` : une entrée `{version, icon, title, text, button:{label, action, target}}` par **grosse** nouveauté (pas pour les petits réglages). L'app montre **une seule fois** la plus récente non vue (`seenNews` dans le navigateur), jamais une file. `action` = une action de l'app (ex. `account`), `target` = id de la section à faire défiler. Phrases courtes, tutoiement, ce que ça change pour la personne.
+
 ### Adresse du site
 - Adresse officielle : **https://toolproj.panamedev.fr/** (CNAME OVH → `maxpyroli.github.io`, domaine personnalisé réglé dans GitHub Pages ; l'ancienne adresse redirige). Les clés d'accès (passkeys) sont liées au domaine : `NEW_HOST` dans `app.js` affiche le message « clés à recréer » ; réglage Supabase attendu : Relying Party ID `panamedev.fr`, origine `https://toolproj.panamedev.fr`.
 
