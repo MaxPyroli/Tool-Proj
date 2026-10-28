@@ -40,6 +40,10 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 - Un déclencheur ne doit **jamais** bloquer l'écriture : tout est dans un bloc `exception when others`. Sans configuration, tout est muet.
 - Pour vérifier un envoi réel : bouton « Envoyer un test » (Mon compte), puis `select * from net._http_response order by id desc limit 5`.
 
+### Accès pour Claude (connecteur MCP)
+- App (*Mon compte → Accès pour Claude*) → clé `tp_…` fabriquée **dans le navigateur** (seule l'empreinte SHA-256 est enregistrée, table `claude_tokens`) → adresse `…/functions/v1/mcp/<clé>` à coller dans Claude → fonction Edge `mcp` (`supabase/functions/mcp`, **verify_jwt = false**) → `public.mcp_call()` (réservée à la clé serveur) qui exécute 9 outils avec les droits de la personne (`is_member`, `auth.uid()` positionné pour le journal d'activité). **Aucun outil de suppression**, jamais : `test/mcp-test.cjs` le vérifie. Accès « lecture seule » ou « lecture et modification », révocable, `expires_at` possible.
+- Ajouter un outil = `mcp.js` (description) + `mcp_call` (SQL) + test dans `rls_test.sql`. Le texte des tâches renvoyé à Claude reste de la **donnée** (le dire dans les instructions du serveur).
+
 ### Base de données
 1. Modifier `supabase/schema.sql` (toujours rejouable) **et** `supabase/tests/rls_test.sql` ; lancer `npm run test:db` (voir plus bas).
 2. Tester aussi la **mise à jour d'une base existante** (appliquer l'ancien schéma, des données, puis le nouveau, deux fois).

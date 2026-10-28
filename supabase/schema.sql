@@ -613,6 +613,178 @@ do $$ begin
 end $$;
 
 -- =========================================================
+-- Accès pour Claude (connecteur MCP)
+-- La personne crée un accès dans l'app : la clé est fabriquée dans son navigateur, seule son empreinte (SHA-256) est gardée ici.
+-- La fonction Edge « mcp » reçoit la clé, calcule l'empreinte et appelle mcp_call() (réservée à la clé serveur) :
+-- les outils agissent avec les droits de la personne (membre des projets), jamais plus.
+-- =========================================================
+create table if not exists public.claude_tokens (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references public.profiles(id) on delete cascade,
+  label text not null default '' check (char_length(label) <= 60),
+  token_hash text not null unique check (token_hash ~ '^[0-9a-f]{64}$'),
+  can_write boolean not null default true,
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz
+);
+create index if not exists claude_tokens_user_idx on public.claude_tokens (user_id);
+alter table public.claude_tokens enable row level security;
+drop policy if exists "claude_tokens_select" on public.claude_tokens;
+drop policy if exists "claude_tokens_insert" on public.claude_tokens;
+drop policy if exists "claude_tokens_delete" on public.claude_tokens;
+create policy "claude_tokens_select" on public.claude_tokens for select to authenticated using (user_id = auth.uid());
+create policy "claude_tokens_insert" on public.claude_tokens for insert to authenticated with check (user_id = auth.uid());
+create policy "claude_tokens_delete" on public.claude_tokens for delete to authenticated using (user_id = auth.uid());
+revoke all on public.claude_tokens from anon, authenticated;
+grant select (id, user_id, label, can_write, expires_at, created_at, last_used_at) on public.claude_tokens to authenticated;
+grant insert (label, token_hash, can_write, expires_at) on public.claude_tokens to authenticated;
+grant delete on public.claude_tokens to authenticated;
+
+create or replace function public.mcp_call(p_token_hash text, p_tool text, p_args jsonb default '{}'::jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  t record; uid uuid; a jsonb := coalesce(p_args, '{}'::jsonb); pid bigint; tid bigint; eid bigint; r jsonb; n int; w boolean;
+  v_status text; v_type text; v_prio text; v_assignee uuid; v_name text;
+begin
+  select * into t from public.claude_tokens where token_hash = p_token_hash and (expires_at is null or expires_at > now());
+  if t.id is null then return jsonb_build_object('auth', false); end if;
+  uid := t.user_id; w := t.can_write;
+  if t.last_used_at is null or t.last_used_at < now() - interval '1 minute' then
+    update public.claude_tokens set last_used_at = now() where id = t.id;
+  end if;
+  -- les déclencheurs (journal d'activité, auteur) voient la personne comme si elle agissait depuis l'app
+  perform set_config('request.jwt.claim.sub', uid::text, true);
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', uid, 'role', 'authenticated')::text, true);
+
+  if p_tool = 'ping' then return jsonb_build_object('auth', true, 'can_write', w); end if;
+
+  if p_tool = 'list_projects' then
+    return jsonb_build_object('projects', coalesce((select jsonb_agg(jsonb_build_object(
+      'id', p.id, 'name', p.name, 'status', p.status, 'progress', p.manual_progress, 'role', m.role,
+      'open_tasks', (select count(*) from public.tasks x where x.project_id = p.id and x.status <> 'done')) order by p.name)
+      from public.memberships m join public.projects p on p.id = m.project_id where m.user_id = uid), '[]'::jsonb));
+  end if;
+
+  if p_tool in ('get_project', 'list_tasks', 'list_notes', 'create_task', 'create_note', 'create_epic') then
+    pid := nullif(a->>'project_id', '')::bigint;
+    if pid is null then raise exception 'Il manque project_id.'; end if;
+    if not public.is_member(pid) then raise exception 'Tu n''as pas accès à ce projet (ou il n''existe pas).'; end if;
+  end if;
+
+  if p_tool = 'get_project' then
+    return jsonb_build_object(
+      'project', (select jsonb_build_object('id', p.id, 'name', p.name, 'description', p.description, 'status', p.status, 'progress', p.manual_progress, 'due_date', p.due_date) from public.projects p where p.id = pid),
+      'counts', (select coalesce(jsonb_object_agg(status, c), '{}'::jsonb) from (select status, count(*) c from public.tasks where project_id = pid group by status) q),
+      'epics', coalesce((select jsonb_agg(jsonb_build_object('id', e.id, 'title', e.title, 'horizon', e.horizon,
+          'tasks_open', (select count(*) from public.tasks x where x.epic_id = e.id and x.status <> 'done'),
+          'tasks_done', (select count(*) from public.tasks x where x.epic_id = e.id and x.status = 'done')) order by e.position, e.id)
+          from public.epics e where e.project_id = pid), '[]'::jsonb),
+      'members', coalesce((select jsonb_agg(jsonb_build_object('username', pr.username, 'name', pr.display_name, 'role', m.role))
+          from public.memberships m join public.profiles pr on pr.id = m.user_id where m.project_id = pid), '[]'::jsonb),
+      'links', coalesce((select jsonb_agg(jsonb_build_object('label', l.label, 'url', l.url) order by l.position, l.id) from public.project_links l where l.project_id = pid), '[]'::jsonb));
+  end if;
+
+  if p_tool = 'list_tasks' or p_tool = 'my_tasks' then
+    n := least(greatest(coalesce(nullif(a->>'limit', '')::int, 50), 1), 200);
+    return jsonb_build_object('tasks', coalesce((select jsonb_agg(row_to_json(q)) from (
+      select x.id, x.project_id, pr.name as project, x.title, left(x.description, 600) as description, x.status, x.type, x.priority,
+             e.title as epic, x.epic_id, a2.username as assignee, x.created_at, x.done_at
+      from public.tasks x
+      join public.projects pr on pr.id = x.project_id
+      left join public.epics e on e.id = x.epic_id
+      left join public.profiles a2 on a2.id = x.assignee_id
+      where (case when p_tool = 'my_tasks' then x.assignee_id = uid and x.status <> 'done'
+                  else x.project_id = pid
+                       and (nullif(a->>'status', '') is null or x.status = a->>'status')
+                       and (nullif(a->>'type', '') is null or x.type = a->>'type')
+                       and (nullif(a->>'epic_id', '') is null or x.epic_id = (a->>'epic_id')::bigint)
+                       and (coalesce((a->>'mine')::boolean, false) = false or x.assignee_id = uid)
+                       and (coalesce((a->>'include_done')::boolean, false) or nullif(a->>'status', '') is not null or x.status <> 'done') end)
+        and (p_tool <> 'my_tasks' or exists (select 1 from public.memberships m where m.project_id = x.project_id and m.user_id = uid))
+      order by case x.status when 'doing' then 0 when 'todo' then 1 else 2 end, case x.priority when 'high' then 0 when 'normal' then 1 else 2 end, x.id
+      limit n) q), '[]'::jsonb));
+  end if;
+
+  if p_tool = 'list_notes' then
+    return jsonb_build_object('notes', coalesce((select jsonb_agg(row_to_json(q)) from (
+      select x.id, x.text, x.color, (select count(*) from public.note_votes v where v.note_id = x.id) as votes, x.created_at
+      from public.notes x where x.project_id = pid order by x.id desc limit 100) q), '[]'::jsonb));
+  end if;
+
+  -- ----- écritures -----
+  if p_tool in ('create_task', 'update_task', 'create_note', 'create_epic') and not w then
+    raise exception 'Cet accès est en lecture seule.';
+  end if;
+
+  if p_tool = 'create_task' then
+    v_type := coalesce(nullif(a->>'type', ''), 'task'); v_prio := coalesce(nullif(a->>'priority', ''), 'normal'); v_status := coalesce(nullif(a->>'status', ''), 'todo');
+    v_name := coalesce(nullif(a->>'assignee', ''), 'me');
+    if v_name = 'me' then v_assignee := uid;
+    elsif v_name = 'none' then v_assignee := null;
+    else
+      select id into v_assignee from public.profiles where username = lower(ltrim(v_name, '@'));
+      if v_assignee is null then raise exception 'Personne ne s''appelle « % ».', v_name; end if;
+    end if;
+    insert into public.tasks (project_id, title, description, type, priority, status, epic_id, assignee_id, position)
+    values (pid, left(trim(a->>'title'), 200), left(coalesce(a->>'description', ''), 5000), v_type, v_prio, v_status, nullif(a->>'epic_id', '')::bigint, v_assignee,
+            coalesce((select max(position) from public.tasks where project_id = pid), 0) + 1)
+    returning id into tid;
+    return jsonb_build_object('created', true, 'task_id', tid);
+  end if;
+
+  if p_tool = 'update_task' then
+    tid := nullif(a->>'task_id', '')::bigint;
+    select project_id into pid from public.tasks where id = tid;
+    if pid is null or not public.is_member(pid) then raise exception 'Cette tâche n''existe pas (ou tu n''y as pas accès).'; end if;
+    if a ? 'assignee' then
+      v_name := a->>'assignee';
+      if v_name is null or v_name in ('', 'none') then v_assignee := null;
+      elsif v_name = 'me' then v_assignee := uid;
+      else
+        select id into v_assignee from public.profiles where username = lower(ltrim(v_name, '@'));
+        if v_assignee is null then raise exception 'Personne ne s''appelle « % ».', v_name; end if;
+      end if;
+    end if;
+    update public.tasks set
+      title = coalesce(left(trim(a->>'title'), 200), title),
+      description = coalesce(left(a->>'description', 5000), description),
+      status = coalesce(nullif(a->>'status', ''), status),
+      type = coalesce(nullif(a->>'type', ''), type),
+      priority = coalesce(nullif(a->>'priority', ''), priority),
+      epic_id = case when a ? 'epic_id' then nullif(a->>'epic_id', '')::bigint else epic_id end,
+      assignee_id = case when a ? 'assignee' then v_assignee else assignee_id end
+    where id = tid;
+    return jsonb_build_object('updated', true, 'task_id', tid);
+  end if;
+
+  if p_tool = 'create_note' then
+    n := (select count(*) from public.notes where project_id = pid);
+    insert into public.notes (project_id, text, color, x, y, z)
+    values (pid, left(coalesce(a->>'text', ''), 1000), coalesce(nullif(a->>'color', ''), 'yellow'),
+            40 + (n % 12) * 220, least(40 + (n / 12) * 220, 2800), coalesce((select max(z) from public.notes where project_id = pid), 0) + 1)
+    returning id into tid;
+    return jsonb_build_object('created', true, 'note_id', tid);
+  end if;
+
+  if p_tool = 'create_epic' then
+    insert into public.epics (project_id, title, description, horizon, position)
+    values (pid, left(trim(a->>'title'), 200), left(coalesce(a->>'description', ''), 5000), coalesce(nullif(a->>'horizon', ''), 'next'),
+            coalesce((select max(position) from public.epics where project_id = pid), 0) + 1)
+    returning id into eid;
+    return jsonb_build_object('created', true, 'epic_id', eid);
+  end if;
+
+  raise exception 'Outil inconnu : %', p_tool;
+end $$;
+revoke execute on function public.mcp_call(text, text, jsonb) from public, anon, authenticated;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.mcp_call(text, text, jsonb) to service_role;
+  end if;
+end $$;
+
+-- =========================================================
 -- Temps réel (les changements des autres apparaissent en direct)
 -- =========================================================
 do $$

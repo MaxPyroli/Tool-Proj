@@ -23,6 +23,7 @@ Installable sur téléphone (PWA), hébergée **gratuitement** : l'interface sur
 - **Plan de travail de post-it** pour le brouillon : un grand mur qu'on zoome (pincement, Ctrl + molette) et qu'on parcourt en glissant, avec « Tout voir », une mini-carte du mur entier, le plein écran, « Ranger » (par couleur, votes ou date, avec annulation) et un double-clic pour poser un post-it où on veut. Notes de couleur qu'on déplace librement (souris ou doigt), vue « Grille » triée par votes, 👍 pour voter, et « Transformer en… » chantier, tâche, bug ou amélioration quand l'idée est mûre.
 - **Liens du projet** : autant de liens que voulu (GitHub, Supabase, conversation Claude, maquette, site, store…), reconnus par leur adresse avec leur icône et affichés en boutons dans l'aperçu. Les admins les gèrent, tous les membres les voient.
 - **Notifications** (Web Push) : prévenu quand une tâche t'est assignée par quelqu'un d'autre ou quand on t'ajoute à un projet. Activation par appareil dans *Mon compte → Notifications* (iPhone : app installée, iOS 16.4 ou plus). Mise en place : voir « Notifications » plus bas.
+- **Accès pour Claude** (connecteur MCP) : *Mon compte → Accès pour Claude* crée une adresse personnelle à coller dans Claude (réglages → connecteurs, ou `claude mcp add --transport http`). Claude lit les projets et, si la personne l'autorise, crée ou modifie tâches, post-it et chantiers, avec ses seuls droits ; aucune suppression. Révocable à tout moment. Mise en place : voir « Accès pour Claude » plus bas.
 - **Temps réel** : les changements des autres apparaissent tout seuls.
 - **Aperçu** : jauge d'avancement, chantiers en cours, bugs ouverts, idées les plus votées, activité récente (repliée par défaut, elle se vide toute seule : 20 événements au plus, 14 jours). Thème clair / sombre / auto.
 
@@ -91,6 +92,13 @@ La personne clique sur le lien reçu, choisit son nom et son identifiant, crée 
 4. Mettre la clé **publique** dans `VAPID_PUBLIC_KEY` (`public/app.js`).
 
 Sans cette configuration, rien ne casse : les notifications restent simplement muettes.
+
+## Accès pour Claude (mise en place, une seule fois)
+
+1. Relancer [`supabase/schema.sql`](supabase/schema.sql) (table `claude_tokens` et fonction `mcp_call`).
+2. Déployer la fonction Edge [`supabase/functions/mcp`](supabase/functions/mcp/index.ts) **sans vérification JWT** (`supabase functions deploy mcp --no-verify-jwt`) : la clé personnelle contenue dans l'adresse fait foi.
+
+Rien d'autre à configurer : la clé est fabriquée dans le navigateur de chacun et seule son empreinte est enregistrée.
 
 ## Mettre à jour
 

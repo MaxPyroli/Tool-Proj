@@ -202,4 +202,85 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e1
 delete from projects;
 reset role;
 
+
+-- ===== Accès pour Claude (mcp_call) =====
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-0000000000f1', 'mia@ex.fr', '{"username":"mia"}'),
+  ('00000000-0000-0000-0000-0000000000f2', 'max@ex.fr', '{"username":"max"}'),
+  ('00000000-0000-0000-0000-0000000000f3', 'zed@ex.fr', '{"username":"zed"}');
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f1', false);
+select create_project('Projet Claude') as cpid \gset
+select add_member(:cpid, '@max', 'member');
+insert into claude_tokens (label, token_hash, can_write) values ('rw', repeat('1', 64), true), ('ro', repeat('2', 64), false);
+insert into claude_tokens (label, token_hash, can_write, expires_at) values ('expiré', repeat('3', 64), true, now() - interval '1 minute');
+select pg_temp.expect_error($$insert into claude_tokens (user_id, label, token_hash) values ('00000000-0000-0000-0000-0000000000f2', 'x', repeat('4', 64))$$, 'permission denied');
+select pg_temp.expect_error($$select token_hash from claude_tokens$$, 'permission denied');
+select pg_temp.expect_error($$select public.mcp_call(repeat('1', 64), 'list_projects')$$, 'permission denied');
+do $$ begin assert (select count(*) from claude_tokens) = 3, 'je vois mes accès (sans l''empreinte)'; end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f2', false);
+do $$ begin assert (select count(*) from claude_tokens) = 0, 'je ne vois pas les accès des autres'; end $$;
+insert into claude_tokens (label, token_hash, can_write) values ('max', repeat('5', 64), true);
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f3', false);
+insert into claude_tokens (label, token_hash, can_write) values ('zed', repeat('6', 64), true);
+reset role;
+
+select set_config('t.cpid', :'cpid', false);
+do $$ declare r jsonb; tid bigint; pidv bigint := current_setting('t.cpid')::bigint; begin
+  assert (public.mcp_call(repeat('9', 64), 'ping')->>'auth')::boolean = false, 'empreinte inconnue refusée';
+  assert (public.mcp_call(repeat('3', 64), 'ping')->>'auth')::boolean = false, 'accès expiré refusé';
+  assert (public.mcp_call(repeat('1', 64), 'ping')->>'auth')::boolean = true, 'accès valide';
+  assert (select last_used_at from claude_tokens where token_hash = repeat('1', 64)) is not null, 'dernière utilisation notée';
+  -- projets : chacun voit les siens
+  assert jsonb_array_length(public.mcp_call(repeat('1', 64), 'list_projects')->'projects') = 1, 'Mia voit son projet';
+  assert jsonb_array_length(public.mcp_call(repeat('6', 64), 'list_projects')->'projects') = 0, 'Zed ne voit rien';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'get_project', '{"project_id": %s}')$f$, pidv), 'accès');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'create_task', '{"project_id": %s, "title": "x"}')$f$, pidv), 'accès');
+  assert (public.mcp_call(repeat('5', 64), 'get_project', jsonb_build_object('project_id', pidv))->'project'->>'name') = 'Projet Claude', 'Max (membre) voit le projet';
+  assert jsonb_array_length(public.mcp_call(repeat('5', 64), 'get_project', jsonb_build_object('project_id', pidv))->'members') = 2, 'membres listés';
+  -- lecture seule
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('2', 64), 'create_task', '{"project_id": %s, "title": "x"}')$f$, pidv), 'lecture seule');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('2', 64), 'create_note', '{"project_id": %s, "text": "x"}')$f$, pidv), 'lecture seule');
+  assert jsonb_array_length(public.mcp_call(repeat('2', 64), 'list_tasks', jsonb_build_object('project_id', pidv))->'tasks') = 0, 'lecture seule : on peut lire';
+  -- création et modification
+  r := public.mcp_call(repeat('1', 64), 'create_task', jsonb_build_object('project_id', pidv, 'title', 'Écrire le README', 'type', 'idea', 'priority', 'high', 'description', 'Détails'));
+  tid := (r->>'task_id')::bigint;
+  assert (select created_by from tasks where id = tid) = '00000000-0000-0000-0000-0000000000f1', 'auteur = la personne';
+  assert (select assignee_id from tasks where id = tid) = '00000000-0000-0000-0000-0000000000f1', 'assignée à la personne par défaut';
+  assert (select type || priority from tasks where id = tid) = 'ideahigh', 'type et priorité';
+  assert exists (select 1 from activity where project_id = pidv and user_id = '00000000-0000-0000-0000-0000000000f1' and message like '%Écrire le README%'), 'journal d''activité attribué à la personne';
+  perform public.mcp_call(repeat('1', 64), 'update_task', jsonb_build_object('task_id', tid, 'status', 'done'));
+  assert (select done_at from tasks where id = tid) is not null, 'terminée : date de fin';
+  perform public.mcp_call(repeat('1', 64), 'update_task', jsonb_build_object('task_id', tid, 'status', 'doing', 'assignee', 'max', 'title', 'README écrit'));
+  assert (select title || status from tasks where id = tid) = 'README écritdoing', 'modifiée';
+  assert (select assignee_id from tasks where id = tid) = '00000000-0000-0000-0000-0000000000f2', 'assignée à Max';
+  assert (select done_at from tasks where id = tid) is null, 'plus terminée';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "assignee": "inconnu"}')$f$, tid), 'Personne');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "status": "fini"}')$f$, tid), 'check constraint');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'create_task', '{"project_id": %s, "title": "x", "assignee": "zed"}')$f$, pidv), 'pas membre');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'update_task', '{"task_id": %s, "status": "done"}')$f$, tid), 'accès');
+  -- lecture
+  assert jsonb_array_length(public.mcp_call(repeat('5', 64), 'my_tasks')->'tasks') = 1, 'Max voit la tâche qui lui est assignée';
+  assert (public.mcp_call(repeat('5', 64), 'my_tasks')->'tasks'->0->>'project') = 'Projet Claude', 'avec le nom du projet';
+  assert jsonb_array_length(public.mcp_call(repeat('1', 64), 'list_tasks', jsonb_build_object('project_id', pidv, 'type', 'bug'))->'tasks') = 0, 'filtre par type';
+  assert jsonb_array_length(public.mcp_call(repeat('1', 64), 'list_tasks', jsonb_build_object('project_id', pidv, 'status', 'doing'))->'tasks') = 1, 'filtre par statut';
+  -- post-it et chantiers
+  r := public.mcp_call(repeat('1', 64), 'create_note', jsonb_build_object('project_id', pidv, 'text', 'Une idée', 'color', 'pink'));
+  assert (select x between 0 and 3000 and y between 0 and 3000 and color = 'pink' from notes where id = (r->>'note_id')::bigint), 'post-it placé dans le mur';
+  assert jsonb_array_length(public.mcp_call(repeat('5', 64), 'list_notes', jsonb_build_object('project_id', pidv))->'notes') = 1, 'post-it listé';
+  r := public.mcp_call(repeat('1', 64), 'create_epic', jsonb_build_object('project_id', pidv, 'title', 'Grand chantier', 'horizon', 'now'));
+  assert (select horizon from epics where id = (r->>'epic_id')::bigint) = 'now', 'chantier créé';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'delete_everything', '{"project_id": %s}')$f$, pidv), 'Outil inconnu');
+end $$;
+-- révoquer = supprimer la ligne
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f1', false);
+delete from claude_tokens where label = 'rw';
+reset role;
+do $$ begin assert (public.mcp_call(repeat('1', 64), 'ping')->>'auth')::boolean = false, 'accès révoqué refusé'; end $$;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000f1', false);
+delete from projects where name = 'Projet Claude';
+reset role;
+
 \echo 'OK : tous les tests de sécurité passent'

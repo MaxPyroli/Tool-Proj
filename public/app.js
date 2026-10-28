@@ -85,7 +85,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.20.3';
+const APP_VERSION = '0.21.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -1425,6 +1425,53 @@ function bindWall(wrap) {
 
 // ---------- account ----------
 
+// ---------- accès pour Claude ----------
+const copyText = async (text) => {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* old browser: select the field instead */ }
+  const el = sheet.querySelector('#claude-url'); if (el) { el.select(); try { return document.execCommand('copy'); } catch { return false; } }
+  return false;
+};
+
+async function renderClaudeBox() {
+  const box = sheet.querySelector('#claude-box');
+  if (!box) return;
+  try {
+    const rows = await db.listClaudeAccess();
+    box.innerHTML = rows.length ? rows.map((r) => {
+      const dead = r.expires_at && new Date(r.expires_at) < new Date();
+      return `<div class="passkey">${ico('spark', 18)}<div class="grow"><strong>${esc(r.label || 'Accès sans nom')}</strong>
+        <span class="small muted">${r.can_write ? 'Lecture et modification' : 'Lecture seule'}${dead ? ' · expiré' : ''} · créé ${timeAgo(r.created_at)}${r.last_used_at ? ` · utilisé ${timeAgo(r.last_used_at)}` : ' · jamais utilisé'}</span></div>
+        <button class="btn sm ghost" data-action="claude-revoke" data-id="${r.id}" aria-label="Révoquer cet accès">Révoquer</button></div>`;
+    }).join('') : '<p class="small muted">Aucun accès pour le moment.</p>';
+  } catch (e) { box.innerHTML = `<p class="small muted">${esc(e.message)}</p>`; }
+}
+
+function claudeNewSheet() {
+  openSheet(`
+    <form class="stack" data-form="claude-new">
+      <div class="sheet-head"><h2 id="sheet-title">Nouvel accès pour Claude</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+      <label class="field"><span>Nom <small class="muted">(pour t'y retrouver)</small></span><input class="input" name="label" maxlength="60" placeholder="ex. Claude.ai, Claude Code" autocomplete="off"></label>
+      ${segField('rights', { write: 'Lecture et modification', read: 'Lecture seule' }, 'write', 'Ce que Claude peut faire')}
+      <p class="small muted">Dans les deux cas, Claude n'a que tes droits (tes projets) et ne peut rien supprimer. « Modification » = créer et changer des tâches, des post-it et des chantiers.</p>
+      <div class="row end"><button class="btn primary" type="submit">Créer l'accès</button></div>
+    </form>`);
+}
+
+function claudeTokenSheet({ url }) {
+  openSheet(`
+    <div class="stack">
+      <div class="sheet-head"><h2 id="sheet-title">Accès créé</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+      <p class="small"><b>Copie cette adresse maintenant : elle ne sera plus affichée.</b> C'est comme un mot de passe : ne la partage pas. Si tu la perds ou si elle fuite, révoque l'accès dans <b>Mon compte</b> et crées-en un autre.</p>
+      <label class="field"><span>Adresse du connecteur</span><input class="input" id="claude-url" readonly value="${esc(url)}" onfocus="this.select()"></label>
+      <button class="btn primary" data-action="claude-copy" data-text="${esc(url)}">Copier l'adresse</button>
+      <h3>Dans Claude (claude.ai ou l'app)</h3>
+      <ol class="small steps"><li>Ouvre <b>Réglages → Connecteurs</b>.</li><li>Touche <b>Ajouter un connecteur personnalisé</b>.</li><li>Donne-lui un nom (« Tool Proj ») et colle l'adresse.</li><li>Dans une conversation, active le connecteur, puis demande par exemple « Quelles sont mes tâches en cours ? ».</li></ol>
+      <h3>Dans Claude Code</h3>
+      <p class="small muted">Colle cette commande dans ton terminal :</p>
+      <input class="input" readonly value="${esc(`claude mcp add --transport http tool-proj ${url}`)}" onfocus="this.select()">
+    </div>`);
+}
+
 // ---------- notifications (Web Push) ----------
 const VAPID_PUBLIC_KEY = 'BIDS_jwrwZ0j4mzNnl7ihtI7kMiEfg8lZo0-3Ux2JyIEpm4zKLdiDFzRuOnI3Wej2FtGaM-Kr88vyK2KiV3fcAQ';
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -1531,8 +1578,14 @@ function accountSheet() {
       <h3>Notifications</h3>
       <div id="push-box"><p class="small muted">Chargement…</p></div>
     </section>
+    <section class="stack" style="gap:10px">
+      <h3>Accès pour Claude</h3>
+      <p class="small muted">Branche Claude sur tes projets : il peut lire (et, si tu le permets, ajouter ou modifier) tes tâches, post-it et chantiers, avec tes droits.</p>
+      <div class="passkeys" id="claude-box"><p class="small muted">Chargement…</p></div>
+      <button class="btn" data-action="claude-new">Créer un accès</button>
+    </section>
     <button class="btn danger" data-action="logout">Se déconnecter</button>
-    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span><br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { renderPushBox(); if (db.passkeysSupported()) loadPasskeys(); });
+    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span><br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { renderPushBox(); renderClaudeBox(); if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {
@@ -1726,6 +1779,14 @@ const actions = {
     const p = state.installPrompt; if (!p) return;
     p.prompt(); await p.userChoice; state.installPrompt = null; closeSheet();
   },
+  'claude-new': () => claudeNewSheet(),
+  'claude-copy': async (el) => { toast((await copyText(el.dataset.text)) ? 'Adresse copiée' : 'Touche l\'adresse puis copie-la', false); },
+  'claude-revoke': async (el) => {
+    const id = Number(el.dataset.id);
+    if (!(await confirmSheet('Révoquer cet accès ? Claude ne pourra plus lire ni modifier tes projets avec cette adresse.', 'Révoquer'))) return accountSheet();
+    await db.revokeClaudeAccess(id);
+    toast('Accès révoqué'); accountSheet();
+  },
   'push-on': async () => {
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') { toast('Notifications refusées', true); return renderPushBox(); }
@@ -1755,6 +1816,10 @@ const actions = {
 };
 
 const forms = {
+  async 'claude-new'(f) {
+    const b = formData(f);
+    claudeTokenSheet(await db.createClaudeAccess(b.label, b.rights !== 'read'));
+  },
   async 'email-link'(f) {
     const email = formData(f).email.trim();
     state.authEmail = email;

@@ -96,6 +96,21 @@ export async function deletePasskey(id) { ok(await sb.auth.passkey.delete({ pass
 
 export async function signOut() { await sb.auth.signOut(); }
 
+// ---------- accès pour Claude (connecteur) ----------
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+/** Makes a personal key in the browser; only its SHA-256 fingerprint is sent to the database. Returns the key (shown once). */
+export async function createClaudeAccess(label, canWrite) {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const token = 'tp_' + btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const hash = hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)));
+  ok(await sb.from('claude_tokens').insert({ label: (label || '').trim().slice(0, 60), token_hash: hash, can_write: !!canWrite }));
+  return { token, url: `${cfg.supabaseUrl}/functions/v1/mcp/${token}` };
+}
+export async function listClaudeAccess() {
+  return ok(await sb.from('claude_tokens').select('id,label,can_write,expires_at,created_at,last_used_at').order('created_at', { ascending: false }));
+}
+export async function revokeClaudeAccess(id) { ok(await sb.from('claude_tokens').delete().eq('id', id)); }
+
 // ---------- notifications (Web Push) ----------
 /** Saves this device's push subscription for the signed-in person (replaces an older one with the same address). */
 export async function savePushSubscription(userId, sub) {
