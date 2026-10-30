@@ -3,6 +3,7 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.21.3
+- Accès pour Claude : à chaque nouvelle conversation, Claude te demande sur quel projet travailler, puis reste sur ce projet uniquement (il ne voit plus les autres et ne peut pas en changer).
 - Images dans les tâches : colle une capture (ou glisse-la, ou touche l'icône image) dans la description d'une tâche, d'un bug ou d'une idée. Les miniatures restent dans la zone de texte, tu les touches pour les voir en grand. 8 images au plus, réduites automatiquement ; seuls les membres du projet les voient.
 
 ## 0.21.2

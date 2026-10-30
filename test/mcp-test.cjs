@@ -10,7 +10,8 @@
   r = await rpc('initialize', { protocolVersion: '1999-01-01' }); ok(r.result.protocolVersion === '2025-06-18', 'initialize : version inconnue → la plus récente');
   ok(await handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, call) === null, 'notification : pas de réponse');
   r = await rpc('ping'); ok(JSON.stringify(r.result) === '{}', 'ping');
-  r = await rpc('tools/list'); ok(r.result.tools.length === 9 && r.result.tools.every((t) => t.name && t.description && t.inputSchema.type === 'object'), 'tools/list : 9 outils décrits');
+  r = await rpc('tools/list'); ok(r.result.tools.length === 10 && r.result.tools.every((t) => t.name && t.description && t.inputSchema.type === 'object'), 'tools/list : 10 outils décrits');
+  ok(TOOLS.some((t) => t.name === 'select_project'), 'select_project existe');
   ok(new Set(TOOLS.map((t) => t.name)).size === TOOLS.length, 'noms uniques');
   ok(!TOOLS.some((t) => /delete|remove|drop/i.test(t.name)), 'aucun outil de suppression');
   r = await rpc('tools/call', { name: 'list_projects', arguments: {} }); ok(r.result.isError === false && JSON.parse(r.result.content[0].text).ok === 'list_projects', 'tools/call : résultat en texte JSON');

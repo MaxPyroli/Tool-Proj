@@ -9,11 +9,12 @@ const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const sha256 = async (s: string) =>
   [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, "0")).join("");
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...extra } });
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, mcp-session-id, mcp-protocol-version", "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS" } });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, mcp-session-id, mcp-protocol-version", "Access-Control-Expose-Headers": "mcp-session-id", "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS" } });
   const last = new URL(req.url).pathname.split("/").filter(Boolean).pop() ?? "";
   const bearer = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   const token = last.startsWith("tp_") ? last : bearer.startsWith("tp_") ? bearer : "";
@@ -23,8 +24,12 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Méthode non gérée." }, 405);
 
   const hash = await sha256(token);
+  // une conversation = une session : numéro donné à l'ouverture (initialize), renvoyé ensuite par Claude à chaque requête
+  const header = (req.headers.get("mcp-session-id") ?? "").toLowerCase();
+  let sid = UUID.test(header) ? header : "";
   const call = async (tool: string, args: Record<string, unknown>) => {
-    const { data, error } = await sb.rpc("mcp_call", { p_token_hash: hash, p_tool: tool, p_args: args });
+    const { _session: _ignored, ...clean } = args; // jamais fourni par Claude : seul le serveur le pose
+    const { data, error } = await sb.rpc("mcp_call", { p_token_hash: hash, p_tool: tool, p_args: sid ? { ...clean, _session: sid } : clean });
     if (error) throw new Error(error.message);
     if (data?.auth === false) throw new AuthError("Accès refusé");
     return data;
@@ -34,12 +39,15 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "JSON illisible" } }, 400); }
   try {
     await call("ping", {}); // la clé doit être valable pour toute requête
+    const opening = !Array.isArray(body) && (body as { method?: string })?.method === "initialize";
+    if (opening) sid = crypto.randomUUID();
+    const hdr = sid ? { "Mcp-Session-Id": sid } : {};
     if (Array.isArray(body)) {
       const out = (await Promise.all(body.map((m) => handleMessage(m, call)))).filter((r) => r !== null);
-      return out.length ? json(out) : new Response(null, { status: 202 });
+      return out.length ? json(out, 200, hdr) : new Response(null, { status: 202 });
     }
     const res = await handleMessage(body as never, call);
-    return res ? json(res) : new Response(null, { status: 202 });
+    return res ? json(res, 200, hdr) : new Response(null, { status: 202 });
   } catch (e) {
     if (e instanceof AuthError) return json({ error: "Accès refusé : clé inconnue, expirée ou révoquée." }, 401);
     console.error("mcp", (e as Error).message);

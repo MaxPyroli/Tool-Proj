@@ -701,11 +701,24 @@ grant select (id, user_id, label, can_write, expires_at, created_at, last_used_a
 grant insert (label, token_hash, can_write, expires_at) on public.claude_tokens to authenticated;
 grant delete on public.claude_tokens to authenticated;
 
+-- Une « session » = une conversation dans Claude (en-tête Mcp-Session-Id fourni par la fonction Edge).
+-- Au premier usage, Claude demande le projet, puis select_project le verrouille pour toute la conversation.
+create table if not exists public.claude_sessions (
+  token_id bigint not null references public.claude_tokens(id) on delete cascade,
+  session_id text not null check (session_id ~ '^[0-9a-f-]{36}$'),
+  project_id bigint references public.projects(id) on delete set null,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz not null default now(),
+  primary key (token_id, session_id)
+);
+alter table public.claude_sessions enable row level security;
+revoke all on public.claude_sessions from anon, authenticated;
+
 create or replace function public.mcp_call(p_token_hash text, p_tool text, p_args jsonb default '{}'::jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   t record; uid uuid; a jsonb := coalesce(p_args, '{}'::jsonb); pid bigint; tid bigint; eid bigint; r jsonb; n int; w boolean;
-  v_status text; v_type text; v_prio text; v_assignee uuid; v_name text;
+  v_status text; v_type text; v_prio text; v_assignee uuid; v_name text; sid text; lock bigint; lock_name text;
 begin
   select * into t from public.claude_tokens where token_hash = p_token_hash and (expires_at is null or expires_at > now());
   if t.id is null then return jsonb_build_object('auth', false); end if;
@@ -719,16 +732,44 @@ begin
 
   if p_tool = 'ping' then return jsonb_build_object('auth', true, 'can_write', w); end if;
 
+  -- conversation : le projet choisi (select_project) est le seul accessible ; sans session, pas de verrou
+  sid := nullif(a->>'_session', ''); a := a - '_session';
+  if sid is not null then
+    insert into public.claude_sessions (token_id, session_id) values (t.id, sid)
+      on conflict (token_id, session_id) do update set
+        project_id = case when public.claude_sessions.last_used_at < now() - interval '6 hours' then null else public.claude_sessions.project_id end,
+        last_used_at = now()
+      returning project_id into lock;
+    if lock is not null then select name into lock_name from public.projects where id = lock; end if;
+  end if;
+
+  if p_tool = 'select_project' then
+    pid := nullif(a->>'project_id', '')::bigint;
+    if sid is null then raise exception 'Cette connexion ne garde pas la conversation : donne project_id à chaque outil.'; end if;
+    if pid is null or not public.is_member(pid) then raise exception 'Tu n''as pas accès à ce projet (ou il n''existe pas).'; end if;
+    if lock is not null and lock <> pid then raise exception 'Cette conversation est déjà limitée au projet « % » (id %). Pour un autre projet, ouvre une nouvelle conversation.', lock_name, lock; end if;
+    update public.claude_sessions set project_id = pid where token_id = t.id and session_id = sid;
+    return jsonb_build_object('selected', true, 'project_id', pid, 'project', (select name from public.projects where id = pid),
+      'note', 'Cette conversation reste sur ce projet uniquement.');
+  end if;
+
+  if sid is not null and lock is null and p_tool <> 'list_projects' then
+    raise exception 'Demande d''abord à la personne sur quel projet travailler (liste-les avec list_projects), puis appelle select_project.';
+  end if;
+
   if p_tool = 'list_projects' then
     return jsonb_build_object('projects', coalesce((select jsonb_agg(jsonb_build_object(
       'id', p.id, 'name', p.name, 'status', p.status, 'progress', p.manual_progress, 'role', m.role,
       'open_tasks', (select count(*) from public.tasks x where x.project_id = p.id and x.status <> 'done')) order by p.name)
-      from public.memberships m join public.projects p on p.id = m.project_id where m.user_id = uid), '[]'::jsonb));
+      from public.memberships m join public.projects p on p.id = m.project_id where m.user_id = uid and (lock is null or p.id = lock)), '[]'::jsonb))
+      || case when sid is not null and lock is null then jsonb_build_object('choose', 'Demande à la personne quel projet utiliser dans cette conversation, puis appelle select_project.')
+              when lock is not null then jsonb_build_object('locked_to', lock) else '{}'::jsonb end;
   end if;
 
   if p_tool in ('get_project', 'list_tasks', 'list_notes', 'create_task', 'create_note', 'create_epic') then
-    pid := nullif(a->>'project_id', '')::bigint;
+    pid := coalesce(nullif(a->>'project_id', '')::bigint, lock);
     if pid is null then raise exception 'Il manque project_id.'; end if;
+    if lock is not null and pid <> lock then raise exception 'Cette conversation est limitée au projet « % » (id %).', lock_name, lock; end if;
     if not public.is_member(pid) then raise exception 'Tu n''as pas accès à ce projet (ou il n''existe pas).'; end if;
   end if;
 
@@ -755,7 +796,7 @@ begin
       join public.projects pr on pr.id = x.project_id
       left join public.epics e on e.id = x.epic_id
       left join public.profiles a2 on a2.id = x.assignee_id
-      where (case when p_tool = 'my_tasks' then x.assignee_id = uid and x.status <> 'done'
+      where (lock is null or x.project_id = lock) and (case when p_tool = 'my_tasks' then x.assignee_id = uid and x.status <> 'done'
                   else x.project_id = pid
                        and (nullif(a->>'status', '') is null or x.status = a->>'status')
                        and (nullif(a->>'type', '') is null or x.type = a->>'type')
@@ -797,7 +838,7 @@ begin
   if p_tool = 'update_task' then
     tid := nullif(a->>'task_id', '')::bigint;
     select project_id into pid from public.tasks where id = tid;
-    if pid is null or not public.is_member(pid) then raise exception 'Cette tâche n''existe pas (ou tu n''y as pas accès).'; end if;
+    if pid is null or not public.is_member(pid) or (lock is not null and pid <> lock) then raise exception 'Cette tâche n''existe pas (ou tu n''y as pas accès dans ce projet).'; end if;
     if a ? 'assignee' then
       v_name := a->>'assignee';
       if v_name is null or v_name in ('', 'none') then v_assignee := null;

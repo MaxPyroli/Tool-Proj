@@ -1549,7 +1549,7 @@ function claudeNewSheet() {
       <div class="sheet-head"><h2 id="sheet-title">Nouvel accès pour Claude</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
       <label class="field"><span>Nom <small class="muted">(pour t'y retrouver)</small></span><input class="input" name="label" maxlength="60" placeholder="ex. Claude.ai, Claude Code" autocomplete="off"></label>
       ${segField('rights', { write: 'Lecture et modification', read: 'Lecture seule' }, 'write', 'Ce que Claude peut faire')}
-      <p class="small muted">Dans les deux cas, Claude n'a que tes droits (tes projets) et ne peut rien supprimer. « Modification » = créer et changer des tâches, des post-it et des chantiers.</p>
+      <p class="small muted">Dans les deux cas, Claude n'a que tes droits (tes projets) et ne peut rien supprimer. À chaque nouvelle conversation, Claude te demande sur quel projet travailler, puis reste sur celui-là uniquement. « Modification » = créer et changer des tâches, des post-it et des chantiers.</p>
       <div class="row end"><button class="btn primary" type="submit">Créer l'accès</button></div>
     </form>`);
 }

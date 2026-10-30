@@ -226,7 +226,7 @@ insert into claude_tokens (label, token_hash, can_write) values ('zed', repeat('
 reset role;
 
 select set_config('t.cpid', :'cpid', false);
-do $$ declare r jsonb; tid bigint; pidv bigint := current_setting('t.cpid')::bigint; begin
+do $$ declare r jsonb; tid bigint; other_pid bigint; pidv bigint := current_setting('t.cpid')::bigint; begin
   assert (public.mcp_call(repeat('9', 64), 'ping')->>'auth')::boolean = false, 'empreinte inconnue refusée';
   assert (public.mcp_call(repeat('3', 64), 'ping')->>'auth')::boolean = false, 'accès expiré refusé';
   assert (public.mcp_call(repeat('1', 64), 'ping')->>'auth')::boolean = true, 'accès valide';
@@ -258,6 +258,24 @@ do $$ declare r jsonb; tid bigint; pidv bigint := current_setting('t.cpid')::big
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "assignee": "inconnu"}')$f$, tid), 'Personne');
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "status": "fini"}')$f$, tid), 'check constraint');
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'create_task', '{"project_id": %s, "title": "x", "assignee": "zed"}')$f$, pidv), 'pas membre');
+  -- conversation verrouillée sur un projet (Mcp-Session-Id)
+  perform public.mcp_call(repeat('1', 64), 'create_task', jsonb_build_object('project_id', pidv, 'title', 'Sans session'));
+  r := public.mcp_call(repeat('1', 64), 'list_projects', '{"_session": "11111111-1111-1111-1111-111111111111"}');
+  assert r ? 'choose', 'session neuve : on demande le projet';
+  perform pg_temp.expect_error($f$select public.mcp_call(repeat('1', 64), 'my_tasks', '{"_session": "11111111-1111-1111-1111-111111111111"}')$f$, 'sur quel projet');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'create_task', '{"_session": "11111111-1111-1111-1111-111111111111", "project_id": %s, "title": "x"}')$f$, pidv), 'sur quel projet');
+  perform pg_temp.expect_error($f$select public.mcp_call(repeat('1', 64), 'select_project', '{"_session": "11111111-1111-1111-1111-111111111111", "project_id": 999999}')$f$, 'accès');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'select_project', '{"_session": "22222222-2222-2222-2222-222222222222", "project_id": %s}')$f$, pidv), 'accès');
+  r := public.mcp_call(repeat('1', 64), 'select_project', jsonb_build_object('_session', '11111111-1111-1111-1111-111111111111', 'project_id', pidv));
+  assert (r->>'selected')::boolean, 'projet choisi';
+  r := public.mcp_call(repeat('1', 64), 'create_task', jsonb_build_object('_session', '11111111-1111-1111-1111-111111111111', 'title', 'Projet par défaut'));
+  assert (select project_id from tasks where id = (r->>'task_id')::bigint) = pidv, 'project_id omis : le projet de la conversation';
+  assert jsonb_array_length(public.mcp_call(repeat('1', 64), 'list_projects', '{"_session": "11111111-1111-1111-1111-111111111111"}')->'projects') = 1, 'liste réduite au projet choisi';
+  select (public.create_project('Autre projet')) into other_pid;
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'get_project', '{"_session": "11111111-1111-1111-1111-111111111111", "project_id": %s}')$f$, other_pid), 'limitée');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'select_project', '{"_session": "11111111-1111-1111-1111-111111111111", "project_id": %s}')$f$, other_pid), 'déjà limitée');
+  update claude_sessions set last_used_at = now() - interval '7 hours' where session_id = '11111111-1111-1111-1111-111111111111';
+  assert public.mcp_call(repeat('1', 64), 'list_projects', '{"_session": "11111111-1111-1111-1111-111111111111"}') ? 'choose', 'session inactive 6 h : on redemande';
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'update_task', '{"task_id": %s, "status": "done"}')$f$, tid), 'accès');
   -- lecture
   assert jsonb_array_length(public.mcp_call(repeat('5', 64), 'my_tasks')->'tasks') = 1, 'Max voit la tâche qui lui est assignée';
