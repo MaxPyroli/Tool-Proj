@@ -274,6 +274,9 @@ do $$ declare r jsonb; tid bigint; other_pid bigint; pidv bigint := current_sett
   select (public.create_project('Autre projet')) into other_pid;
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'get_project', '{"_session": "11111111-1111-1111-1111-111111111111", "project_id": %s}')$f$, other_pid), 'limitée');
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'select_project', '{"_session": "11111111-1111-1111-1111-111111111111", "project_id": %s}')$f$, other_pid), 'déjà limitée');
+  r := public.mcp_call(repeat('1', 64), 'select_project', jsonb_build_object('_session', '11111111-1111-1111-1111-111111111111', 'project_id', other_pid, 'change', true));
+  assert (r->>'project_id')::bigint = other_pid, 'changement de projet demandé (change: true)';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'get_project', '{"_session": "11111111-1111-1111-1111-111111111111", "project_id": %s}')$f$, pidv), 'limitée');
   update claude_sessions set last_used_at = now() - interval '7 hours' where session_id = '11111111-1111-1111-1111-111111111111';
   assert public.mcp_call(repeat('1', 64), 'list_projects', '{"_session": "11111111-1111-1111-1111-111111111111"}') ? 'choose', 'session inactive 6 h : on redemande';
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'update_task', '{"task_id": %s, "status": "done"}')$f$, tid), 'accès');

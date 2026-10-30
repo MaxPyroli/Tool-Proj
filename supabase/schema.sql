@@ -747,7 +747,7 @@ begin
     pid := nullif(a->>'project_id', '')::bigint;
     if sid is null then raise exception 'Cette connexion ne garde pas la conversation : donne project_id à chaque outil.'; end if;
     if pid is null or not public.is_member(pid) then raise exception 'Tu n''as pas accès à ce projet (ou il n''existe pas).'; end if;
-    if lock is not null and lock <> pid then raise exception 'Cette conversation est déjà limitée au projet « % » (id %). Pour un autre projet, ouvre une nouvelle conversation.', lock_name, lock; end if;
+    if lock is not null and lock <> pid and not coalesce((a->>'change')::boolean, false) then raise exception 'Cette conversation est déjà limitée au projet « % » (id %). Si la personne demande clairement de changer de projet, rappelle select_project avec change: true.', lock_name, lock; end if;
     update public.claude_sessions set project_id = pid where token_id = t.id and session_id = sid;
     return jsonb_build_object('selected', true, 'project_id', pid, 'project', (select name from public.projects where id = pid),
       'note', 'Cette conversation reste sur ce projet uniquement.');

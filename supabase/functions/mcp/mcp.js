@@ -13,8 +13,8 @@ const STATUSES = ["todo", "doing", "done"];
 export const TOOLS = [
   { name: "list_projects", description: "Liste les projets de la personne (id, nom, statut, avancement, rôle, nombre de tâches ouvertes). À appeler en premier pour connaître les id, puis demande quel projet utiliser et appelle select_project.",
     inputSchema: obj({}), annotations: { readOnlyHint: true } },
-  { name: "select_project", description: "Choisit le projet de CETTE conversation (à faire une seule fois, après avoir demandé à la personne). Ensuite tous les outils restent sur ce projet, sans pouvoir en changer.",
-    inputSchema: obj({ project_id: id }, ["project_id"]), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+  { name: "select_project", description: "Choisit le projet de CETTE conversation (à faire une seule fois, après avoir demandé à la personne). Ensuite tous les outils restent sur ce projet. Pour en changer (seulement si la personne le demande clairement, par exemple après une erreur), rappelle-le avec change: true.",
+    inputSchema: obj({ project_id: id, change: { type: "boolean", description: "true seulement si la personne demande de changer de projet" } }, ["project_id"]), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
   { name: "get_project", description: "Détails d'un projet : description, avancement, compteurs de tâches, chantiers (grands chantiers), membres et liens.",
     inputSchema: obj({ project_id: id }, ["project_id"]), annotations: { readOnlyHint: true } },
   { name: "list_tasks", description: "Tâches d'un projet (bugs, idées, améliorations comprises), les terminées exclues par défaut. Filtres facultatifs.",
