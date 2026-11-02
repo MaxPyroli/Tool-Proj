@@ -882,7 +882,8 @@ function viewRoadmap(d) {
   const card = (e) => {
     const pr = epicProgress(d, e.id);
     const bugs = pr.items.filter((t) => t.type === 'bug' && t.status !== 'done').length;
-    return `<article class="epic-card" data-action="open-epic" data-id="${e.id}" ${draggable ? 'draggable="true" data-drag="epic"' : ''}>
+    return `<article class="epic-card hz-${e.horizon}" data-action="open-epic" data-id="${e.id}" ${draggable ? 'draggable="true" data-drag="epic"' : ''}>
+      <span class="ep-spiral" aria-hidden="true"></span>
       <h3>${esc(e.title)}</h3>
       ${e.description ? `<p class="desc">${md(e.description)}</p>` : ''}
       <div class="progress"><i style="width:${pr.pct}%"></i></div>
