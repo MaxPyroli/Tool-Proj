@@ -124,13 +124,14 @@ const state = {
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/** Escaped text with light markdown: **bold**, *italic* / _italic_, __underline__ (one line at a time). */
+/** Escaped text with light markdown: **bold**, *italic* / _italic_, __underline__, ==highlight== (one line at a time). */
 const md = (text) => esc(text)
+  .replace(/==(?=[^\s=])([^\n=]+?)(?<=[^\s=])==/g, '<mark>$1</mark>')
   .replace(/\*\*(?=\S)([^\n]+?)(?<=\S)\*\*/g, '<strong>$1</strong>')
   .replace(/(?<!_)__(?=\S)([^\n]+?)(?<=\S)__(?!_)/g, '<u>$1</u>')
   .replace(/(?<![\w*])\*(?=[^\s*])([^\n*]+?)(?<=[^\s*])\*(?![\w*])/g, '<em>$1</em>')
   .replace(/(?<![\w_])_(?=[^\s_])([^\n_]+?)(?<=[^\s_])_(?![\w_])/g, '<em>$1</em>');
-const MD_HINT = '<small class="muted md-hint">**gras** · *italique* · __souligné__</small>';
+const MD_HINT = '<small class="muted md-hint">**gras** · *italique* · __souligné__ · ==surligné==</small>';
 const isPhone = () => matchMedia('(max-width: 719px)').matches;
 const initials = (name = '?') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const hue = (id) => [...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
@@ -823,7 +824,7 @@ const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
 
 const CHECK_SVG = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.800l4.600 4.600L19 7.200"/></svg>';
 const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${typeIcon(t.type, 13)}</i>${TYPES[t.type]}</span>`);
-const prioTag = (t) => (t.priority === 'high' ? '<span class="prio high" title="Priorité haute">Prioritaire</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
+const prioTag = (t) => (t.priority === 'high' ? '<span class="stamp" title="Priorité haute">Urgent</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
 const sortItems = (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
 const sortEpics = (a, b) => HORIZON_ORDER[a.horizon] - HORIZON_ORDER[b.horizon] || a.position - b.position;
 

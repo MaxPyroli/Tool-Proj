@@ -794,3 +794,22 @@ dialog.lightbox::backdrop { background: transparent; }
 .epic-card .desc { color: var(--pi-ink); opacity: .8; line-height: 1.3; }
 .epic-card .muted { color: var(--pi-ink); opacity: .75; }
 .epic-card .progress { background: rgb(255 255 255 / .7); border-color: transparent; }
+
+/* Surligneur jaune (==texte==) */
+mark { color: #2b2717; padding: 0 .18em; margin: 0 -.05em; border-radius: .25em .6em .3em .7em; box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  background: linear-gradient(104deg, rgb(255 235 59 / 0) 0, rgb(255 233 50 / .85) 4%, rgb(255 224 40 / .9) 96%, rgb(255 235 59 / 0) 100%); }
+
+/* Tampon rouge « Urgent » (priorité haute) */
+.stamp { display: inline-block; flex: none; padding: 0 6px; border: 2px solid #c0262d; border-radius: 4px; color: #c0262d; font-size: .68rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; line-height: 1.5;
+  rotate: -5deg; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .55), inset 0 0 0 2px rgb(192 38 45 / .55); opacity: .92;
+  background-image: radial-gradient(rgb(255 255 255 / .5) .6px, transparent .9px); background-size: 3px 3px; }
+.task .stamp { color: #b5202a; border-color: #b5202a; }
+
+/* Filtres : étiquettes cartonnées à œillet */
+.chips { gap: 10px; padding-top: 3px; }
+.chip { --kraft: #ead5a8; position: relative; min-height: 36px; padding: 0 14px 0 28px; border: 0; border-radius: 3px 8px 8px 3px; color: var(--pi-ink);
+  background: linear-gradient(160deg, transparent 0 44%, #a67c3d 44% 52%, transparent 52%) 0 0 / 15px 100% no-repeat, linear-gradient(180deg, color-mix(in srgb, var(--kraft) 85%, #fff), var(--kraft));
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 55%, 0 45%); box-shadow: none; }
+.chip::after { content: ""; position: absolute; left: 11px; top: 50%; width: 7px; height: 7px; margin-top: -5px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 2px #a7acb6, 0 1px 1px 2px rgb(0 0 0 / .15); }
+.chip[aria-pressed="true"] { --kraft: #cf9f55; color: #2b2717; font-weight: 800; border: 0; background: linear-gradient(160deg, transparent 0 44%, #8a6428 44% 52%, transparent 52%) 0 0 / 15px 100% no-repeat, linear-gradient(180deg, color-mix(in srgb, var(--kraft) 85%, #fff), var(--kraft)); }
+.chip-t::before { margin-right: 6px; }
