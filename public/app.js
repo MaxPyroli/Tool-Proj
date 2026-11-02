@@ -905,7 +905,7 @@ function viewRoadmap(d) {
 /** A chantier drawn as a big post-it with its tasks stuck on top of it. */
 function epicNote(d, e, items, byId, draggable) {
   const pr = epicProgress(d, e.id);
-  return `<article class="ep-sheet hz-${e.horizon}">
+  return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}">
     <span class="ep-tape" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
@@ -931,7 +931,7 @@ function viewBoard(d) {
   const byEpic = state.boardGroup === 'epic';
   const modes = `<div class="seg sm" role="tablist" aria-label="Regrouper">${[['status', 'Par statut'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}</div>`;
   const group = (list) => boardGroups(d, list).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
-    : `<div class="ep-loose">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
+    : `<div class="ep-loose" data-drop-epic="0">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
   if (byEpic) {
     const items = d.tasks.filter(matchesFilter).filter((t) => state.showDone || t.status !== 'done').sort(sortItems);
     const doneCount = d.tasks.filter((t) => matchesFilter(t) && t.status === 'done').length;
@@ -1119,6 +1119,20 @@ function bindTaskDnD() {
   $app.querySelectorAll('[data-drag]').forEach((el) => {
     el.addEventListener('dragstart', (e) => { drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  });
+  // une tâche glissée sur un chantier (post-it) s'y range ; sur « hors chantier », elle en sort
+  $app.querySelectorAll('[data-drop-epic]').forEach((box) => {
+    box.addEventListener('dragover', (e) => { if (drag?.kind === 'task') { e.preventDefault(); e.stopPropagation(); box.classList.add('drop-epic'); } });
+    box.addEventListener('dragleave', (e) => { if (!box.contains(e.relatedTarget)) box.classList.remove('drop-epic'); });
+    box.addEventListener('drop', run(async (e) => {
+      e.preventDefault(); e.stopPropagation(); box.classList.remove('drop-epic');
+      if (drag?.kind !== 'task') return;
+      const { id } = drag; drag = null;
+      const t = state.data.tasks.find((x) => x.id === id), epicId = Number(box.dataset.dropEpic) || null;
+      if (!t || (t.epicId ?? null) === epicId) return;
+      await db.updateTask(id, { epicId });
+      await reloadProject();
+    }));
   });
   $app.querySelectorAll('[data-drop-status], [data-drop-horizon]').forEach((col) => {
     const accepts = col.dataset.dropStatus ? 'task' : 'epic';
