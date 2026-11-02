@@ -906,13 +906,13 @@ function viewRoadmap(d) {
 function epicNote(d, e, items, byId, draggable) {
   const pr = epicProgress(d, e.id);
   return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}">
-    <span class="ep-tape" aria-hidden="true"></span>
+    <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
+      <span class="ep-count num">${pr.done}/${pr.total}</span>
       <button class="btn sm ghost ep-add" data-action="new-item" data-epic="${e.id}" aria-label="Ajouter dans ${esc(e.title)}">+</button>
     </header>
     <div class="progress ep-bar"><i style="width:${pr.pct}%"></i></div>
-    <p class="ep-count num">${pr.done}/${pr.total} fait${pr.done > 1 ? 's' : ''}</p>
     <div class="ep-stack">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>
   </article>`;
 }
