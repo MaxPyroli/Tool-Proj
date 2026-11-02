@@ -1118,14 +1118,25 @@ function bindTaskDnD() {
   let drag = null;
   $app.querySelectorAll('[data-drag]').forEach((el) => {
     el.addEventListener('dragstart', (e) => { drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
-    el.addEventListener('dragend', () => el.classList.remove('dragging'));
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => x.classList.remove('drop-epic', 'drop')); });
   });
   // une tâche glissée sur un chantier (post-it) s'y range ; sur « hors chantier », elle en sort
+  // une seule zone en pointillés à la fois, et jamais sur le chantier où la tâche est déjà
+  const mark = (box) => $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => { if (x !== box) x.classList.remove('drop-epic', 'drop'); }) || box?.classList.add('drop-epic');
+  const same = (box) => { const t = state.data.tasks.find((x) => x.id === drag.id); return !t || (t.epicId ?? null) === (Number(box.dataset.dropEpic) || null); };
   $app.querySelectorAll('[data-drop-epic]').forEach((box) => {
-    box.addEventListener('dragover', (e) => { if (drag?.kind === 'task') { e.preventDefault(); e.stopPropagation(); box.classList.add('drop-epic'); } });
-    box.addEventListener('dragleave', (e) => { if (!box.contains(e.relatedTarget)) box.classList.remove('drop-epic'); });
+    box.addEventListener('dragover', (e) => {
+      if (drag?.kind !== 'task') return;
+      e.stopPropagation();
+      if (same(box)) { mark(null); return; }
+      e.preventDefault(); mark(box);
+    });
+    box.addEventListener('dragleave', (e) => { // relatedTarget n'est pas fiable : on regarde si le curseur est sorti du cadre
+      const r = box.getBoundingClientRect();
+      if (e.clientX <= r.left || e.clientX >= r.right || e.clientY <= r.top || e.clientY >= r.bottom) box.classList.remove('drop-epic');
+    });
     box.addEventListener('drop', run(async (e) => {
-      e.preventDefault(); e.stopPropagation(); box.classList.remove('drop-epic');
+      e.preventDefault(); e.stopPropagation(); mark(null);
       if (drag?.kind !== 'task') return;
       const { id } = drag; drag = null;
       const t = state.data.tasks.find((x) => x.id === id), epicId = Number(box.dataset.dropEpic) || null;
