@@ -813,3 +813,18 @@ mark { color: #2b2717; padding: 0 .18em; margin: 0 -.05em; border-radius: .25em 
 .chip::after { content: ""; position: absolute; left: 11px; top: 50%; width: 7px; height: 7px; margin-top: -5px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 2px #a7acb6, 0 1px 1px 2px rgb(0 0 0 / .15); }
 .chip[aria-pressed="true"] { --kraft: #cf9f55; color: #2b2717; font-weight: 800; border: 0; background: linear-gradient(160deg, transparent 0 44%, #8a6428 44% 52%, transparent 52%) 0 0 / 15px 100% no-repeat, linear-gradient(180deg, color-mix(in srgb, var(--kraft) 85%, #fff), var(--kraft)); }
 .chip-t::before { margin-right: 6px; }
+
+/* Boutons principaux = étiquettes adhésives : droites au repos, elles se penchent et le coin se décolle au survol / à l'appui */
+.btn.primary, .fab { --peel: 15px; border-radius: 4px;
+  transition: transform .18s cubic-bezier(.3, 1.5, .5, 1), box-shadow .18s ease, filter .15s; }
+.btn.primary { position: relative; box-shadow: 0 2px 3px rgb(0 0 0 / .2); }
+.btn.primary.sm { --peel: 11px; }
+.btn.primary::after, .fab::after { content: ""; position: absolute; right: 0; bottom: 0; width: var(--peel); height: var(--peel); border-radius: 0 0 4px 0; pointer-events: none;
+  background: linear-gradient(135deg, transparent 50%, rgb(255 255 255 / .55) 50%, rgb(255 255 255 / .25) 100%); box-shadow: -2px -2px 3px rgb(0 0 0 / .16);
+  transition: width .18s ease, height .18s ease; }
+@media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) { .btn.primary:hover, .fab:hover { transform: rotate(-1.6deg) translateY(-1px); box-shadow: 0 5px 9px rgb(0 0 0 / .24); } .btn.primary:hover::after, .fab:hover::after { width: calc(var(--peel) * 1.5); height: calc(var(--peel) * 1.5); } }
+  .btn.primary:active, .fab:active { transform: rotate(-1.6deg) scale(.98); box-shadow: 0 2px 4px rgb(0 0 0 / .2); }
+  .btn.primary:active::after, .fab:active::after { width: calc(var(--peel) * 1.5); height: calc(var(--peel) * 1.5); }
+}
+.btn.primary:focus-visible::after, .fab:focus-visible::after { width: calc(var(--peel) * 1.5); height: calc(var(--peel) * 1.5); }
