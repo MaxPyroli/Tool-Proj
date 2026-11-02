@@ -840,7 +840,7 @@ function matchesFilter(t) {
 
 function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
   return `
-  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''}" data-action="open-task" data-id="${t.id}" ${draggable ? 'draggable="true" data-drag="task"' : ''}>
+  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
     <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? CHECK_SVG : t.status === 'doing' ? '<i class="dot-doing"></i>' : ''}</button>
     <div class="t-main">
       <span class="t-title">${esc(t.title)}</span>
@@ -1112,9 +1112,15 @@ function chooserSheet({ title = 'Ajouter', action = 'choose-new', noteId = '' } 
     <div class="chooser">${choices.map(([k, l, hint]) => `<button class="choice ch-${k}" data-action="${action}" data-v="${k}" data-id="${noteId}"><strong>${l}</strong><span>${hint}</span></button>`).join('')}</div>`);
 }
 
+/** One dashed drop zone at a time (chantier post-it, « hors chantier » or a status column). */
+function markEpicDrop(box) {
+  $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => { if (x !== box) x.classList.remove('drop-epic', 'drop'); });
+  box?.classList.add('drop-epic');
+}
+
 /** Desktop drag and drop: items between status columns, chantiers between horizons. */
 function bindTaskDnD() {
-  if (!matchMedia('(pointer: fine)').matches) return;
+  if (!matchMedia('(pointer: fine)').matches) return; // au doigt : voir le glissement par appui long plus bas
   let drag = null;
   $app.querySelectorAll('[data-drag]').forEach((el) => {
     el.addEventListener('dragstart', (e) => { drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
@@ -1122,21 +1128,20 @@ function bindTaskDnD() {
   });
   // une tâche glissée sur un chantier (post-it) s'y range ; sur « hors chantier », elle en sort
   // une seule zone en pointillés à la fois, et jamais sur le chantier où la tâche est déjà
-  const mark = (box) => $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => { if (x !== box) x.classList.remove('drop-epic', 'drop'); }) || box?.classList.add('drop-epic');
   const same = (box) => { const t = state.data.tasks.find((x) => x.id === drag.id); return !t || (t.epicId ?? null) === (Number(box.dataset.dropEpic) || null); };
   $app.querySelectorAll('[data-drop-epic]').forEach((box) => {
     box.addEventListener('dragover', (e) => {
       if (drag?.kind !== 'task') return;
       e.stopPropagation();
-      if (same(box)) { mark(null); return; }
-      e.preventDefault(); mark(box);
+      if (same(box)) { markEpicDrop(null); return; }
+      e.preventDefault(); markEpicDrop(box);
     });
     box.addEventListener('dragleave', (e) => { // relatedTarget n'est pas fiable : on regarde si le curseur est sorti du cadre
       const r = box.getBoundingClientRect();
       if (e.clientX <= r.left || e.clientX >= r.right || e.clientY <= r.top || e.clientY >= r.bottom) box.classList.remove('drop-epic');
     });
     box.addEventListener('drop', run(async (e) => {
-      e.preventDefault(); e.stopPropagation(); mark(null);
+      e.preventDefault(); e.stopPropagation(); markEpicDrop(null);
       if (drag?.kind !== 'task') return;
       const { id } = drag; drag = null;
       const t = state.data.tasks.find((x) => x.id === id), epicId = Number(box.dataset.dropEpic) || null;
@@ -1168,6 +1173,60 @@ function bindTaskDnD() {
     }));
   });
 }
+
+/** Touch: long-press a task, then drag it onto a chantier (or « hors chantier »). One delegated listener set, bound once. */
+(() => {
+  let g = null; // { id, el, ghost, timer, sx, sy, x, y, box, raf, active, pid }
+  let swallowClick = 0;
+  const boxAt = () => {
+    const box = document.elementFromPoint(g.x, g.y)?.closest('[data-drop-epic]');
+    const t = state.data?.tasks.find((x) => x.id === g.id);
+    return box && t && (t.epicId ?? null) !== (Number(box.dataset.dropEpic) || null) ? box : null;
+  };
+  const frame = () => {
+    if (!g?.active) return;
+    g.ghost.style.transform = `translate(${g.x - g.ox}px, ${g.y - g.oy}px) rotate(2deg)`;
+    if (g.y < 100) scrollBy(0, -14); else if (g.y > innerHeight - 120) scrollBy(0, 14);
+    g.box = boxAt(); markEpicDrop(g.box);
+    g.raf = requestAnimationFrame(frame);
+  };
+  const end = (drop) => {
+    if (!g) return;
+    clearTimeout(g.timer); cancelAnimationFrame(g.raf);
+    const { active, box, id, el, ghost } = g; g = null;
+    if (!active) return;
+    ghost.remove(); el.classList.remove('dragging'); markEpicDrop(null);
+    swallowClick = Date.now() + 500;
+    state.dragging = false;
+    if (drop && box) run(async () => { await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null }); await reloadProject(); })();
+  };
+  const begin = () => {
+    const r = g.el.getBoundingClientRect();
+    g.active = true; state.dragging = true; g.ox = g.x - r.left; g.oy = g.y - r.top;
+    const ghost = g.el.cloneNode(true); ghost.classList.add('dnd-ghost'); ghost.removeAttribute('data-action');
+    ghost.style.cssText = `position:fixed;left:0;top:0;width:${r.width}px;margin:0;z-index:99999;pointer-events:none;`;
+    document.body.append(ghost); g.ghost = ghost; g.el.classList.add('dragging');
+    navigator.vibrate?.(15);
+    frame();
+  };
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || !e.isPrimary || state.tab !== 'taches') return;
+    const el = e.target.closest?.('.task[data-drag="task"]');
+    if (!el || e.target.closest('.check') || !$app.contains(el)) return;
+    end(false);
+    g = { id: Number(el.dataset.id), el, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, active: false, timer: setTimeout(() => g && begin(), 380) };
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!g || !e.isPrimary) return;
+    g.x = e.clientX; g.y = e.clientY;
+    if (!g.active && Math.hypot(g.x - g.sx, g.y - g.sy) > 10) { clearTimeout(g.timer); g = null; } // c'est un défilement
+  });
+  document.addEventListener('pointerup', (e) => { if (g && e.isPrimary) end(true); });
+  document.addEventListener('pointercancel', () => end(false));
+  document.addEventListener('touchmove', (e) => { if (g?.active) e.preventDefault(); }, { passive: false });
+  document.addEventListener('contextmenu', (e) => { if (g || e.target.closest?.('.task[data-drag]')) { if (matchMedia('(pointer: coarse)').matches) e.preventDefault(); } });
+  document.addEventListener('click', (e) => { if (Date.now() < swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+})();
 
 // ---------- notes ----------
 
