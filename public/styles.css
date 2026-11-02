@@ -717,7 +717,7 @@ dialog#sheet { overscroll-behavior: contain; }
 /* Chantier = bloc-note à spirale : papier ligné teinté, tâches collées dessus (compact : titre, avancement et « + » sur une ligne) */
 .ep-sheet { --ep: var(--pi-green); position: relative; min-width: 0; padding: 20px 10px 10px; margin-top: 12px; border-radius: 4px 4px 12px 12px; color: var(--pi-ink);
   background-color: color-mix(in srgb, var(--ep) 32%, #fffdf6);
-  background-image: repeating-linear-gradient(to bottom, transparent 0 25px, rgb(70 100 150 / .16) 25px 26px);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 25px, rgb(70 100 150 / .16) 25px 26px); background-position: 0 16px;
   border-top: 5px solid color-mix(in srgb, var(--ep) 80%, #000 12%);
   box-shadow: 0 6px 14px rgb(0 0 0 / .14), 0 1px 0 rgb(255 255 255 / .5) inset; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .ep-sheet.hz-now { --ep: var(--pi-green); } .ep-sheet.hz-next { --ep: var(--pi-blue); } .ep-sheet.hz-later { --ep: var(--pi-purple); } .ep-sheet.hz-done { --ep: var(--pi-yellow); }
@@ -774,8 +774,11 @@ dialog.lightbox::backdrop { background: transparent; }
 
 .ep-spiral { position: absolute; left: 6px; right: 6px; top: -13px; height: 18px; pointer-events: none;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='18'%3E%3Crect x='7' y='1' width='6' height='16' rx='3' fill='%23868b96'/%3E%3Crect x='8' y='2' width='2' height='14' rx='1' fill='%23c9ced8'/%3E%3C/svg%3E") repeat-x left center; }
-.ep-head { gap: 8px; }
+.ep-head { gap: 8px; align-items: flex-start; } /* le titre pose sur une ligne du bloc-note (26 px) */
+.ep-head .ep-title { min-height: 26px; align-items: center; }
+.ep-head .ep-count { line-height: 26px; }
+.ep-head .ep-add { margin: -3px 0; }
 .ep-count { flex: none; font-size: .8rem; font-weight: 700; opacity: .8; }
 .ep-bar { height: 5px; background: rgb(255 255 255 / .7); border-color: transparent; margin: 0 2px 2px; }
 .ep-add { flex: none; min-height: 32px; height: 32px; min-width: 32px; padding: 0; font-size: 1.15rem; background: rgb(255 255 255 / .6); color: var(--pi-ink); }
-.ep-title h4 { font-size: 1.2rem; line-height: 1.1; }
+.ep-title h4 { font-size: 1.2rem; line-height: 26px; }
