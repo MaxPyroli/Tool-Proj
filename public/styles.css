@@ -909,3 +909,11 @@ mark { color: #2b2717; padding: 0 .18em; margin: 0 -.05em; border-radius: .25em 
 .member .btn { color: var(--pi-ink); } .member .btn.danger { color: #a61e1e; border-color: #a61e1e; } .member .btn:hover { background: rgb(0 0 0 / .06); }
 @keyframes tp-sway { 0% { rotate: 0deg; } 30% { rotate: 3deg; } 65% { rotate: -2deg; } 100% { rotate: 0deg; } }
 @media (prefers-reduced-motion: no-preference) and (hover: hover) { .member:hover { animation: tp-sway .8s ease-in-out; } }
+
+/* Fenêtres = feuille de papier arrachée : bord du haut irrégulier */
+dialog#sheet { overflow: visible; border-radius: 0 0 18px 18px; }
+dialog#sheet::before { content: ""; position: absolute; left: 0; right: 0; top: -9px; height: 10px; background: var(--surface); pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='10'%3E%3Cpath d='M0 10V6l6-4 6 5 7-6 7 5 7-3 7 5 7-6 7 4 7-1 7 5 7-6 7 6 7-3 7 6 7-5 7 3V10z'/%3E%3C/svg%3E") repeat-x left bottom / 120px 10px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='10'%3E%3Cpath d='M0 10V6l6-4 6 5 7-6 7 5 7-3 7 5 7-6 7 4 7-1 7 5 7-6 7 6 7-3 7 6 7-5 7 3V10z'/%3E%3C/svg%3E") repeat-x left bottom / 120px 10px; }
+.sheet-body { border-radius: inherit; }
+@media (max-width: 719px) { dialog#sheet { border-radius: 0; } }
