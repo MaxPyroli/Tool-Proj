@@ -115,7 +115,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', roadmapMode: store.get('roadmapMode', 'active'), taskView: store.get('taskView', 'board') === 'list' ? 'board' : store.get('taskView', 'board'), boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false,
+  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(),
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -593,7 +593,7 @@ function renderProject() {
   ];
   syncWallChrome();
   document.body.classList.add('with-tabbar');
-  redraw(`p${p.id}/${state.tab}/${state.taskView}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`, () => { $app.innerHTML = `
+  redraw(`p${p.id}/${state.tab}/${state.boardGroup}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`, () => { $app.innerHTML = `
   ${topbar(`
     <a class="btn ghost icon" href="#/" aria-label="Retour aux projets">${icon.back}</a>
     <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${glyph(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
@@ -685,11 +685,11 @@ function viewOverview(d) {
     </section>
     <div class="stack" style="gap:16px">
       <section class="panel">
-        <div class="row between"><h3>Chantiers en cours</h3><button class="link-btn small" data-action="goto-roadmap">Feuille de route</button></div>
+        <div class="row between"><h3>Chantiers en cours</h3><button class="link-btn small" data-action="goto-roadmap">Voir les chantiers</button></div>
         ${now.length ? `<div class="stack" style="gap:12px">${now.map((e) => { const pr = epicProgress(d, e.id); return `
           <button class="now-epic" data-action="open-epic" data-id="${e.id}"><span class="row between"><b>${esc(e.title)}</b><span class="small muted num">${pr.done}/${pr.total}</span></span>
           <span class="progress"><i style="width:${pr.pct}%"></i></span></button>`; }).join('')}</div>`
-          : '<p class="muted small">Aucun chantier dans « Maintenant ». Range tes grandes idées dans la feuille de route.</p>'}
+          : '<p class="muted small">Aucun chantier dans « Maintenant ». Range tes grandes idées dans des chantiers.</p>'}
       </section>
       <section class="panel">
         <div class="row between"><h3>Idées les plus votées</h3><a class="small" href="#/p/${p.id}/idees">Voir le mur</a></div>
@@ -852,7 +852,7 @@ function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
 }
 
 function viewTasks(d) {
-  const view = state.taskView;
+  const byEpic = state.boardGroup === 'epic';
   const open = d.tasks.filter((t) => t.status !== 'done');
   const filters = [['all', 'Tout', open.length], ['bug', 'Bugs', open.filter((t) => t.type === 'bug').length],
     ['idea', 'Idées', open.filter((t) => t.type === 'idea').length],
@@ -861,53 +861,27 @@ function viewTasks(d) {
   return `
   <div class="task-tools">
     <div class="seg views" role="tablist" aria-label="Affichage">
-      ${[['roadmap', 'Feuille de route'], ['board', 'Tableau']].map(([k, l]) => `<button data-action="task-view" data-v="${k}" aria-pressed="${view === k}">${l}</button>`).join('')}
+      ${[['status', 'Par statut'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}
     </div>
     <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
   </div>
-  ${view !== 'roadmap' ? `<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ty-${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>` : ''}
-  ${{ roadmap: viewRoadmap, board: viewBoard }[view](d)}`;
+  ${`<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ty-${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>`}
+  ${viewBoard(d)}`;
 }
 
-function viewRoadmap(d) {
-  const draggable = matchMedia('(pointer: fine)').matches;
-  const later = state.roadmapMode === 'later';
-  const cols = (later ? ['later'] : ['now', 'next']).map((h) => [h, d.epics.filter((e) => e.horizon === h).sort(sortEpics)]);
-  const count = (hs) => d.epics.filter((e) => hs.includes(e.horizon)).length;
-  const done = d.epics.filter((e) => e.horizon === 'done');
-  const loose = d.tasks.filter((t) => !t.epicId && t.status !== 'done').length;
-  if (!d.epics.length) {
-    return `<div class="empty"><div class="big">${ico('map', 44)}</div><p>Aucun grand chantier pour l'instant.<br>Un chantier regroupe une grosse idée et toutes ses tâches, bugs et améliorations.</p>
-      <button class="btn primary" data-action="new-epic">Créer un chantier</button></div>`;
-  }
-  const card = (e) => {
-    const pr = epicProgress(d, e.id);
-    const bugs = pr.items.filter((t) => t.type === 'bug' && t.status !== 'done').length;
-    return `<article class="epic-card hz-${e.horizon}" data-action="open-epic" data-id="${e.id}" ${draggable ? 'draggable="true" data-drag="epic"' : ''}>
-      <span class="ep-spiral" aria-hidden="true"></span>
-      <h3>${esc(e.title)}</h3>
-      ${e.description ? `<p class="desc">${md(e.description)}</p>` : ''}
-      <div class="progress"><i style="width:${pr.pct}%"></i></div>
-      <div class="row between small muted"><span class="num">${pr.total ? `${pr.done}/${pr.total} fait${pr.done > 1 ? 's' : ''}` : 'Aucun élément'}</span>${bugs ? `<span class="type-tag ty-bug">${bugs} bug${bugs > 1 ? 's' : ''}</span>` : ''}</div>
-    </article>`;
-  };
-  return `
-  <div class="seg" role="tablist" aria-label="Quand ?">${[['active', 'En cours', count(['now', 'next'])], ['later', 'Plus tard', count(['later'])]].map(([k, l, n]) => `<button data-action="roadmap-mode" data-v="${k}" aria-pressed="${(k === 'later') === later}">${l} <span class="num muted">${n}</span></button>`).join('')}</div>
-  <div class="columns rm" style="--n:${cols.length}">
-    ${cols.map(([h, list]) => `
-      <section class="col shown" data-drop-horizon="${h}" aria-label="${HORIZON[h]}">
-        <div class="col-head"><h3><span class="dot" style="--c:var(--h-${h})"></span>${HORIZON[h]}</h3><span class="muted num small">${list.length}</span></div>
-        ${list.map(card).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Change le moment d\'un chantier pour le mettre ici.' : 'Aucun chantier.'}</p>`}
-      </section>`).join('')}
-  </div>
-  ${done.length ? `<details class="done-epics"><summary>${done.length} chantier${done.length > 1 ? 's' : ''} terminé${done.length > 1 ? 's' : ''}</summary><div class="stack" style="gap:8px;margin-top:10px">${done.map(card).join('')}</div></details>` : ''}
-  ${loose ? `<p class="small muted" style="margin-top:14px">${loose} élément${loose > 1 ? 's' : ''} ouvert${loose > 1 ? 's' : ''} hors chantier. <button class="link-btn" data-action="task-view" data-v="board">Voir le tableau</button></p>` : ''}`;
+/** « ✓ 3 terminées » line under a chantier (or under the loose tasks): tap to show or hide the finished items. */
+function doneLine(key, doneItems, byId, draggable) {
+  if (!doneItems.length) return '';
+  const open = state.epicDone.has(key), n = doneItems.length;
+  return `<button class="ep-done" data-action="epic-done" data-id="${key}" aria-expanded="${open}">${ico('check', 13)} ${n} terminé${n > 1 ? 's' : ''} <span class="ep-chev" aria-hidden="true">${open ? '▴' : '▾'}</span></button>
+    ${open ? `<div class="ep-stack ep-stack-done">${doneItems.map((t) => taskRow(t, byId, { draggable })).join('')}</div>` : ''}`;
 }
 
 /** A chantier drawn as a big post-it with its tasks stuck on top of it. */
-function epicNote(d, e, items, byId, draggable) {
+function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = []) {
   const pr = epicProgress(d, e.id);
-  return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}">
+  const doneOpen = state.epicDone.has(e.id);
+  return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
     <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
@@ -916,6 +890,7 @@ function epicNote(d, e, items, byId, draggable) {
     </header>
     <div class="progress ep-bar"><i style="width:${pr.pct}%"></i></div>
     <div class="ep-stack">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>
+    ${doneLine(e.id, doneItems, byId, draggable)}
   </article>`;
 }
 
@@ -931,22 +906,38 @@ function viewBoard(d) {
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const draggable = matchMedia('(pointer: fine)').matches;
   const byEpic = state.boardGroup === 'epic';
-  const modes = `<div class="seg sm" role="tablist" aria-label="Regrouper">${[['status', 'Par statut'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}</div>`;
   const group = (list) => boardGroups(d, list).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
-    : `<div class="ep-loose" data-drop-epic="0">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
+    : `<div class="ep-loose-label small muted">Sans chantier</div><div class="ep-loose" data-drop-epic="0">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
   if (byEpic) {
-    const items = d.tasks.filter(matchesFilter).filter((t) => state.showDone || t.status !== 'done').sort(sortItems);
-    const doneCount = d.tasks.filter((t) => matchesFilter(t) && t.status === 'done').length;
+    const mine = d.tasks.filter(matchesFilter).sort(sortItems);
+    const open = mine.filter((t) => t.status !== 'done'), fini = mine.filter((t) => t.status === 'done');
+    // chantiers rangés par moment ; un filtre ne garde que les chantiers qui ont des éléments correspondants
+    const bucket = (h) => d.epics.filter((e) => e.horizon === h).sort(sortEpics)
+      .map((e) => [e, open.filter((t) => t.epicId === e.id), fini.filter((t) => t.epicId === e.id)])
+      .filter(([, l, f]) => state.taskFilter === 'all' || l.length || f.length);
+    const isLoose = (t) => !d.epics.some((e) => e.id === t.epicId);
+    const loose = open.filter(isLoose), looseDone = fini.filter(isLoose);
+    const finished = bucket('done');
+    const note = ([e, l, f]) => epicNote(d, e, l, byId, draggable, true, f);
     return `
   ${quickAdd('Ajouter une tâche rapide…')}
-  ${modes}
-  ${items.length ? `<div class="ep-grid">${group(items)}</div>` : `<div class="empty"><p>${state.taskFilter !== 'all' ? 'Rien ne correspond à ce filtre.' : 'Rien à faire pour le moment.'}</p></div>`}
-  ${doneCount ? `<button class="link-btn" data-action="toggle-done">${state.showDone ? 'Masquer' : 'Afficher'} les ${doneCount} élément${doneCount > 1 ? 's' : ''} terminé${doneCount > 1 ? 's' : ''}</button>` : ''}`;
+  <div class="columns rm" style="--n:3">
+    ${['now', 'next', 'later'].map((h) => { const list = bucket(h); return `
+      <section class="col shown" data-drop-horizon="${h}" aria-label="${HORIZON[h]}">
+        <div class="col-head"><h3><span class="dot" style="--c:var(--h-${h})"></span>${HORIZON[h]}</h3><span class="muted num small">${list.length}</span></div>
+        ${list.map(note).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Glisse un chantier ici, ou change son moment.' : 'Aucun chantier.'}</p>`}
+      </section>`; }).join('')}
+  </div>
+  ${loose.length || looseDone.length ? `<section class="ep-loose-wrap">
+    <div class="col-head"><h3>Sans chantier</h3><span class="muted num small">${loose.length}</span></div>
+    <p class="small muted ep-loose-hint">Pas dans un chantier : glisse-les sur un chantier pour les ranger.</p>
+    <div class="ep-loose" data-drop-epic="0">${loose.map((t) => taskRow(t, byId, { draggable })).join('')}${doneLine(0, looseDone, byId, draggable)}</div>
+  </section>` : ''}
+  ${finished.length ? `<details class="done-epics"><summary>${finished.length} chantier${finished.length > 1 ? 's' : ''} terminé${finished.length > 1 ? 's' : ''}</summary><div class="ep-grid">${finished.map(note).join('')}</div></details>` : ''}`;
   }
   const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s && matchesFilter(t)).sort(sortItems)]);
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
-  ${modes}
   <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
   <div class="columns">
     ${cols.map(([s, list]) => `
@@ -1083,7 +1074,7 @@ function taskSheet(t) {
 function epicSheet(e) {
   const d = state.data;
   const isNew = !e.id;
-  e = { title: '', description: '', horizon: state.taskView === 'roadmap' ? (state.roadmapMode === 'later' ? 'later' : 'now') : 'next', ...e };
+  e = { title: '', description: '', horizon: 'next', ...e };
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const items = isNew ? [] : d.tasks.filter((t) => t.epicId === e.id).sort(sortItems);
   openSheet(`
@@ -1125,7 +1116,7 @@ function bindTaskDnD() {
   if (!matchMedia('(pointer: fine)').matches) return; // au doigt : voir le glissement par appui long plus bas
   let drag = null;
   $app.querySelectorAll('[data-drag]').forEach((el) => {
-    el.addEventListener('dragstart', (e) => { drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
+    el.addEventListener('dragstart', (e) => { e.stopPropagation(); drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
     el.addEventListener('dragend', () => { el.classList.remove('dragging'); $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => x.classList.remove('drop-epic', 'drop')); });
   });
   // une tâche glissée sur un chantier (post-it) s'y range ; sur « hors chantier », elle en sort
@@ -1863,12 +1854,11 @@ const actions = {
     state.data = null; location.hash = '#/';
   },
   'task-col': (el) => { state.taskCol = el.dataset.v; renderProject(); },
-  'roadmap-mode': (el) => { state.roadmapMode = el.dataset.v; store.set('roadmapMode', el.dataset.v); renderProject(); },
   'board-group': (el) => { state.boardGroup = el.dataset.v; store.set('boardGroup', el.dataset.v); renderProject(); },
-  'task-view': (el) => { state.taskView = el.dataset.v; store.set('taskView', el.dataset.v); renderProject(); },
-  'goto-roadmap': () => { state.taskView = 'roadmap'; store.set('taskView', 'roadmap'); location.hash = `#/p/${state.pid}/taches`; },
+  'goto-roadmap': () => { state.boardGroup = 'epic'; store.set('boardGroup', 'epic'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
   'toggle-done': () => { state.showDone = !state.showDone; renderProject(); },
+  'epic-done': (el) => { const k = Number(el.dataset.id); state.epicDone.has(k) ? state.epicDone.delete(k) : state.epicDone.add(k); renderProject(); },
   'quick-type': (el) => {
     const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];
     store.set('quickType', state.quickType);
@@ -1876,7 +1866,6 @@ const actions = {
   },
   'new-item': (el) => {
     if (el.dataset.epic) return taskSheet({ epicId: Number(el.dataset.epic) });
-    if (state.taskView === 'roadmap') return epicSheet({});
     chooserSheet();
   },
   'new-epic': () => epicSheet({}),
@@ -1886,7 +1875,7 @@ const actions = {
     await db.deleteLink(Number(el.dataset.id));
     toast('Lien supprimé'); await reloadProject(); linksSheet();
   },
-  'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: state.taskView === 'board' && isPhone() ? state.taskCol : 'todo' })),
+  'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: state.boardGroup !== 'epic' && isPhone() ? state.taskCol : 'todo' })),
   'open-epic': (el) => epicSheet(state.data.epics.find((e) => e.id === Number(el.dataset.id))),
   'delete-epic': async (el) => {
     const e = state.data.epics.find((x) => x.id === Number(el.dataset.id));
@@ -2086,7 +2075,7 @@ const forms = {
   async 'add-task'(f) {
     const title = f.elements.title.value.trim();
     if (!title) return;
-    await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: state.taskView === 'board' && isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
+    await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: state.boardGroup !== 'epic' && isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
     store.set(draftKey(), '');
     await reloadProject();
     $app.querySelector('#task-new')?.focus();

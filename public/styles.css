@@ -831,3 +831,18 @@ mark { color: #2b2717; padding: 0 .18em; margin: 0 -.05em; border-radius: .25em 
 
 /* Texte sélectionné = passé au surligneur jaune */
 ::selection { background: rgb(255 226 45 / .85); color: #2b2717; }
+
+/* Chantiers : ligne « terminées » et tâches sans chantier */
+.ep-done { justify-self: start; display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 0; border-radius: 99px; cursor: pointer;
+  background: rgb(255 255 255 / .6); color: var(--pi-ink); font-size: .8rem; font-weight: 700; }
+.ep-done .ico { color: #2e7d32; }
+.ep-stack-done { opacity: .85; }
+.ep-stack-done .task { box-shadow: 0 2px 4px rgb(0 0 0 / .12); }
+.ep-loose-wrap { margin-top: 18px; display: grid; gap: 8px; }
+.ep-loose-hint { margin: -4px 0 2px; }
+.ep-loose-label { margin: 14px 0 6px; font-weight: 700; }
+.ep-loose .ep-done { background: var(--surface-2); color: var(--ink); }
+
+/* Tâches faites : fanées (peu saturées, plus pâles) pour s'effacer derrière ce qu'il reste à faire */
+.task.is-done { filter: saturate(.2) contrast(.92); opacity: .66; box-shadow: none !important; transition: opacity .15s, filter .15s; }
+.task.is-done:hover, .task.is-done:focus-visible { opacity: .95; filter: none; }
