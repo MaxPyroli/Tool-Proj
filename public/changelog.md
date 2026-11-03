@@ -3,6 +3,7 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
+- Les onglets du projet (Aperçu, Tâches, Post-it, Équipe) deviennent des intercalaires de classeur colorés : l'onglet actif dépasse, en haut sur ordinateur et dans la barre du bas sur téléphone.
 - La Feuille de route disparaît : il ne reste qu'un affichage, le Tableau. « Par chantier » range les chantiers par moment (Maintenant, Ensuite, Plus tard), avec les tâches sans chantier signalées en dessous. Chaque chantier a une ligne « N terminées » à déplier. Les tâches faites sont fanées pour s'effacer derrière le reste, et les tâches sans chantier s'étalent sur plusieurs colonnes.
 - Cocher une tâche : la coche se trace au feutre vert et le titre se barre, avec une petite animation.
 - Le texte sélectionné apparaît surligné en jaune.

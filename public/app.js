@@ -115,7 +115,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), justDone: null,
+  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), justDone: null, justDoneFrom: 'todo',
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -338,7 +338,7 @@ function subscribe(pid) {
 }
 async function refreshIfIdle() {
   if (!state.pid || !state.data || document.hidden) return;
-  if (sheet.open || state.dragging || state.panning || ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
+  if (sheet.open || state.dragging || state.panning || state.justDone || ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
     clearTimeout(staleTimer); staleTimer = setTimeout(refreshIfIdle, 2000); // try again once idle
     return;
   }
@@ -599,7 +599,7 @@ function renderProject() {
     <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${glyph(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
     ${isAdmin ? `<button class="btn ghost icon" data-action="edit-project" aria-label="Paramètres du projet">${icon.gear}</button>` : ''}`)}
   <nav class="tabs" aria-label="Sections du projet">
-    ${tabs.map(([k, l, ic, n]) => `<a class="tab" href="#/p/${p.id}/${k}" ${state.tab === k ? 'aria-current="page"' : ''}><span class="ico">${ic}</span>${l}${n ? `<span class="count num">${n}</span>` : ''}</a>`).join('')}
+    ${tabs.map(([k, l, ic, n]) => `<a class="tab" data-k="${k}" href="#/p/${p.id}/${k}" ${state.tab === k ? 'aria-current="page"' : ''}><span class="ico">${ic}</span>${l}${n ? `<span class="count num">${n}</span>` : ''}</a>`).join('')}
   </nav>
   <main class="page" style="--pc:${esc(p.color)}">
     ${{ apercu: viewOverview, taches: viewTasks, idees: viewNotes, equipe: viewTeam }[state.tab](d)}
@@ -937,7 +937,9 @@ function viewBoard(d) {
   </section>` : ''}
   ${finished.length ? `<details class="done-epics"><summary>${finished.length} chantier${finished.length > 1 ? 's' : ''} terminé${finished.length > 1 ? 's' : ''}</summary><div class="ep-grid">${finished.map(note).join('')}</div></details>` : ''}`;
   }
-  const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => t.status === s && matchesFilter(t)).sort(sortItems)]);
+  // la tâche qu'on vient de cocher reste dans sa colonne d'origine le temps de l'animation
+  const colOf = (t) => (t.id === state.justDone ? state.justDoneFrom : t.status);
+  const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => colOf(t) === s && matchesFilter(t)).sort(sortItems)]);
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
   <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
@@ -1694,7 +1696,7 @@ function showNews(i) {
       <span class="cl-pill">Nouveau · version ${esc(n.version)}${newsRun.length > 1 ? ` · ${i + 1}/${newsRun.length}` : ''}</span>
       <h2 id="sheet-title">${esc(n.title)}</h2>
       <p>${esc(n.text)}</p>
-      <div class="row end">${last ? '<button class="btn ghost" data-action="close">Plus tard</button>' : `<button class="btn ghost" data-action="news-next" data-i="${i + 1}">Suivant</button>`}${n.button ? `<button class="btn primary" data-action="news-go" data-go="${esc(n.button.action)}" data-target="${esc(n.button.target || '')}">${esc(n.button.label)}</button>` : ''}</div>
+      <div class="row end">${last ? (n.button ? '<button class="btn ghost" data-action="close">Plus tard</button>' : '') : `<button class="btn ghost" data-action="news-next" data-i="${i + 1}">Suivant</button>`}${last && !n.button ? '<button class="btn primary" data-action="close">Compris !</button>' : ''}${n.button ? `<button class="btn primary" data-action="news-go" data-go="${esc(n.button.action)}" data-target="${esc(n.button.target || '')}">${esc(n.button.label)}</button>` : ''}</div>
     </div>`);
 }
 
@@ -1925,9 +1927,9 @@ const actions = {
   'open-task': (el) => taskSheet(state.data.tasks.find((t) => t.id === Number(el.dataset.id))),
   'toggle-task': async (el) => {
     const t = state.data.tasks.find((x) => x.id === Number(el.dataset.id));
-    const finishing = t.status !== 'done';
+    const finishing = t.status !== 'done', from = t.status;
     await db.updateTask(t.id, { status: finishing ? 'done' : 'todo' });
-    state.justDone = finishing ? t.id : null; // la coche se trace au feutre, une seule fois
+    state.justDone = finishing ? t.id : null; state.justDoneFrom = from; // la coche se trace au feutre, une seule fois
     await reloadProject();
     if (finishing) setTimeout(() => { state.justDone = null; if (!state.dragging && !sheet.open) renderProject(); }, 1100);
   },
