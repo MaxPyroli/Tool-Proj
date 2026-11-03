@@ -115,7 +115,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(),
+  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), justDone: null,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -822,7 +822,7 @@ const STATUS_ORDER = { doing: 0, todo: 1, done: 2 };
 const PRIO_ORDER = { high: 0, normal: 1, low: 2 };
 const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
 
-const CHECK_SVG = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.800l4.600 4.600L19 7.200"/></svg>';
+const CHECK_SVG = '<svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path pathLength="1" d="M7.500 16.500Q10.500 19.800 13 24Q18 12.500 27 5.500"/></svg>';
 const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${typeIcon(t.type, 13)}</i>${TYPES[t.type]}</span>`);
 const prioTag = (t) => (t.priority === 'high' ? '<span class="stamp" title="Priorité haute">Urgent</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
 const sortItems = (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
@@ -841,7 +841,7 @@ function matchesFilter(t) {
 
 function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
   return `
-  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
+  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''} ${state.justDone === t.id ? 'just-done' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
     <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? CHECK_SVG : t.status === 'doing' ? '<i class="dot-doing"></i>' : ''}</button>
     <div class="t-main">
       <span class="t-title">${esc(t.title)}</span>
@@ -910,7 +910,9 @@ function viewBoard(d) {
     : `<div class="ep-loose-label small muted">Sans chantier</div><div class="ep-loose" data-drop-epic="0">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
   if (byEpic) {
     const mine = d.tasks.filter(matchesFilter).sort(sortItems);
-    const open = mine.filter((t) => t.status !== 'done'), fini = mine.filter((t) => t.status === 'done');
+    // la tâche qu'on vient de cocher reste en place le temps de l'animation, puis passe dans « terminées »
+    const stays = (t) => t.status !== 'done' || t.id === state.justDone;
+    const open = mine.filter(stays), fini = mine.filter((t) => !stays(t));
     // chantiers rangés par moment ; un filtre ne garde que les chantiers qui ont des éléments correspondants
     const bucket = (h) => d.epics.filter((e) => e.horizon === h).sort(sortEpics)
       .map((e) => [e, open.filter((t) => t.epicId === e.id), fini.filter((t) => t.epicId === e.id)])
@@ -1923,8 +1925,11 @@ const actions = {
   'open-task': (el) => taskSheet(state.data.tasks.find((t) => t.id === Number(el.dataset.id))),
   'toggle-task': async (el) => {
     const t = state.data.tasks.find((x) => x.id === Number(el.dataset.id));
-    await db.updateTask(t.id, { status: t.status === 'done' ? 'todo' : 'done' });
+    const finishing = t.status !== 'done';
+    await db.updateTask(t.id, { status: finishing ? 'done' : 'todo' });
+    state.justDone = finishing ? t.id : null; // la coche se trace au feutre, une seule fois
     await reloadProject();
+    if (finishing) setTimeout(() => { state.justDone = null; if (!state.dragging && !sheet.open) renderProject(); }, 1100);
   },
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
   'img-open': (el) => openLightbox(Number(el.dataset.i)),

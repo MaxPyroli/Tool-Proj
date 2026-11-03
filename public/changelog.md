@@ -3,7 +3,8 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.21.3
-- La Feuille de route disparaît : il ne reste qu'un affichage, le Tableau. « Par chantier » range les chantiers par moment (Maintenant, Ensuite, Plus tard), avec les tâches sans chantier signalées en dessous. Chaque chantier a une ligne « N terminées » à déplier. Les tâches faites sont fanées pour s'effacer derrière le reste.
+- La Feuille de route disparaît : il ne reste qu'un affichage, le Tableau. « Par chantier » range les chantiers par moment (Maintenant, Ensuite, Plus tard), avec les tâches sans chantier signalées en dessous. Chaque chantier a une ligne « N terminées » à déplier. Les tâches faites sont fanées pour s'effacer derrière le reste, et les tâches sans chantier s'étalent sur plusieurs colonnes.
+- Cocher une tâche : la coche se trace au feutre vert et le titre se barre, avec une petite animation.
 - Le texte sélectionné apparaît surligné en jaune.
 - Boutons principaux en étiquettes adhésives : droits au repos, ils se penchent un peu et leur coin se décolle quand on passe dessus ou qu'on appuie.
 - Tampon rouge « URGENT » sur les tâches de priorité haute, surligneur jaune avec ==texte==, et filtres en étiquettes cartonnées à œillet et ficelle.

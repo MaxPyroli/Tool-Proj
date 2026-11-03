@@ -846,3 +846,23 @@ mark { color: #2b2717; padding: 0 .18em; margin: 0 -.05em; border-radius: .25em 
 /* Tâches faites : fanées (peu saturées, plus pâles) pour s'effacer derrière ce qu'il reste à faire */
 .task.is-done { filter: saturate(.2) contrast(.92); opacity: .66; box-shadow: none !important; transition: opacity .15s, filter .15s; }
 .task.is-done:hover, .task.is-done:focus-visible { opacity: .95; filter: none; }
+
+/* Case cochée au feutre : coche verte qui déborde du rond, tracée à la main ; titre barré d'un trait de feutre */
+.task .check { overflow: visible; position: relative; }
+.task .check.done { background: rgb(255 255 255 / .75); border-color: rgb(43 39 23 / .5); color: #17803a; }
+.check.done svg { position: absolute; left: 50%; top: 50%; margin: -17px 0 0 -14px; width: 30px; height: 30px; overflow: visible; }
+.check.done svg path { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.task.is-done .t-title { text-decoration-thickness: 2px; text-decoration-color: currentColor; }
+@keyframes tp-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes tp-strike { from { text-decoration-color: transparent; } to { text-decoration-color: currentColor; } }
+@keyframes tp-tap { 0% { scale: 1; } 40% { scale: .97; } 100% { scale: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .task.just-done { animation: tp-tap .35s ease-out; }
+  .task.just-done .check.done svg path { animation: tp-draw .32s .05s ease-out both; }
+  .task.just-done .t-title { animation: tp-strike .3s .25s ease-out both; }
+}
+
+/* Tâches sans chantier : plusieurs colonnes quand il y a de la place */
+.ep-loose-wrap .ep-loose, .ep-loose-wrap .ep-stack-done { grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); align-items: start; gap: 10px; }
+.ep-loose-wrap .ep-done, .ep-loose-wrap .ep-stack-done { grid-column: 1 / -1; }
+.ep-loose-wrap .ep-stack-done { display: grid; }
