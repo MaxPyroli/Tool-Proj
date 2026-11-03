@@ -1000,3 +1000,4 @@ dialog#sheet .sheet-body::before { content: none; }
 .pc-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pc-progress { margin-top: auto; }
 .pc-role { align-self: flex-start; }
+.pcard .desc { margin: 0; font-size: .9rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
