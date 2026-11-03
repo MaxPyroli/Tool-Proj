@@ -2,6 +2,7 @@
 // Adresse : <projet>.supabase.co/functions/v1/mcp/<clé>. La clé est fabriquée dans l'app (Mon compte → Accès pour Claude) ;
 // la base ne garde que son empreinte SHA-256 ; les outils tournent avec les droits de la personne (public.mcp_call).
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 import { AuthError, handleMessage } from "./mcp.js";
 
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -12,6 +13,24 @@ const sha256 = async (s: string) =>
 const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...extra } });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+// Images d'une tâche : la base donne les chemins (droits vérifiés), la fonction lit les fichiers du stockage privé.
+// Fichier complet si < 900 Ko, sinon la vignette ; 3 images par défaut, 4 au plus.
+const MAX_FULL = 900_000;
+async function withPictures(data: { task_id: number; images: { id: number; path: string }[] }, limit: number) {
+  const n = Math.min(Math.max(Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 3, 1), 4);
+  const out = [];
+  for (const img of (data.images ?? []).slice(0, n)) {
+    let { data: blob } = await sb.storage.from("task-images").download(img.path);
+    if (!blob || blob.size > MAX_FULL) {
+      const t = await sb.storage.from("task-images").download(img.path.replace(/\.jpg$/, "_t.jpg"));
+      if (t.data) blob = t.data;
+    }
+    if (!blob) continue;
+    out.push({ id: img.id, mimeType: "image/jpeg", bytes: blob.size, data: encodeBase64(new Uint8Array(await blob.arrayBuffer())) });
+  }
+  return { task_id: data.task_id, total: (data.images ?? []).length, images: out };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, mcp-session-id, mcp-protocol-version", "Access-Control-Expose-Headers": "mcp-session-id", "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS" } });
@@ -32,6 +51,7 @@ Deno.serve(async (req) => {
     const { data, error } = await sb.rpc("mcp_call", { p_token_hash: hash, p_tool: tool, p_args: sid ? { ...clean, _session: sid } : clean });
     if (error) throw new Error(error.message);
     if (data?.auth === false) throw new AuthError("Accès refusé");
+    if (tool === "get_task_images") return await withPictures(data, Number(args.limit));
     return data;
   };
 

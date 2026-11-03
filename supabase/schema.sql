@@ -808,6 +808,13 @@ begin
       limit n) q), '[]'::jsonb));
   end if;
 
+  if p_tool = 'get_task_images' then
+    tid := nullif(a->>'task_id', '')::bigint;
+    select project_id into pid from public.tasks where id = tid;
+    if pid is null or not public.is_member(pid) or (lock is not null and pid <> lock) then raise exception 'Cette tâche n''existe pas (ou tu n''y as pas accès dans ce projet).'; end if;
+    return jsonb_build_object('task_id', tid, 'images', coalesce((select jsonb_agg(jsonb_build_object('id', i.id, 'path', i.path) order by i.id) from public.task_images i where i.task_id = tid), '[]'::jsonb));
+  end if;
+
   if p_tool = 'list_notes' then
     return jsonb_build_object('notes', coalesce((select jsonb_agg(row_to_json(q)) from (
       select x.id, x.text, x.color, (select count(*) from public.note_votes v where v.note_id = x.id) as votes, x.created_at

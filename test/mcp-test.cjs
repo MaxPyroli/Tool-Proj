@@ -10,7 +10,7 @@
   r = await rpc('initialize', { protocolVersion: '1999-01-01' }); ok(r.result.protocolVersion === '2025-06-18', 'initialize : version inconnue → la plus récente');
   ok(await handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }, call) === null, 'notification : pas de réponse');
   r = await rpc('ping'); ok(JSON.stringify(r.result) === '{}', 'ping');
-  r = await rpc('tools/list'); ok(r.result.tools.length === 10 && r.result.tools.every((t) => t.name && t.description && t.inputSchema.type === 'object'), 'tools/list : 10 outils décrits');
+  r = await rpc('tools/list'); ok(r.result.tools.length === 11 && r.result.tools.every((t) => t.name && t.description && t.inputSchema.type === 'object'), 'tools/list : 11 outils décrits');
   ok(TOOLS.some((t) => t.name === 'select_project'), 'select_project existe');
   ok(new Set(TOOLS.map((t) => t.name)).size === TOOLS.length, 'noms uniques');
   ok(!TOOLS.some((t) => /delete|remove|drop/i.test(t.name)), 'aucun outil de suppression');
@@ -26,5 +26,8 @@
   TOOLS.pop(); TOOLS.push({ ...TOOLS[0], name: 'denied' });
   let threw = false; try { await rpc('tools/call', { name: 'denied', arguments: {} }); } catch (e) { threw = e instanceof AuthError; }
   ok(threw, 'accès refusé : remonte pour répondre 401');
+  const pic = async () => ({ task_id: 7, total: 1, images: [{ id: 1, mimeType: 'image/jpeg', bytes: 3, data: 'QUJD' }] });
+  r = await handleMessage({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'get_task_images', arguments: { task_id: 7 } } }, pic);
+  ok(r.result.content.length === 2 && r.result.content[1].type === 'image' && r.result.content[1].data === 'QUJD' && !r.result.content[0].text.includes('QUJD'), 'get_task_images : image renvoyée en bloc image, pas dans le texte');
   console.log(fails ? `${fails} en échec` : 'Tout est vert'); process.exit(fails ? 1 : 0);
 })();

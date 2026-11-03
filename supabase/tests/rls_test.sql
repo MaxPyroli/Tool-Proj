@@ -258,6 +258,10 @@ do $$ declare r jsonb; tid bigint; other_pid bigint; pidv bigint := current_sett
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "assignee": "inconnu"}')$f$, tid), 'Personne');
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "status": "fini"}')$f$, tid), 'check constraint');
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'create_task', '{"project_id": %s, "title": "x", "assignee": "zed"}')$f$, pidv), 'pas membre');
+  -- images d'une tâche : chemins renvoyés aux seuls membres
+  insert into task_images (task_id, project_id, path) values (tid, pidv, pidv || '/' || tid || '/11111111-1111-1111-1111-111111111111.jpg');
+  assert jsonb_array_length(public.mcp_call(repeat('1', 64), 'get_task_images', jsonb_build_object('task_id', tid))->'images') = 1, 'get_task_images : le membre voit les images';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'get_task_images', '{"task_id": %s}')$f$, tid), 'accès');
   -- conversation verrouillée sur un projet (Mcp-Session-Id)
   perform public.mcp_call(repeat('1', 64), 'create_task', jsonb_build_object('project_id', pidv, 'title', 'Sans session'));
   r := public.mcp_call(repeat('1', 64), 'list_projects', '{"_session": "11111111-1111-1111-1111-111111111111"}');
