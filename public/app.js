@@ -115,7 +115,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), justDone: null, justDoneFrom: 'todo',
+  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), justDone: null, justDoneFrom: 'todo', justUndone: null,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -251,6 +251,7 @@ function openSheet(html, onMount) {
   sheet.innerHTML = `<div class="sheet-body">${html}</div>`;
   if (!sheet.open) sheet.showModal();
   sheet.querySelectorAll('textarea').forEach(mdPreview);
+  sheet.querySelectorAll('textarea.input').forEach(autoGrow);
   sheetAt = Date.now();
   sheetCleanup = onMount?.(sheet) || null;
   const auto = sheet.querySelector('[autofocus]');
@@ -265,6 +266,12 @@ function closeSheet() {
 sheet.addEventListener('click', (e) => { if (e.target === sheet && Date.now() - sheetAt > 450) closeSheet(); });
 sheet.addEventListener('close', () => { sheetCleanup?.(); sheetCleanup = null; });
 // Live preview of **bold** / *italic* / __underline__ under long text fields (only when there is some markup).
+/** Textareas of a sheet grow with their text (no resize handle). */
+function autoGrow(ta) {
+  if (!ta?.matches?.('textarea.input')) return;
+  ta.style.height = 'auto';
+  ta.style.height = `${Math.min(ta.scrollHeight + 2, Math.round(innerHeight * .5))}px`;
+}
 function mdPreview(ta) {
   const box = ta.closest('.field')?.querySelector('.md-preview');
   if (!box) return;
@@ -273,7 +280,7 @@ function mdPreview(ta) {
   if (!box.hidden) box.innerHTML = html;
 }
 sheet.addEventListener('input', (e) => {
-  if (e.target.tagName === 'TEXTAREA') mdPreview(e.target);
+  if (e.target.tagName === 'TEXTAREA') { mdPreview(e.target); autoGrow(e.target); }
   if (e.target.id === 'pf-color') syncProjectColor();
   const form = e.target.form;
   if (e.target.name?.startsWith('tc_') && form?.elements.tc_task) { refreshStylePreview(form); syncTypeColors(form); }
@@ -338,7 +345,7 @@ function subscribe(pid) {
 }
 async function refreshIfIdle() {
   if (!state.pid || !state.data || document.hidden) return;
-  if (sheet.open || state.dragging || state.panning || state.justDone || ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
+  if (sheet.open || state.dragging || state.panning || state.justDone || state.justUndone || ($app.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) {
     clearTimeout(staleTimer); staleTimer = setTimeout(refreshIfIdle, 2000); // try again once idle
     return;
   }
@@ -771,7 +778,7 @@ function viewTeam(d) {
       <h3>${d.members.length} personne${d.members.length > 1 ? 's' : ''} sur le projet</h3>
       <div class="members">
         ${d.members.map((m) => `
-          <div class="member bd-${m.role}">
+          <div class="member bd-${m.role} ${m.id === state.me.id ? 'is-me' : ''}">
             <span class="badge-role">${m.role === 'admin' ? 'Admin' : 'Membre'}</span>
             ${avatar(m, 'lg')}
             <div class="grow"><strong>${esc(m.displayName)}${m.id === state.me.id ? ' (toi)' : ''}</strong><span class="small muted">@${esc(m.username)}</span></div>
@@ -828,7 +835,7 @@ const CHECK_SVG = '<svg viewBox="0 0 32 32" width="30" height="30" fill="none" s
 const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${typeIcon(t.type, 13)}</i>${TYPES[t.type]}</span>`);
 const prioTag = (t) => (t.priority === 'high' ? '<span class="stamp" title="Priorité haute">Urgent</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
 // la tâche qu'on vient de cocher garde sa place (son ancien statut) le temps de l'animation
-const sortStatus = (t) => (t.id === state.justDone ? state.justDoneFrom : t.status);
+const sortStatus = (t) => (t.id === state.justDone ? state.justDoneFrom : t.id === state.justUndone ? 'done' : t.status);
 const sortItems = (a, b) => STATUS_ORDER[sortStatus(a)] - STATUS_ORDER[sortStatus(b)] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
 const sortEpics = (a, b) => HORIZON_ORDER[a.horizon] - HORIZON_ORDER[b.horizon] || a.position - b.position;
 
@@ -845,10 +852,10 @@ function matchesFilter(t) {
 
 function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
   return `
-  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''} ${state.justDone === t.id ? 'just-done' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
+  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''} ${state.justDone === t.id ? 'just-done' : ''} ${state.justUndone === t.id ? 'just-undone' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
     <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? CHECK_SVG : t.status === 'doing' ? '<i class="dot-doing"></i>' : ''}</button>
     <div class="t-main">
-      <span class="t-title">${esc(t.title)}</span>
+      <span class="t-title"><span class="t-txt">${esc(t.title)}</span></span>
       ${typeTag(t) || prioTag(t) || t.description || t.images?.length || showEpic ? `<span class="t-meta">${typeTag(t)}${prioTag(t)}${t.description ? '<span class="has-desc" title="A une description">≡ détails</span>' : ''}${t.images?.length ? `<span class="has-desc with-ico" title="${t.images.length} image${t.images.length > 1 ? 's' : ''}">${ico('image', 13)} ${t.images.length}</span>` : ''}${showEpic ? `<span class="t-epic">${esc(showEpic)}</span>` : ''}</span>` : ''}
     </div>
     ${avatar(byId[t.assigneeId])}
@@ -890,7 +897,7 @@ function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = []
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
       <span class="ep-count num">${pr.done}/${pr.total}</span>
-      <button class="btn sm ghost ep-add" data-action="new-item" data-epic="${e.id}" aria-label="Ajouter dans ${esc(e.title)}">+</button>
+      <button class="btn sm primary ep-add" data-action="new-item" data-epic="${e.id}" aria-label="Ajouter dans ${esc(e.title)}">+</button>
     </header>
     <div class="progress ep-bar"><i style="width:${pr.pct}%"></i></div>
     <div class="ep-stack">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>
@@ -915,8 +922,8 @@ function viewBoard(d) {
   if (byEpic) {
     const mine = d.tasks.filter(matchesFilter).sort(sortItems);
     // la tâche qu'on vient de cocher reste en place le temps de l'animation, puis passe dans « terminées »
-    const stays = (t) => t.status !== 'done' || t.id === state.justDone;
-    const open = mine.filter(stays), fini = mine.filter((t) => !stays(t));
+    const isFini = (t) => (t.id === state.justUndone ? true : t.status === 'done' && t.id !== state.justDone);
+    const open = mine.filter((t) => !isFini(t)), fini = mine.filter(isFini);
     // chantiers rangés par moment ; un filtre ne garde que les chantiers qui ont des éléments correspondants
     const bucket = (h) => d.epics.filter((e) => e.horizon === h).sort(sortEpics)
       .map((e) => [e, open.filter((t) => t.epicId === e.id), fini.filter((t) => t.epicId === e.id)])
@@ -942,7 +949,7 @@ function viewBoard(d) {
   ${finished.length ? `<details class="done-epics"><summary>${finished.length} chantier${finished.length > 1 ? 's' : ''} terminé${finished.length > 1 ? 's' : ''}</summary><div class="ep-grid">${finished.map(note).join('')}</div></details>` : ''}`;
   }
   // la tâche qu'on vient de cocher reste dans sa colonne d'origine le temps de l'animation
-  const colOf = (t) => (t.id === state.justDone ? state.justDoneFrom : t.status);
+  const colOf = (t) => (t.id === state.justDone ? state.justDoneFrom : t.id === state.justUndone ? 'done' : t.status);
   const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => colOf(t) === s && matchesFilter(t)).sort(sortItems)]);
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
@@ -1933,9 +1940,10 @@ const actions = {
     const t = state.data.tasks.find((x) => x.id === Number(el.dataset.id));
     const finishing = t.status !== 'done', from = t.status;
     await db.updateTask(t.id, { status: finishing ? 'done' : 'todo' });
-    state.justDone = finishing ? t.id : null; state.justDoneFrom = from; // la coche se trace au feutre, une seule fois
+    // la coche se trace au feutre (ou s'efface) une seule fois, la tâche reste en place le temps de l'animation
+    state.justDone = finishing ? t.id : null; state.justDoneFrom = from; state.justUndone = finishing ? null : t.id;
     await reloadProject();
-    if (finishing) setTimeout(() => { state.justDone = null; if (!state.dragging && !sheet.open) renderProject(); }, 1100);
+    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) renderProject(); }, finishing ? 1100 : 800);
   },
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
   'img-open': (el) => openLightbox(Number(el.dataset.i)),
