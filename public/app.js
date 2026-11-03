@@ -914,7 +914,7 @@ function epicClosed(e, openCount, doneCount, draggable) {
 function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = [], foldable = false) {
   const pr = epicProgress(d, e.id);
   const doneOpen = state.epicDone.has(e.id);
-  return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
+  return `<article class="ep-sheet hz-${e.horizon}" ${state.boardGroup === 'epic' ? `data-drop-epic="${e.id}"` : ''} data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
     <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
@@ -941,7 +941,7 @@ function viewBoard(d) {
   const draggable = matchMedia('(pointer: fine)').matches;
   const byEpic = state.boardGroup === 'epic';
   const group = (list) => boardGroups(d, list).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
-    : `<div class="ep-loose-label small muted">Sans chantier</div><div class="ep-loose" data-drop-epic="0">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
+    : `<div class="ep-loose-label small muted">Sans chantier</div><div class="ep-loose">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
   if (byEpic) {
     const mine = d.tasks.filter(matchesFilter).sort(sortItems);
     // la tâche qu'on vient de cocher reste en place le temps de l'animation, puis passe dans « terminées »
@@ -1218,9 +1218,13 @@ function bindTaskDnD() {
   let g = null; // { id, el, ghost, timer, sx, sy, x, y, box, raf, active, pid }
   let swallowClick = 0;
   const boxAt = () => {
-    const box = document.elementFromPoint(g.x, g.y)?.closest('[data-drop-epic]');
+    const hit = document.elementFromPoint(g.x, g.y);
     const t = state.data?.tasks.find((x) => x.id === g.id);
-    return box && t && (t.epicId ?? null) !== (Number(box.dataset.dropEpic) || null) ? box : null;
+    if (!t) return null;
+    const tab = hit?.closest('[data-action="task-col"]'); // vue par statut : on dépose sur « À faire », « En cours » ou « Fait »
+    if (tab) return tab.dataset.v !== t.status ? tab : null;
+    const box = hit?.closest('[data-drop-epic]');
+    return box && (t.epicId ?? null) !== (Number(box.dataset.dropEpic) || null) ? box : null;
   };
   const frame = () => {
     if (!g?.active) return;
@@ -1237,7 +1241,16 @@ function bindTaskDnD() {
     ghost.remove(); el.classList.remove('dragging'); markEpicDrop(null);
     swallowClick = Date.now() + 500;
     state.dragging = false;
-    if (drop && box) run(async () => { await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null }); fx.focus([`task:${id}`]); await reloadProject(); })();
+    if (drop && box) {
+      run(async () => {
+        if (box.dataset.action === 'task-col') {
+          const maxPos = Math.max(0, ...state.data.tasks.map((x) => x.position));
+          await db.updateTask(id, { status: box.dataset.v, position: maxPos + 1 });
+          state.taskCol = box.dataset.v;
+        } else await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null });
+        fx.focus([`task:${id}`]); await reloadProject();
+      })();
+    }
   };
   const begin = () => {
     const r = g.el.getBoundingClientRect();

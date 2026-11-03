@@ -3,6 +3,7 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
+- Par statut : tu peux déposer une tâche n'importe où dans une autre colonne, même par-dessus les autres tâches. Sur téléphone, appuie longtemps sur la tâche puis dépose-la sur l'onglet « À faire », « En cours » ou « Fait ».
 - Animations : la tâche que tu déplaces, ranges ou modifies glisse jusqu'à sa nouvelle place au lieu de sauter, et une nouvelle tâche se colle avec un petit rebond. Rien ne bouge quand ce n'est pas toi qui agis.
 - Suppression animée : une tâche ou un post-it supprimé se froisse et part à la corbeille ; un chantier ou un projet est avalé par une déchiqueteuse et ressort en bandelettes.
 - Fenêtres : la barre « Enregistrer » épinglée ne cache plus le haut du titre qui suit (les accents de « Clés d'accès » étaient coupés).
