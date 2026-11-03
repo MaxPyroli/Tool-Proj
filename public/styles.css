@@ -1016,10 +1016,22 @@ dialog#sheet .sheet-body::before { content: none; }
 
 /* Équipe : on repère son propre badge (nom en gras surligné), les autres noms restent plus discrets */
 .member:not(.is-me) .grow strong { font-weight: 500; }
-.member.is-me .grow strong { font-weight: 800; background: linear-gradient(transparent 58%, rgb(255 226 45 / .75) 58%); padding: 0 .15em; }
+.member.is-me .grow strong { font-weight: 800; }
 
 /* Détails d'une tâche : la zone s'adapte au texte, sans poignée de redimensionnement */
 .desc-box textarea.input, #sheet textarea.input { resize: none; overflow-y: auto; }
 .desc-box textarea.input { min-height: 56px; }
 /* « + » d'un chantier = mini sticker */
 .ep-add.primary { --peel: 8px; min-width: 30px; width: 30px; min-height: 30px; height: 30px; padding: 0; font-size: 1.25rem; line-height: 1; border-radius: 3px; }
+
+/* « Plus tard » : calepins fermés empilés (titre seulement) */
+.ep-closed { --ep: var(--pi-purple); position: relative; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 46px; margin-top: 12px; padding: 14px 12px 6px; border: 0; border-radius: 3px; text-align: left; cursor: pointer;
+  color: var(--np-ink); background-color: color-mix(in srgb, var(--ep) var(--np-mix), var(--np-paper)); border-top: 5px solid color-mix(in srgb, var(--ep) 80%, #000 12%);
+  box-shadow: 0 3px 0 -1px color-mix(in srgb, var(--ep) 55%, var(--np-paper)), 0 6px 0 -2px color-mix(in srgb, var(--ep) 35%, var(--np-paper)), 0 5px 8px -2px rgb(0 0 0 / .25); }
+.ep-closed .ep-spiral { top: -12px; left: 8px; right: 8px; height: 16px; background-size: 20px 16px; }
+.ep-closed-title { flex: 1; min-width: 0; font-family: var(--f-hand); font-size: 1.15rem; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.ep-closed-count { flex: none; font-size: .78rem; font-weight: 700; opacity: .75; }
+.ep-chev { flex: none; font-size: .8rem; opacity: .7; }
+.ep-closed.hz-now { --ep: var(--pi-green); } .ep-closed.hz-done { --ep: var(--pi-yellow); }
+.ep-fold { flex: none; width: 30px; height: 30px; border: 0; border-radius: 3px; cursor: pointer; background: var(--np-chip-hi); color: var(--np-ink); font-size: .9rem; }
+.ep-closed.dragging { opacity: .4; }

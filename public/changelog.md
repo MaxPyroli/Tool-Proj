@@ -3,9 +3,10 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
+- Chantiers : « Ensuite » disparaît (« Plus tard » fait le même travail). En « Plus tard », les chantiers sont des calepins fermés empilés, avec seulement le titre : on les ouvre au toucher. Dans « Par statut », les tâches de ces chantiers sont rangées (un lien permet de les afficher).
 - Titre barré : le trait de feutre se trace sur le texte de gauche à droite quand on coche, et se rétracte quand on décoche. La tâche reste en place pendant l'animation.
 - Détails d'une tâche : la zone s'agrandit avec le texte, sans poignée de redimensionnement.
-- Équipe : ton propre nom est en gras et surligné, les autres sont plus discrets.
+- Équipe : ton propre nom est en gras, les autres sont plus discrets.
 - Le « + » d'un chantier devient un mini sticker.
 - Les onglets du projet (Aperçu, Tâches, Post-it, Équipe) deviennent des intercalaires de classeur colorés : l'onglet actif dépasse, avec un bandeau de sa couleur sur toute la largeur. En haut sur ordinateur, dans la barre du bas sur téléphone.
 - Les fenêtres (ajout, modification, compte…) sont de petites feuilles d'un carnet prédécoupé : bord du haut en encoches, papier ligné avec marge rouge qui défile avec le contenu, boutons du bas épinglés sur la feuille. Papier crème en clair, papier sombre en mode sombre.

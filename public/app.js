@@ -115,7 +115,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), justDone: null, justDoneFrom: 'todo', justUndone: null,
+  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), epicOpen: new Set(), showLater: false, justDone: null, justDoneFrom: 'todo', justUndone: null,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -826,10 +826,10 @@ function applyTaskStyle(p) {
   TYPE_LIST.forEach((k) => b.style.setProperty(`--c-${k}`, c[k]));
 }
 const PRIORITY = { high: 'Haute', normal: 'Normale', low: 'Basse' };
-const HORIZON = { now: 'Maintenant', next: 'Ensuite', later: 'Plus tard', done: 'Terminé' };
+const HORIZON = { now: 'Maintenant', later: 'Plus tard', done: 'Terminé' };
 const STATUS_ORDER = { doing: 0, todo: 1, done: 2 };
 const PRIO_ORDER = { high: 0, normal: 1, low: 2 };
-const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
+const HORIZON_ORDER = { now: 0, later: 1, done: 2 };
 
 const CHECK_SVG = '<svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path pathLength="1" d="M7.500 16.500Q10.500 19.800 13 24Q18 12.500 27 5.500"/></svg>';
 const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${typeIcon(t.type, 13)}</i>${TYPES[t.type]}</span>`);
@@ -888,8 +888,18 @@ function doneLine(key, doneItems, byId, draggable) {
     ${open ? `<div class="ep-stack ep-stack-done">${doneItems.map((t) => taskRow(t, byId, { draggable })).join('')}</div>` : ''}`;
 }
 
+/** A « Plus tard » chantier folded as a closed notepad: spiral + title only, tap to open it. */
+function epicClosed(e, openCount, doneCount, draggable) {
+  return `<button class="ep-closed hz-${e.horizon}" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false">
+    <span class="ep-spiral" aria-hidden="true"></span>
+    <span class="ep-closed-title">${esc(e.title)}</span>
+    <span class="ep-closed-count">${openCount ? `${openCount} à faire` : doneCount ? 'tout fait' : 'vide'}</span>
+    <span class="ep-chev" aria-hidden="true">▾</span>
+  </button>`;
+}
+
 /** A chantier drawn as a big post-it with its tasks stuck on top of it. */
-function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = []) {
+function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = [], foldable = false) {
   const pr = epicProgress(d, e.id);
   const doneOpen = state.epicDone.has(e.id);
   return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
@@ -897,6 +907,7 @@ function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = []
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
       <span class="ep-count num">${pr.done}/${pr.total}</span>
+      ${foldable ? `<button class="ep-fold" data-action="epic-toggle" data-id="${e.id}" aria-label="Replier ${esc(e.title)}">▴</button>` : ''}
       <button class="btn sm primary ep-add" data-action="new-item" data-epic="${e.id}" aria-label="Ajouter dans ${esc(e.title)}">+</button>
     </header>
     <div class="progress ep-bar"><i style="width:${pr.pct}%"></i></div>
@@ -932,13 +943,15 @@ function viewBoard(d) {
     const loose = open.filter(isLoose), looseDone = fini.filter(isLoose);
     const finished = bucket('done');
     const note = ([e, l, f]) => epicNote(d, e, l, byId, draggable, true, f);
+    // « Plus tard » : calepins fermés (titre seulement), on les ouvre au toucher
+    const laterItem = ([e, l, f]) => (state.epicOpen.has(e.id) ? epicNote(d, e, l, byId, draggable, true, f, true) : epicClosed(e, l.length, f.length, draggable));
     return `
   ${quickAdd('Ajouter une tâche rapide…')}
-  <div class="columns rm" style="--n:3">
-    ${['now', 'next', 'later'].map((h) => { const list = bucket(h); return `
+  <div class="columns rm" style="--n:2">
+    ${['now', 'later'].map((h) => { const list = bucket(h); return `
       <section class="col shown" data-drop-horizon="${h}" aria-label="${HORIZON[h]}">
         <div class="col-head"><h3><span class="dot" style="--c:var(--h-${h})"></span>${HORIZON[h]}</h3><span class="muted num small">${list.length}</span></div>
-        ${list.map(note).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Glisse un chantier ici, ou change son moment.' : 'Aucun chantier.'}</p>`}
+        ${list.map(h === 'later' ? laterItem : note).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Glisse un chantier ici, ou change son moment.' : 'Aucun chantier.'}</p>`}
       </section>`; }).join('')}
   </div>
   ${loose.length || looseDone.length ? `<section class="ep-loose-wrap">
@@ -950,7 +963,10 @@ function viewBoard(d) {
   }
   // la tâche qu'on vient de cocher reste dans sa colonne d'origine le temps de l'animation
   const colOf = (t) => (t.id === state.justDone ? state.justDoneFrom : t.id === state.justUndone ? 'done' : t.status);
-  const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => colOf(t) === s && matchesFilter(t)).sort(sortItems)]);
+  const laterIds = new Set(d.epics.filter((e) => e.horizon === 'later').map((e) => e.id));
+  const parked = d.tasks.filter((t) => laterIds.has(t.epicId) && matchesFilter(t));
+  const visible = (t) => state.showLater || !laterIds.has(t.epicId);
+  const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => colOf(t) === s && matchesFilter(t) && visible(t)).sort(sortItems)]);
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
   <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
@@ -960,7 +976,8 @@ function viewBoard(d) {
         <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR[s]}"></span>${TASK[s]}</h3><span class="muted num small">${list.length}</span></div>
         ${group(list) || `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
       </section>`).join('')}
-  </div>`;
+  </div>
+  ${parked.length ? `<button class="link-btn" data-action="toggle-later">${state.showLater ? 'Masquer' : 'Afficher'} les ${parked.length} tâche${parked.length > 1 ? 's' : ''} rangée${parked.length > 1 ? 's' : ''} dans des chantiers « Plus tard »</button>` : ''}`;
 }
 
 const segField = (name, options, value, label, cls = '') => `
@@ -1089,7 +1106,7 @@ function taskSheet(t) {
 function epicSheet(e) {
   const d = state.data;
   const isNew = !e.id;
-  e = { title: '', description: '', horizon: 'next', ...e };
+  e = { title: '', description: '', horizon: 'now', ...e };
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const items = isNew ? [] : d.tasks.filter((t) => t.epicId === e.id).sort(sortItems);
   openSheet(`
@@ -1873,6 +1890,8 @@ const actions = {
   'goto-roadmap': () => { state.boardGroup = 'epic'; store.set('boardGroup', 'epic'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
   'toggle-done': () => { state.showDone = !state.showDone; renderProject(); },
+  'epic-toggle': (el) => { const k = Number(el.dataset.id); state.epicOpen.has(k) ? state.epicOpen.delete(k) : state.epicOpen.add(k); renderProject(); },
+  'toggle-later': () => { state.showLater = !state.showLater; renderProject(); },
   'epic-done': (el) => { const k = Number(el.dataset.id); state.epicDone.has(k) ? state.epicDone.delete(k) : state.epicDone.add(k); renderProject(); },
   'quick-type': (el) => {
     const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];

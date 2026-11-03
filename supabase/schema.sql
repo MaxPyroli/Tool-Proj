@@ -66,12 +66,15 @@ create table if not exists public.epics (
   project_id bigint not null references public.projects (id) on delete cascade,
   title text not null check (char_length(title) between 1 and 200),
   description text not null default '' check (char_length(description) <= 5000),
-  horizon text not null default 'next' check (horizon in ('now', 'next', 'later', 'done')),
+  horizon text not null default 'now' check (horizon in ('now', 'next', 'later', 'done')),
   position double precision not null default 0,
   created_by uuid default auth.uid() references public.profiles (id) on delete set null,
   created_at timestamptz not null default now()
 );
 create index if not exists epics_project_idx on public.epics (project_id);
+-- « Ensuite » n'existe plus : « Plus tard » fait le même travail (la valeur 'next' reste permise par la contrainte, mais plus utilisée)
+alter table public.epics alter column horizon set default 'now';
+update public.epics set horizon = 'later' where horizon = 'next';
 
 -- Tâches v2 : description, type, priorité, chantier (ajoutés sans toucher aux données existantes).
 alter table public.tasks add column if not exists description text not null default '';
@@ -878,7 +881,7 @@ begin
 
   if p_tool = 'create_epic' then
     insert into public.epics (project_id, title, description, horizon, position)
-    values (pid, left(trim(a->>'title'), 200), left(coalesce(a->>'description', ''), 5000), coalesce(nullif(a->>'horizon', ''), 'next'),
+    values (pid, left(trim(a->>'title'), 200), left(coalesce(a->>'description', ''), 5000), coalesce(nullif(a->>'horizon', ''), 'now'),
             coalesce((select max(position) from public.epics where project_id = pid), 0) + 1)
     returning id into eid;
     return jsonb_build_object('created', true, 'epic_id', eid);

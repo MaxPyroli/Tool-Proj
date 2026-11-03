@@ -184,7 +184,7 @@ const taskDto = (t, images = []) => ({
   epicId: t.epic_id ?? null, position: t.position, assigneeId: t.assignee_id, createdAt: t.created_at, doneAt: t.done_at,
 });
 const linkDto = (l) => ({ id: l.id, label: l.label, url: l.url, position: l.position });
-const epicDto = (e) => ({ id: e.id, title: e.title, description: e.description, horizon: e.horizon, position: e.position, createdAt: e.created_at });
+const epicDto = (e) => ({ id: e.id, title: e.title, description: e.description, horizon: e.horizon === 'next' ? 'later' : e.horizon, position: e.position, createdAt: e.created_at });
 const noteDto = (n, me) => ({
   id: n.id, text: n.text, color: n.color, x: n.x, y: n.y, z: n.z, createdBy: n.created_by,
   author: n.author?.display_name ?? null, createdAt: n.created_at, updatedAt: n.updated_at,
@@ -386,7 +386,7 @@ function epicRow(f) {
 
 export async function addEpic(pid, f, epics) {
   const position = Math.max(0, ...epics.map((e) => e.position)) + 1;
-  return ok(await sb.from('epics').insert({ project_id: pid, horizon: 'next', position, ...epicRow(f) }).select('id').single()).id;
+  return ok(await sb.from('epics').insert({ project_id: pid, horizon: 'now', position, ...epicRow(f) }).select('id').single()).id;
 }
 export async function updateEpic(id, f) { ok(await sb.from('epics').update(epicRow(f)).eq('id', id)); }
 export async function deleteEpic(id) { ok(await sb.from('epics').delete().eq('id', id)); }

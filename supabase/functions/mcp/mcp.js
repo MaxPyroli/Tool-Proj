@@ -39,8 +39,8 @@ export const TOOLS = [
   { name: "create_note", description: "Colle un post-it d'idée sur le mur d'un projet.",
     inputSchema: obj({ project_id: id, text: { type: "string", description: "1000 caractères au plus" }, color: { type: "string", enum: ["yellow", "pink", "blue", "green", "orange", "purple"] } }, ["project_id", "text"]),
     annotations: { readOnlyHint: false, destructiveHint: false } },
-  { name: "create_epic", description: "Crée un grand chantier (regroupe des tâches). horizon : now (maintenant), next (ensuite), later (plus tard).",
-    inputSchema: obj({ project_id: id, title: { type: "string" }, description: { type: "string" }, horizon: { type: "string", enum: ["now", "next", "later"] } }, ["project_id", "title"]),
+  { name: "create_epic", description: "Crée un grand chantier (regroupe des tâches). horizon : now (maintenant) ou later (plus tard).",
+    inputSchema: obj({ project_id: id, title: { type: "string" }, description: { type: "string" }, horizon: { type: "string", enum: ["now", "later"] } }, ["project_id", "title"]),
     annotations: { readOnlyHint: false, destructiveHint: false } },
 ];
 
