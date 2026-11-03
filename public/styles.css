@@ -1058,3 +1058,19 @@ dialog#sheet .sheet-body::before { content: none; }
 /* La barre de boutons épinglée ne déborde pas sur ce qui suit le formulaire (elle cachait le haut du titre suivant) ;
    seul un formulaire placé en dernier dans la fenêtre rentre dans la marge du bas */
 .sheet-body > form:last-child > .row:last-child:has([type="submit"]) { margin-bottom: calc(-1 * (20px + env(safe-area-inset-bottom, 0px))); }
+
+/* Mon compte : tout le menu est une carte d'accès (badge) accrochée à une lanière, et non une feuille */
+dialog#sheet.badge-sheet .sheet-body { border-radius: 16px; padding-top: 0; background-image: none; -webkit-mask: none; mask: none; }
+dialog#sheet.badge-sheet::before { content: ""; position: absolute; left: 50%; top: -90px; width: 22px; height: 100px; margin-left: -11px; pointer-events: none;
+  background: repeating-linear-gradient(180deg, #0f766e 0 10px, #0c5f58 10px 12px); box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
+dialog#sheet.badge-sheet::after { content: ""; position: absolute; left: 50%; top: -6px; width: 44px; height: 16px; margin-left: -22px; border-radius: 4px; z-index: 5; pointer-events: none;
+  background: linear-gradient(180deg, #d9dde5, #9aa1ae); box-shadow: 0 1px 3px rgb(0 0 0 / .35); }
+.badge-sheet .sheet-head { position: relative; display: block; margin: 0 -20px; }
+.badge-sheet .sheet-head .my-badge { margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; flex: none; }
+.badge-sheet .my-badge::before { content: none; }
+.badge-sheet .my-badge::after { content: ""; position: absolute; left: 50%; top: 22px; width: 38px; height: 8px; margin-left: -19px; border-radius: 4px; background: rgb(0 0 0 / .35); box-shadow: inset 0 1px 2px rgb(0 0 0 / .45); z-index: 4; }
+.badge-sheet .my-badge .badge-role { margin: 0; padding: 38px 0 8px; border-radius: 16px 16px 0 0; background: #0f766e; color: #fff; }
+.badge-sheet .my-badge .row { flex-direction: column; text-align: center; gap: 4px; padding: 16px 20px 8px; }
+.badge-sheet .my-badge h2 { font-size: 1.3rem; }
+.badge-sheet .sheet-head > .btn { position: absolute; right: 8px; top: 18px; margin: 0; color: #fff; z-index: 6; }
+dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }

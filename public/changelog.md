@@ -4,7 +4,7 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 
 ## 0.22.0
 - Fenêtres : la barre « Enregistrer » épinglée ne cache plus le haut du titre qui suit (les accents de « Clés d'accès » étaient coupés).
-- Mon compte : ton profil est un badge de bureau à lanière, comme dans l'équipe.
+- Mon compte : tout le menu est une carte d'accès (badge de bureau) accrochée à une lanière, avec ton profil en haut.
 - Intercalaires : l'onglet actif et son bandeau de couleur ne font plus qu'un (sur ordinateur).
 - Chantiers : « Ensuite » disparaît (« Plus tard » fait le même travail). En « Plus tard », les chantiers sont des calepins fermés empilés, avec seulement le titre : on les ouvre au toucher. Dans « Par statut », les tâches de ces chantiers sont rangées (un lien permet de les afficher).
 - Titre barré : le trait de feutre se trace sur le texte de gauche à droite quand on coche, et se rétracte quand on décoche. La tâche reste en place pendant l'animation.

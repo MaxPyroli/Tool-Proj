@@ -248,6 +248,7 @@ let sheetCleanup = null, sheetAt = 0;
 function openSheet(html, onMount) {
   sheetCleanup?.();
   sheetCleanup = null;
+  sheet.classList.remove('badge-sheet');
   sheet.innerHTML = `<div class="sheet-body">${html}</div>`;
   if (!sheet.open) sheet.showModal();
   sheet.querySelectorAll('textarea').forEach(mdPreview);
@@ -1826,7 +1827,7 @@ function accountSheet() {
       <button class="btn" data-action="claude-new">Créer un accès</button>
     </section>
     <button class="btn danger" data-action="logout">Se déconnecter</button>
-    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span><br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { renderPushBox(); renderClaudeBox(); if (db.passkeysSupported()) loadPasskeys(); });
+    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span><br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { sheet.classList.add('badge-sheet'); /* tout le menu est une carte d'accès */ renderPushBox(); renderClaudeBox(); if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {
