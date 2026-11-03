@@ -3,6 +3,7 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.21.3
+- Le texte sélectionné apparaît surligné en jaune.
 - Boutons principaux en étiquettes adhésives : droits au repos, ils se penchent un peu et leur coin se décolle quand on passe dessus ou qu'on appuie.
 - Tampon rouge « URGENT » sur les tâches de priorité haute, surligneur jaune avec ==texte==, et filtres en étiquettes cartonnées à œillet et ficelle.
 - Tableau : les chantiers prennent l'allure d'un bloc-note à spirale (papier ligné teinté selon le moment). Plus compact : titre, avancement (« 1/2 ») et « + » tiennent sur une ligne. La Feuille de route a le même style.

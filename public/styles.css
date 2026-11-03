@@ -828,3 +828,6 @@ mark { color: #2b2717; padding: 0 .18em; margin: 0 -.05em; border-radius: .25em 
   .btn.primary:active::after, .fab:active::after { width: calc(var(--peel) * 1.5); height: calc(var(--peel) * 1.5); }
 }
 .btn.primary:focus-visible::after, .fab:focus-visible::after { width: calc(var(--peel) * 1.5); height: calc(var(--peel) * 1.5); }
+
+/* Texte sélectionné = passé au surligneur jaune */
+::selection { background: rgb(255 226 45 / .85); color: #2b2717; }
