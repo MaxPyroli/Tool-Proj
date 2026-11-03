@@ -286,6 +286,7 @@ sheet.addEventListener('input', (e) => {
   const form = e.target.form;
   if (e.target.name?.startsWith('tc_') && form?.elements.tc_task) { refreshStylePreview(form); syncTypeColors(form); }
   if (e.target.name === 'displayName' && form?.elements.avatarEmoji) refreshAvatarPreview(form);
+  if (form?.dataset.form === 'profile' && (e.target.name === 'displayName' || e.target.name === 'username')) queueProfileSave(form);
 });
 
 function confirmSheet(message, okLabel = 'Supprimer') {
@@ -1785,6 +1786,27 @@ function changelogSheet() {
   });
 }
 
+const badgeIdentity = (me) => `${avatar(me, 'lg')}<div class="grow"><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div>`;
+
+/** Profile: saved on its own after each change (no « Enregistrer » button). */
+let profileTimer = null, profileForm = null;
+async function saveProfile(f) {
+  clearTimeout(profileTimer); profileTimer = null;
+  const b = formData(f);
+  if (!b.displayName.trim() || !b.username.trim()) return;
+  const status = f.querySelector('#ac-status');
+  if (status) status.textContent = 'Enregistrement…';
+  try { state.me = await db.updateProfile(state.me.id, b); } catch (e) { if (status) status.textContent = ''; throw e; }
+  const row = sheet.querySelector('.my-badge .row'); if (row) row.innerHTML = badgeIdentity(state.me);
+  if (status) { status.innerHTML = `${ico('check', 14)} Enregistré`; setTimeout(() => { if (status.isConnected) status.textContent = ''; }, 1800); }
+  render();
+}
+function queueProfileSave(f, delay = 800) {
+  profileForm = f; clearTimeout(profileTimer);
+  profileTimer = setTimeout(() => saveProfile(f).catch((e) => toast(e.message, true)), delay);
+}
+sheet.addEventListener('close', () => { if (profileTimer && profileForm?.isConnected !== false) saveProfile(profileForm).catch((e) => toast(e.message, true)); });
+
 function accountSheet() {
   const me = state.me;
   const theme = store.get('theme', 'auto');
@@ -1792,7 +1814,7 @@ function accountSheet() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   openSheet(`
     <div class="sheet-head"><div class="my-badge"><span class="badge-role">Mon profil</span>
-        <div class="row">${avatar(me, 'lg')}<div class="grow"><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div></div></div>
+        <div class="row">${badgeIdentity(me)}</div></div>
       <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
     <button class="news-row" data-action="changelog"><span><b>Nouveautés</b><small>Version ${APP_VERSION} · ce qui a changé</small></span>${hasNews() ? '<span class="cl-pill">Nouveau</span>' : ''}${ico('chev', 18)}</button>
     ${!standalone ? `<div class="panel" style="background:var(--accent-soft);border-color:transparent">
@@ -1807,7 +1829,7 @@ function accountSheet() {
       <label class="field"><span>Nom affiché</span><input class="input" id="ac-name" name="displayName" value="${esc(me.displayName)}" maxlength="60" required></label>
       <label class="field"><span>Identifiant</span><input class="input" id="ac-user" name="username" value="${esc(me.username)}" maxlength="32" required autocapitalize="none" spellcheck="false"></label>
       ${avatarPicker(me)}
-      <div class="row end"><button class="btn primary" type="submit">Enregistrer</button></div>
+      <p class="small muted ac-status" id="ac-status" aria-live="polite">Les changements s'enregistrent tout seuls.</p>
     </form>
     ${db.passkeysSupported() ? `<section class="stack" style="gap:10px">
       <h3>Clés d'accès</h3>
@@ -1923,13 +1945,13 @@ const actions = {
     const form = el.closest('form');
     form.elements.avatarEmoji.value = el.dataset.v;
     form.querySelectorAll('.emoji-opt').forEach((b) => b.setAttribute('aria-pressed', b === el));
-    refreshAvatarPreview(form);
+    refreshAvatarPreview(form); queueProfileSave(form, 250);
   },
   'pick-avatar-color': (el) => {
     const form = el.closest('form');
     form.elements.avatarColor.value = el.dataset.v;
     form.querySelectorAll('[data-action="pick-avatar-color"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
-    refreshAvatarPreview(form);
+    refreshAvatarPreview(form); queueProfileSave(form, 250);
   },
   'reset-type-colors': (el) => {
     const form = el.closest('form');
@@ -2168,10 +2190,7 @@ const forms = {
     await db.addMember(state.pid, b.username.trim().replace(/^@/, ''), b.role);
     toast('Ajouté au projet'); await reloadProject();
   },
-  async profile(f) {
-    state.me = await db.updateProfile(state.me.id, formData(f));
-    toast('Profil mis à jour'); closeSheet(); render();
-  },
+  async profile(f) { await saveProfile(f); },
 };
 
 for (const root of [$app, sheet]) {
