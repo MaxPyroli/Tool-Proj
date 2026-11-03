@@ -169,18 +169,19 @@ export async function trash(el) {
   const mouthX = bin.offsetLeft + bin.offsetWidth * .5, topY = bin.offsetTop - 18;
   const tx = mouthX - (r.left + cx), ty = topY - (r.top + cy);
   const lift = Math.min(170, Math.abs(ty) * .35 + 60);
+  const D = 34, sEnd = Math.min(.62, Math.max(.1, D / (1.7 * Rb))); // à l'arrivée, la boule fait la taille de celle qui va tomber
   await done(clone.animate([
     { transform: 'scale(.62) rotate(-14deg)', clipPath: wad },
-    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(.4) rotate(-170deg)`, clipPath: wad2, offset: .55 },
-    { transform: `translate(${tx}px, ${ty}px) scale(.3) rotate(-300deg)`, clipPath: wad },
+    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(${(.62 + sEnd) / 2}) rotate(-170deg)`, clipPath: wad2, offset: .55 },
+    { transform: `translate(${tx}px, ${ty}px) scale(${sEnd}) rotate(-300deg)`, clipPath: wad },
   ], { duration: 640, easing: 'cubic-bezier(.35, 0, .6, 1)', fill: 'forwards' }));
-  // 3. elle passe à l'intérieur : on la voit tomber à travers le grillage et rebondir au fond
-  const D = 34, bw = bin.offsetWidth, bh = bin.offsetHeight;
-  const ballPts = blobPts(D / 2, D / 2, D / 2 - 1, 11);
-  ball.style.clipPath = poly(ballPts); ball.style.left = `${bw * .5 - D / 2}px`; ball.style.top = `${-D * .55}px`;
+  // 3. elle passe à l'intérieur : la boule de la corbeille prend le relais au même endroit (fondu enchaîné), tombe à travers le grillage et rebondit au fond
+  const bw = bin.offsetWidth, bh = bin.offsetHeight;
+  ball.style.clipPath = poly(blobPts(D / 2, D / 2, D / 2 - 1, 11)); ball.style.left = `${bw * .5 - D / 2}px`; ball.style.top = `${topY - bin.offsetTop - D / 2}px`;
   ball.style.background = Array.from({ length: 4 }, () => `linear-gradient(${rnd(0, 180).toFixed(0)}deg, transparent 46%, rgba(0,0,0,.22) 48%, rgba(255,255,255,.55) 51%, transparent 53%)`).join(', ') + `, ${paper && paper !== 'rgba(0, 0, 0, 0)' ? paper : '#fffdf6'}`;
-  clone.remove();
   ball.style.opacity = 1;
+  clone.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' }).finished.then(() => clone.remove(), () => clone.remove());
+  ball.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160 });
   const fall = bh * .66, dx = rnd(-12, 12);
   const drop = done(ball.animate([
     { transform: 'translate(0, 0) rotate(0deg)' },
@@ -192,7 +193,7 @@ export async function trash(el) {
   ], { duration: 900, easing: 'cubic-bezier(.5, 0, .9, .6)', fill: 'forwards' }));
   await pause(430);
   bin.animate([{ transform: 'scale(1, 1)' }, { transform: 'scale(1.04, .95)', offset: .3 }, { transform: 'scale(.99, 1.02)', offset: .65 }, { transform: 'scale(1, 1)' }], { duration: 420, easing: 'ease-out' });
-  bits(mouthX + dx, bin.offsetTop + bh * .62, { n: 4, power: 34, up: 26, life: 520 });
+  bits(mouthX + dx, bin.offsetTop + bh * .2, { n: 3, power: 30, up: 30, life: 520 }); // quelques éclats au bord
   await drop;
   await pause(500);
   await done(bin.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(190px)', opacity: 0 }], { duration: 380, easing: 'ease-in', fill: 'forwards' }));
