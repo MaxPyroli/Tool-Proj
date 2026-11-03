@@ -31,5 +31,11 @@
       "action": "new-item",
       "target": ""
     }
+  },
+  {
+    "version": "0.22.0",
+    "icon": "note",
+    "title": "Un seul tableau, un look de bureau",
+    "text": "La Feuille de route disparaît : « Par chantier » range tes chantiers par moment. Ils deviennent des blocs-notes, avec une ligne pour voir leurs tâches terminées. Cocher une tâche se fait au feutre, et tu peux glisser une tâche sur un chantier."
   }
 ]

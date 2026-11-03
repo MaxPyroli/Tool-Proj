@@ -2,7 +2,7 @@
 
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
-## 0.21.3
+## 0.22.0
 - La Feuille de route disparaît : il ne reste qu'un affichage, le Tableau. « Par chantier » range les chantiers par moment (Maintenant, Ensuite, Plus tard), avec les tâches sans chantier signalées en dessous. Chaque chantier a une ligne « N terminées » à déplier. Les tâches faites sont fanées pour s'effacer derrière le reste, et les tâches sans chantier s'étalent sur plusieurs colonnes.
 - Cocher une tâche : la coche se trace au feutre vert et le titre se barre, avec une petite animation.
 - Le texte sélectionné apparaît surligné en jaune.
@@ -11,6 +11,8 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 - Tableau : les chantiers prennent l'allure d'un bloc-note à spirale (papier ligné teinté selon le moment). Plus compact : titre, avancement (« 1/2 ») et « + » tiennent sur une ligne. La Feuille de route a le même style.
 - Tableau : glisse une tâche sur un chantier (le grand post-it) pour la ranger dedans, ou sur « hors chantier » pour l'en sortir. Sur téléphone : appuie longtemps sur la tâche, puis glisse-la.
 - Accès pour Claude : à chaque nouvelle conversation, Claude te demande sur quel projet travailler, puis reste sur ce projet uniquement (il ne voit plus les autres ; pour en changer, il suffit de le lui demander).
+
+## 0.21.3
 - Images dans les tâches : colle une capture (ou glisse-la, ou touche l'icône image) dans la description d'une tâche, d'un bug ou d'une idée. Les miniatures restent dans la zone de texte, tu les touches pour les voir en grand. 8 images au plus, réduites automatiquement ; seuls les membres du projet les voient.
 
 ## 0.21.2
