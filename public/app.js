@@ -902,7 +902,7 @@ function doneLine(key, doneItems, byId, draggable) {
 
 /** A « Plus tard » chantier folded as a closed notepad: spiral + title only, tap to open it. */
 function epicClosed(e, openCount, doneCount, draggable) {
-  return `<button data-fx="epic:${e.id}" class="ep-closed hz-${e.horizon}" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false">
+  return `<button class="ep-closed hz-${e.horizon}" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false">
     <span class="ep-spiral" aria-hidden="true"></span>
     <span class="ep-closed-title">${esc(e.title)}</span>
     <span class="ep-closed-count">${openCount ? `${openCount} à faire` : doneCount ? 'tout fait' : 'vide'}</span>
@@ -914,7 +914,7 @@ function epicClosed(e, openCount, doneCount, draggable) {
 function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = [], foldable = false) {
   const pr = epicProgress(d, e.id);
   const doneOpen = state.epicDone.has(e.id);
-  return `<article data-fx="epic:${e.id}" class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
+  return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
     <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
@@ -1184,6 +1184,7 @@ function bindTaskDnD() {
       const t = state.data.tasks.find((x) => x.id === id), epicId = Number(box.dataset.dropEpic) || null;
       if (!t || (t.epicId ?? null) === epicId) return;
       await db.updateTask(id, { epicId });
+      fx.focus([`task:${id}`]);
       await reloadProject();
     }));
   });
@@ -1206,6 +1207,7 @@ function bindTaskDnD() {
         const maxPos = Math.max(0, ...state.data.epics.map((x) => x.position));
         await db.updateEpic(id, { horizon: col.dataset.dropHorizon, position: maxPos + 1 });
       }
+      if (accepts === 'task') fx.focus([`task:${id}`]);
       await reloadProject();
     }));
   });
@@ -1235,7 +1237,7 @@ function bindTaskDnD() {
     ghost.remove(); el.classList.remove('dragging'); markEpicDrop(null);
     swallowClick = Date.now() + 500;
     state.dragging = false;
-    if (drop && box) run(async () => { await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null }); await reloadProject(); })();
+    if (drop && box) run(async () => { await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null }); fx.focus([`task:${id}`]); await reloadProject(); })();
   };
   const begin = () => {
     const r = g.el.getBoundingClientRect();
@@ -1951,7 +1953,7 @@ const actions = {
     const e = state.data.epics.find((x) => x.id === Number(el.dataset.id));
     if (!(await confirmSheet(`Supprimer le chantier « ${e.title} » ? Ses tâches sont gardées, hors chantier.`))) return;
     closeSheet();
-    await removeWith('shred', $app.querySelector(`[data-fx="epic:${e.id}"]`), () => db.deleteEpic(e.id));
+    await removeWith('shred', $app.querySelector(`.ep-sheet[data-id="${e.id}"], .ep-closed[data-id="${e.id}"]`), () => db.deleteEpic(e.id));
     toast('Chantier supprimé'); await reloadProject();
   },
   'pick-avatar-emoji': (el) => {
@@ -1999,7 +2001,7 @@ const actions = {
     // la coche se trace au feutre (ou s'efface) une seule fois, la tâche reste en place le temps de l'animation
     state.justDone = finishing ? t.id : null; state.justDoneFrom = from; state.justUndone = finishing ? null : t.id;
     await reloadProject();
-    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) renderProject(); }, finishing ? 1100 : 800);
+    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { fx.focus([`task:${t.id}`]); renderProject(); } }, finishing ? 1300 : 900);
   },
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
   'img-open': (el) => openLightbox(Number(el.dataset.i)),
@@ -2156,6 +2158,7 @@ const forms = {
     if (!title) return;
     await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: state.boardGroup !== 'epic' && isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
     store.set(draftKey(), '');
+    fx.focus([], { enter: true });
     await reloadProject();
     $app.querySelector('#task-new')?.focus();
   },
@@ -2165,11 +2168,11 @@ const forms = {
     const id = await db.addTask(pid, formData(f), state.data.tasks);
     closeSheet(); toast(pending.length ? 'Ajouté, envoi des images…' : 'Ajouté');
     for (const it of pending) { try { await db.addTaskImage(pid, id, it.blobs); } catch (e) { toast(e.message, true); } }
-    await reloadProject();
+    fx.focus([], { enter: true }); await reloadProject();
   },
   async 'edit-task'(f) {
     await db.updateTask(Number(f.dataset.id), formData(f));
-    closeSheet(); await reloadProject();
+    closeSheet(); fx.focus([`task:${f.dataset.id}`]); await reloadProject();
   },
   async 'save-link'(f) {
     const b = formData(f);

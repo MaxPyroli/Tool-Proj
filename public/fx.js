@@ -15,26 +15,31 @@ export function snapshot() {
   return m;
 }
 
-/** Juste après le redessin : ceux qui ont bougé glissent vers leur place, les nouveaux se collent. */
+/** À appeler juste avant un redessin voulu par une action (déplacer, ranger, créer) : seuls les éléments cités bougent ;
+ *  `enter` fait aussi se coller les nouvelles tâches. Sans appel, rien ne s'anime (mises à jour en direct, filtres…). */
+let want = null;
+export function focus(keys = [], { enter = false } = {}) { want = { keys: new Set(keys), enter, t: Date.now() }; }
+
+/** Juste après le redessin : les éléments cités glissent vers leur place, les nouvelles tâches se collent. */
 export function play(prev) {
-  if (!prev || !prev.size || reduced()) return;
+  const w = want; want = null;
+  if (!w || Date.now() - w.t > 5000 || !prev || !prev.size || reduced()) return;
   const moved = [], fresh = [];
   document.querySelectorAll('[data-fx]').forEach((el) => {
-    const was = prev.get(el.dataset.fx);
-    if (!was) { fresh.push(el); return; }
+    const key = el.dataset.fx, was = prev.get(key);
+    if (!was) { if (w.enter && key.startsWith('task:')) fresh.push(el); return; }
+    if (!w.keys.has(key)) return;
     const r = el.getBoundingClientRect(), dx = was.x - r.left, dy = was.y - r.top;
     if (Math.abs(dx) + Math.abs(dy) > 3) moved.push([el, dx, dy]);
   });
   const opts = { composite: 'add' };
-  if (moved.length <= 40) {
-    moved.forEach(([el, dx, dy]) => el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }], { ...opts, duration: 340, easing: 'cubic-bezier(.25, 1.2, .4, 1)' }));
-  }
-  if (fresh.length <= 4) { // un changement d'affichage entier (beaucoup de nouveaux) ne joue rien
+  moved.forEach(([el, dx, dy]) => el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }], { ...opts, duration: 650, easing: 'cubic-bezier(.3, .9, .35, 1)' }));
+  if (fresh.length <= 4) {
     fresh.forEach((el) => el.animate([
-      { transform: 'translateY(-22px) scale(1.1) rotate(-3deg)', opacity: 0 },
-      { opacity: 1, offset: .3 },
+      { transform: 'translateY(-18px) scale(1.06) rotate(-2deg)', opacity: 0 },
+      { opacity: 1, offset: .35 },
       { transform: 'translateY(0) scale(1) rotate(0deg)', opacity: 1 },
-    ], { ...opts, duration: 420, easing: 'cubic-bezier(.3, 1.45, .5, 1)' }));
+    ], { ...opts, duration: 700, easing: 'cubic-bezier(.3, 1.2, .5, 1)' }));
   }
 }
 
@@ -64,14 +69,14 @@ export async function trash(el) {
   const L = getLayer();
   const bin = document.createElement('div'); bin.className = 'fx-bin'; bin.innerHTML = BIN; L.append(bin);
   const lid = bin.querySelector('.bin-lid');
-  const rise = bin.animate([{ transform: 'translateY(90px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 170, easing: 'ease-out', fill: 'forwards' });
+  const rise = bin.animate([{ transform: 'translateY(90px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
   const r = el.getBoundingClientRect();
   const clone = ghost(el, r);
   L.append(clone); el.style.visibility = 'hidden';
   await done(rise);
   const tx = bin.offsetLeft + bin.offsetWidth / 2 - (r.left + r.width / 2), ty = bin.offsetTop + 16 - (r.top + r.height / 2);
   const lift = Math.min(150, Math.abs(ty) * .35 + 50);
-  lid.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(-32deg)' }], { duration: 140, delay: 300, fill: 'forwards' });
+  lid.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(-32deg)' }], { duration: 220, delay: 520, fill: 'forwards' });
   // le papier se froisse : le rectangle se referme en boule (cercle de plus en plus petit) pendant qu'il vole
   const R0 = Math.hypot(r.width, r.height) / 2, R1 = Math.min(r.width, r.height) / 2;
   const ball = (k) => `circle(${k}px at 50% 50%)`;
@@ -80,11 +85,11 @@ export async function trash(el) {
     { transform: 'scale(1.05, .9) rotate(-3deg)', clipPath: ball(R0 * .9), offset: .14 },
     { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(.5) rotate(-170deg)`, clipPath: ball(R1 * 1.1), filter: 'brightness(.93)', offset: .6 },
     { transform: `translate(${tx}px, ${ty}px) scale(.2) rotate(-340deg)`, clipPath: ball(R1 * .8), filter: 'brightness(.8)', opacity: .95 },
-  ], { duration: 470, easing: 'cubic-bezier(.4, 0, .65, 1)', fill: 'forwards' }));
+  ], { duration: 900, easing: 'cubic-bezier(.4, 0, .65, 1)', fill: 'forwards' }));
   clone.remove();
-  lid.animate([{ transform: 'rotate(-32deg)' }, { transform: 'rotate(0deg)' }], { duration: 130, fill: 'forwards' });
-  await done(bin.animate([{ transform: 'none' }, { transform: 'translateX(-3px) rotate(-3deg)' }, { transform: 'translateX(3px) rotate(3deg)' }, { transform: 'none' }], { duration: 220 }));
-  await done(bin.animate([{ opacity: 1 }, { transform: 'translateY(90px)', opacity: 0 }], { duration: 160, fill: 'forwards' }));
+  lid.animate([{ transform: 'rotate(-32deg)' }, { transform: 'rotate(0deg)' }], { duration: 220, fill: 'forwards' });
+  await done(bin.animate([{ transform: 'none' }, { transform: 'translateX(-3px) rotate(-3deg)' }, { transform: 'translateX(3px) rotate(3deg)' }, { transform: 'none' }], { duration: 380 }));
+  await done(bin.animate([{ opacity: 1 }, { transform: 'translateY(90px)', opacity: 0 }], { duration: 280, fill: 'forwards' }));
   bin.remove();
 }
 
@@ -102,7 +107,7 @@ export async function shred(el, html) {
   const W = Math.min(270, innerWidth - 32);
   const machine = document.createElement('div'); machine.className = 'fx-shredder'; machine.style.setProperty('--w', `${W}px`);
   machine.innerHTML = '<div class="sh-head"><i class="sh-led"></i></div><div class="sh-body"></div>'; L.append(machine);
-  const rise = machine.animate([{ transform: 'translateY(60px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 180, easing: 'ease-out', fill: 'forwards' });
+  const rise = machine.animate([{ transform: 'translateY(60px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: 'ease-out', fill: 'forwards' });
   const r = src.getBoundingClientRect();
   const s = Math.min(1, (W - 60) / r.width, 150 / r.height);
   const cw = r.width * s, ch = r.height * s;
@@ -116,7 +121,7 @@ export async function shred(el, html) {
   const aboveY = slotY - ch - 10;
   clone.style.transformOrigin = '0 0';
   await done(clone.animate([{ transform: 'none' }, { transform: `translate(${cardX - r.left}px, ${aboveY - r.top}px) scale(${s})` }],
-    { duration: 240, easing: 'cubic-bezier(.3, 1, .5, 1)', fill: 'forwards' }));
+    { duration: 480, easing: 'cubic-bezier(.3, 1, .5, 1)', fill: 'forwards' }));
   // 2. il est avalé (rogné à la fente) pendant que les bandelettes sortent dessous
   clone.remove();
   const clip = document.createElement('div'); clip.className = 'fx-clip';
@@ -134,8 +139,8 @@ export async function shred(el, html) {
     st.append(c); L.append(st); strips.push(st);
     st.style.clipPath = 'inset(0 0 100% 0)';
   }
-  machine.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-1.5px)' }, { transform: 'translateX(1.5px)' }, { transform: 'translateX(0)' }], { duration: 90, iterations: 6 });
-  const feed = 460;
+  machine.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-1.5px)' }, { transform: 'translateX(1.5px)' }, { transform: 'translateX(0)' }], { duration: 110, iterations: 9 });
+  const feed = 900;
   strips.forEach((st) => st.animate([{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)' }], { duration: feed, delay: 60, easing: 'linear', fill: 'forwards' }));
   await done(card.animate([{ transform: `scale(${s}) translateY(0)` }, { transform: `scale(${s}) translateY(${(ch + 24) / s}px)` }], { duration: feed, easing: 'cubic-bezier(.45, 0, .8, .7)', fill: 'forwards' }));
   clip.remove();
@@ -143,9 +148,9 @@ export async function shred(el, html) {
   await Promise.all(strips.map((st, i) => done(st.animate([
     { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
     { transform: `translateY(${90 + (i % 3) * 14}px) rotate(${(i % 2 ? 1 : -1) * (4 + i * 1.6)}deg)`, opacity: 0 },
-  ], { duration: 340, delay: i * 22, easing: 'cubic-bezier(.5, 0, 1, .6)', fill: 'forwards' }))));
+  ], { duration: 620, delay: i * 40, easing: 'cubic-bezier(.5, 0, 1, .6)', fill: 'forwards' }))));
   strips.forEach((st) => st.remove());
-  await pause(60);
-  await done(machine.animate([{ opacity: 1 }, { transform: 'translateY(60px)', opacity: 0 }], { duration: 170, fill: 'forwards' }));
+  await pause(120);
+  await done(machine.animate([{ opacity: 1 }, { transform: 'translateY(60px)', opacity: 0 }], { duration: 300, fill: 'forwards' }));
   machine.remove(); temp?.remove();
 }
