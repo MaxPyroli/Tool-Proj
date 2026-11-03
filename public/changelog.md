@@ -4,7 +4,7 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 
 ## 0.22.0
 - Les onglets du projet (Aperçu, Tâches, Post-it, Équipe) deviennent des intercalaires de classeur colorés : l'onglet actif dépasse, avec un bandeau de sa couleur sur toute la largeur. En haut sur ordinateur, dans la barre du bas sur téléphone.
-- Les fenêtres (ajout, modification) ont le bord du haut déchiré, comme une feuille arrachée d'un bloc.
+- Les fenêtres (ajout, modification, compte…) sont des feuilles de bloc : papier crème ligné avec marge rouge et bord du haut déchiré, en clair comme en sombre.
 - Équipe : chaque personne a un badge de bureau à lanière (rôle en bandeau, icône, nom). Il se balance un peu quand on passe dessus.
 - La Feuille de route disparaît : il ne reste qu'un affichage, le Tableau. « Par chantier » range les chantiers par moment (Maintenant, Ensuite, Plus tard), avec les tâches sans chantier signalées en dessous. Chaque chantier a une ligne « N terminées » à déplier. Les tâches faites sont fanées pour s'effacer derrière le reste, et les tâches sans chantier s'étalent sur plusieurs colonnes.
 - Cocher une tâche : la coche se trace au feutre vert et le titre se barre, avec une petite animation.

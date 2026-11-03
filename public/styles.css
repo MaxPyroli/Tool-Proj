@@ -917,3 +917,19 @@ dialog#sheet::before { content: ""; position: absolute; left: 0; right: 0; top: 
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='10'%3E%3Cpath d='M0 10V6l6-4 6 5 7-6 7 5 7-3 7 5 7-6 7 4 7-1 7 5 7-6 7 6 7-3 7 6 7-5 7 3V10z'/%3E%3C/svg%3E") repeat-x left bottom / 120px 10px; }
 .sheet-body { border-radius: inherit; }
 @media (max-width: 719px) { dialog#sheet { border-radius: 0; } }
+
+/* Toute la fenêtre est une feuille de bloc (papier crème, marge rouge, lignes), en clair comme en sombre :
+   les couleurs « clair » sont reprises ici pour que tout ce qui est dedans se lise sur le papier */
+dialog#sheet {
+  color-scheme: light;
+  --bg: #fffdf6; --surface: #fffdf6; --surface-2: #f6f1e1; --ink: #2b2717; --muted: #6a6450; --line: #e3dcc3;
+  --accent: #0d7c72; --accent-ink: #ffffff; --accent-soft: #d6efec; --danger: #c92a2a; --danger-soft: #fde8e8;
+  --st-idea: #7048c8; --st-active: #2b8a3e; --st-paused: #b76e00; --st-done: #3b6fd8; --on-active: #ffffff;
+  --shadow: 0 1px 2px rgb(20 28 40 / .06), 0 4px 14px rgb(20 28 40 / .06);
+  background-color: var(--surface); color: var(--ink);
+  background-image: linear-gradient(90deg, transparent 10px, rgb(212 78 78 / .35) 10px 11px, transparent 11px 14px, rgb(212 78 78 / .22) 14px 15px, transparent 15px),
+    repeating-linear-gradient(to bottom, transparent 0 27px, rgb(70 100 150 / .11) 27px 28px);
+  box-shadow: 0 -4px 22px rgb(0 0 0 / .28), 0 1px 0 rgb(255 255 255 / .6) inset;
+}
+dialog#sheet .sheet-body { background: transparent; }
+dialog#sheet .sheet-head h2 { letter-spacing: -.01em; }
