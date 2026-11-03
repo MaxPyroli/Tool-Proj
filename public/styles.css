@@ -1092,3 +1092,24 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   .tab { position: relative; z-index: 1; height: calc(var(--tabbar-h) - 10px); }
   .tab[aria-current="page"] { height: calc(var(--tabbar-h) - 2px); margin-top: 0; }
 }
+
+/* ---------- Animations bureau : corbeille et déchiqueteuse ---------- */
+.fx-layer { position: fixed; inset: 0; z-index: 100000; pointer-events: none; overflow: hidden; }
+.fx-clone { box-shadow: 0 10px 22px rgb(0 0 0 / .3); }
+.fx-bin { position: absolute; left: 50%; bottom: calc(var(--tabbar-h, 64px) + 30px + env(safe-area-inset-bottom, 0px)); width: 64px; height: 74px; margin-left: -32px; filter: drop-shadow(0 4px 6px rgb(0 0 0 / .35)); }
+@media (min-width: 720px) { .fx-bin { bottom: 40px; } }
+.fx-bin svg { width: 100%; height: 100%; overflow: visible; }
+.fx-bin .bin-body { fill: #8e97a7; } .fx-bin .bin-lid { fill: #6c7484; transform-box: fill-box; transform-origin: left bottom; }
+.fx-bin .bin-ribs { stroke: rgb(0 0 0 / .22); stroke-width: 3; stroke-linecap: round; fill: none; }
+.fx-shredder { position: absolute; left: 50%; width: var(--w); margin-left: calc(var(--w) / -2); height: 150px; bottom: calc(var(--tabbar-h, 64px) + 16px + env(safe-area-inset-bottom, 0px)); filter: drop-shadow(0 6px 8px rgb(0 0 0 / .35)); }
+@media (min-width: 720px) { .fx-shredder { bottom: 36px; } }
+.sh-head { position: relative; height: 64px; border-radius: 10px 10px 4px 4px; background: linear-gradient(180deg, #6b7384, #454c5b); }
+.sh-head::before { content: ""; position: absolute; left: 8%; right: 8%; top: 12px; height: 9px; border-radius: 5px; background: #14171d; box-shadow: inset 0 2px 3px rgb(0 0 0 / .6); }
+.sh-head::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: 10px; height: 3px; border-radius: 2px; background: repeating-linear-gradient(90deg, rgb(255 255 255 / .25) 0 8px, transparent 8px 14px); }
+.sh-led { position: absolute; right: 12px; top: 28px; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.sh-body { height: 86px; margin: 0 6px; border-radius: 0 0 8px 8px; background: linear-gradient(180deg, #343a47, #272c36); box-shadow: inset 0 6px 8px rgb(0 0 0 / .4); }
+.fx-clip, .fx-strip { position: absolute; overflow: hidden; }
+.fx-strip > * { box-shadow: none; }
+.fx-temp { position: absolute; left: 50%; top: 38%; width: min(300px, 80vw); transform: translate(-50%, -50%); }
+.fx-temp .pcard { width: 100%; }
+.fx-temp .pc-front { min-height: 96px; }

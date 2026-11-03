@@ -1,5 +1,6 @@
 // Tool Proj front-end: vanilla JS, hash router, event delegation. Data lives in Supabase (see data.js).
 import * as db from './data.js';
+import * as fx from './fx.js';
 
 const $app = document.getElementById('app');
 const sheet = document.getElementById('sheet');
@@ -97,11 +98,13 @@ function redraw(key, draw) {
   const same = key === lastViewKey;
   const y = window.scrollY;
   const chips = document.querySelector('.chips')?.scrollLeft ?? 0;
+  const before = same ? fx.snapshot() : null; // les éléments qui bougent glissent, les nouveaux se collent
   draw();
   lastViewKey = key;
   window.scrollTo(0, same ? y : 0);
   const c = document.querySelector('.chips');
   if (c && same) c.scrollLeft = chips;
+  if (before) fx.play(before);
 }
 
 const store = {
@@ -333,6 +336,13 @@ async function render() {
   renderList();
 }
 
+/** Joue l'animation de suppression (corbeille ou déchiqueteuse) en même temps que la suppression ; si elle échoue, l'élément réapparaît. */
+async function removeWith(effect, node, remove, html) {
+  let ok = false;
+  const show = (effect === 'shred' ? fx.shred(node, html) : fx.trash(node)).catch(() => {});
+  try { await Promise.all([remove(), show]); ok = true; } finally { if (!ok && node) node.style.visibility = ''; }
+}
+
 async function reloadProject() {
   if (!state.pid) return;
   state.data = await db.getProject(state.pid, state.me.id);
@@ -351,8 +361,8 @@ async function refreshIfIdle() {
     clearTimeout(staleTimer); staleTimer = setTimeout(refreshIfIdle, 2000); // try again once idle
     return;
   }
-  const fresh = await db.getProject(state.pid, state.me.id);
-  if (JSON.stringify(fresh) !== JSON.stringify(state.data)) { state.data = fresh; renderProject(); }
+  const fresh = await db.getProject(state.pid, state.me.id).catch(() => null); // projet supprimé entre-temps : on laisse tomber
+  if (fresh && JSON.stringify(fresh) !== JSON.stringify(state.data)) { state.data = fresh; renderProject(); }
 }
 
 // ---------- auth ----------
@@ -444,7 +454,7 @@ function passkeyOfferSheet() {
 
 function projectCard(p) {
   return `
-  <a class="pcard" href="#/p/${p.id}" style="--pc:${esc(p.color)}">
+  <a data-fx="proj:${p.id}" class="pcard" href="#/p/${p.id}" style="--pc:${esc(p.color)}">
     <span class="pc-back" aria-hidden="true"></span>
     <span class="pc-sheet" aria-hidden="true"></span>
     <span class="pc-tab"><i class="pc-dot st-${p.status}"></i>${STATUS[p.status]}</span>
@@ -854,7 +864,7 @@ function matchesFilter(t) {
 
 function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
   return `
-  <div class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''} ${state.justDone === t.id ? 'just-done' : ''} ${state.justUndone === t.id ? 'just-undone' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
+  <div data-fx="task:${t.id}" class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''} ${state.justDone === t.id ? 'just-done' : ''} ${state.justUndone === t.id ? 'just-undone' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
     <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? CHECK_SVG : t.status === 'doing' ? '<i class="dot-doing"></i>' : ''}</button>
     <div class="t-main">
       <span class="t-title"><span class="t-txt">${esc(t.title)}</span></span>
@@ -892,7 +902,7 @@ function doneLine(key, doneItems, byId, draggable) {
 
 /** A « Plus tard » chantier folded as a closed notepad: spiral + title only, tap to open it. */
 function epicClosed(e, openCount, doneCount, draggable) {
-  return `<button class="ep-closed hz-${e.horizon}" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false">
+  return `<button data-fx="epic:${e.id}" class="ep-closed hz-${e.horizon}" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false">
     <span class="ep-spiral" aria-hidden="true"></span>
     <span class="ep-closed-title">${esc(e.title)}</span>
     <span class="ep-closed-count">${openCount ? `${openCount} à faire` : doneCount ? 'tout fait' : 'vide'}</span>
@@ -904,7 +914,7 @@ function epicClosed(e, openCount, doneCount, draggable) {
 function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = [], foldable = false) {
   const pr = epicProgress(d, e.id);
   const doneOpen = state.epicDone.has(e.id);
-  return `<article class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
+  return `<article data-fx="epic:${e.id}" class="ep-sheet hz-${e.horizon}" data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
     <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
@@ -1905,7 +1915,9 @@ const actions = {
   'delete-project': async () => {
     const p = state.data.project;
     if (!(await confirmSheet(`Supprimer « ${p.name} » avec ses tâches et ses post-it ? C'est définitif.`))) return;
-    await db.deleteProject(p.id);
+    closeSheet();
+    const chemise = projectCard({ id: p.id, name: p.name, emoji: p.emoji, color: p.color, status: p.status, role: 'admin', progress: 0, description: '', tasks: { total: 0, done: 0 }, noteCount: 0, updatedAt: new Date().toISOString(), members: [] });
+    await removeWith('shred', null, () => db.deleteProject(p.id), chemise);
     toast('Projet supprimé');
     state.data = null; location.hash = '#/';
   },
@@ -1938,7 +1950,8 @@ const actions = {
   'delete-epic': async (el) => {
     const e = state.data.epics.find((x) => x.id === Number(el.dataset.id));
     if (!(await confirmSheet(`Supprimer le chantier « ${e.title} » ? Ses tâches sont gardées, hors chantier.`))) return;
-    await db.deleteEpic(e.id);
+    closeSheet();
+    await removeWith('shred', $app.querySelector(`[data-fx="epic:${e.id}"]`), () => db.deleteEpic(e.id));
     toast('Chantier supprimé'); await reloadProject();
   },
   'pick-avatar-emoji': (el) => {
@@ -1997,8 +2010,10 @@ const actions = {
     imgState.items.splice(imgState.items.indexOf(it), 1); renderImageGrid();
   },
   'delete-task': async (el) => {
-    await db.deleteTask(Number(el.dataset.id));
-    closeSheet(); toast('Supprimé'); await reloadProject();
+    const id = Number(el.dataset.id);
+    closeSheet();
+    await removeWith('trash', $app.querySelector(`.task[data-id="${id}"]`), () => db.deleteTask(id));
+    toast('Supprimé'); await reloadProject();
   },
   'board-view': (el) => {
     state.boardView = el.dataset.v; store.set('boardView', el.dataset.v);
@@ -2034,8 +2049,10 @@ const actions = {
     renderProject();
   },
   'delete-note': async (el) => {
-    await db.deleteNote(Number(el.dataset.id));
-    closeSheet(); toast('Post-it décollé'); await reloadProject();
+    const id = Number(el.dataset.id);
+    closeSheet();
+    await removeWith('trash', $app.querySelector(`.note[data-note="${id}"]`), () => db.deleteNote(id));
+    toast('Post-it décollé'); await reloadProject();
   },
   'remove-member': async (el) => {
     const id = el.dataset.id;
