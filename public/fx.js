@@ -50,52 +50,110 @@ const getLayer = () => {
   if (!layer?.isConnected) { layer = document.createElement('div'); layer.className = 'fx-layer'; document.body.append(layer); }
   return layer;
 };
-const ghost = (el, rect) => {
+const ghost = (el, rect, position = 'fixed') => {
   const c = el.cloneNode(true);
   c.classList.add('fx-clone');
   c.removeAttribute('data-fx'); c.removeAttribute('data-action'); c.removeAttribute('draggable');
-  Object.assign(c.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, margin: '0', transform: 'none', rotate: 'none', translate: 'none', zIndex: '2', visibility: 'visible' });
+  Object.assign(c.style, { position, left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, margin: '0', transform: 'none', rotate: 'none', translate: 'none', zIndex: '2', visibility: 'visible' });
   return c;
 };
+const rnd = (a, b) => a + Math.random() * (b - a);
 
-// ---------- corbeille (tâches, post-it) ----------
+/** Petits bouts de papier qui giclent d'un point (x, y) puis retombent. */
+function bits(x, y, { n = 9, power = 90, up = 70, colors = ['#fffdf6', '#f3e9c9', '#e8dcb5'], life = 700 } = {}) {
+  const L = getLayer();
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement('i'); b.className = 'fx-bit';
+    Object.assign(b.style, { left: `${x}px`, top: `${y}px`, width: `${rnd(5, 9)}px`, height: `${rnd(3, 5)}px`, background: colors[i % colors.length] });
+    L.append(b);
+    const dx = rnd(-power, power), peak = -rnd(up * .5, up), fall = rnd(30, 70), rot = rnd(-260, 260);
+    b.animate([
+      { transform: 'translate(0, 0) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx * .6}px, ${peak}px) rotate(${rot * .5}deg)`, opacity: 1, offset: .4 },
+      { transform: `translate(${dx}px, ${fall}px) rotate(${rot}deg)`, opacity: 0 },
+    ], { duration: life, delay: rnd(0, 90), easing: 'cubic-bezier(.3, .6, .6, 1)', fill: 'forwards' }).finished.then(() => b.remove(), () => b.remove());
+  }
+}
 
-const BIN = `<svg viewBox="0 0 64 74" aria-hidden="true"><g class="bin-lid"><rect x="4" y="10" width="56" height="8" rx="3"/><rect x="24" y="3" width="16" height="8" rx="3"/></g>
-  <path class="bin-body" d="M9 21h46l-4 49a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4z"/><path class="bin-ribs" d="M23 29v36M32 29v36M41 29v36"/></svg>`;
+// ---------- corbeille (tâches, post-it) : une corbeille à papier de bureau en métal grillagé ----------
 
-/** Le morceau de papier se froisse et file dans la corbeille. Rend la main quand c'est fini. */
+const MESH_BODY = 'M13 34L107 34L98 134Q97 142 90 142H30Q23 142 22 134Z';
+const BIN_BACK = `<svg viewBox="0 0 120 150" aria-hidden="true">
+  <ellipse cx="60" cy="146" rx="46" ry="5" fill="rgba(0,0,0,.2)"/>
+  <ellipse cx="60" cy="34" rx="47" ry="10" fill="#262c38"/>
+  <g class="bin-old"><circle cx="40" cy="128" r="11" fill="#fffdf6" stroke="#cfc4a0" stroke-width="1.5"/><path d="M33 124l6 3 4-6M36 133l5-3 5 4" stroke="#cfc4a0" fill="none" stroke-width="1.2"/>
+    <circle cx="74" cy="126" r="12" fill="#f6efd6" stroke="#cfc4a0" stroke-width="1.5"/><path d="M67 121l7 4 5-6M69 131l6-3 4 5" stroke="#cfc4a0" fill="none" stroke-width="1.2"/>
+    <circle cx="58" cy="118" r="10" fill="#fffdf6" stroke="#cfc4a0" stroke-width="1.5"/></g>
+</svg>`;
+const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
+  <defs>
+    <pattern id="fxm" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H10M0 0V10" stroke="#566174" stroke-width="1.7" fill="none"/></pattern>
+    <clipPath id="fxc"><path d="${MESH_BODY}"/></clipPath>
+  </defs>
+  <path d="${MESH_BODY}" fill="rgba(150,165,185,.14)"/>
+  <rect x="0" y="30" width="120" height="116" fill="url(#fxm)" clip-path="url(#fxc)"/>
+  <path d="M19 40L26 136M40 44L43 140M60 45V141M80 44L77 140M101 40L94 136" stroke="#3b4352" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M16 38L23 132" stroke="rgba(255,255,255,.45)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M22 133Q60 150 98 133" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M13 34A47 10 0 0 0 107 34" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M13 34A47 10 0 0 1 107 34" stroke="#4a5365" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>`;
+
+const CREASES = 'conic-gradient(from 20deg at 50% 50%, rgba(0,0,0,.16) 0 7deg, transparent 7deg 32deg, rgba(255,255,255,.22) 32deg 38deg, transparent 38deg 72deg, rgba(0,0,0,.16) 72deg 80deg, transparent 80deg 124deg, rgba(255,255,255,.2) 124deg 130deg, transparent 130deg 196deg, rgba(0,0,0,.16) 196deg 204deg, transparent 204deg 252deg, rgba(255,255,255,.2) 252deg 258deg, transparent 258deg)';
+
+/** Le morceau de papier se froisse, file en arc et tombe dans la corbeille grillagée (on le voit tomber à travers le grillage). */
 export async function trash(el) {
   if (!el || reduced()) return;
   const L = getLayer();
-  const bin = document.createElement('div'); bin.className = 'fx-bin'; bin.innerHTML = BIN; L.append(bin);
-  const lid = bin.querySelector('.bin-lid');
-  const rise = bin.animate([{ transform: 'translateY(90px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+  const bin = document.createElement('div'); bin.className = 'fx-bin';
+  bin.innerHTML = BIN_BACK;
+  const ball = document.createElement('i'); ball.className = 'fx-ball';
+  bin.append(ball);
+  bin.insertAdjacentHTML('beforeend', BIN_FRONT);
+  L.append(bin);
+  const rise = bin.animate([{ transform: 'translateY(190px)', opacity: 0 }, { transform: 'translateY(-14px)', opacity: 1, offset: .68 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.3, .7, .4, 1)', fill: 'forwards' });
   const r = el.getBoundingClientRect();
   const clone = ghost(el, r);
+  const crease = document.createElement('i'); crease.className = 'fx-creases'; crease.style.background = CREASES; clone.append(crease);
   L.append(clone); el.style.visibility = 'hidden';
   await done(rise);
-  const tx = bin.offsetLeft + bin.offsetWidth / 2 - (r.left + r.width / 2), ty = bin.offsetTop + 16 - (r.top + r.height / 2);
-  const lift = Math.min(150, Math.abs(ty) * .35 + 50);
-  lid.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(-32deg)' }], { duration: 220, delay: 520, fill: 'forwards' });
-  // le papier se froisse : le rectangle se referme en boule (cercle de plus en plus petit) pendant qu'il vole
+  const mouthX = bin.offsetLeft + bin.offsetWidth * .5, mouthY = bin.offsetTop + bin.offsetHeight * .22;
+  const tx = mouthX - (r.left + r.width / 2), ty = mouthY - (r.top + r.height / 2);
+  const lift = Math.min(190, Math.abs(ty) * .4 + 70);
+  // le papier se froisse : le rectangle se referme en boule pendant qu'il vole
   const R0 = Math.hypot(r.width, r.height) / 2, R1 = Math.min(r.width, r.height) / 2;
-  const ball = (k) => `circle(${k}px at 50% 50%)`;
+  const circ = (k) => `circle(${k}px at 50% 50%)`;
+  crease.animate([{ opacity: 0 }, { opacity: .95, offset: .55 }, { opacity: 1 }], { duration: 1100, fill: 'forwards' });
   await done(clone.animate([
-    { transform: 'none', clipPath: ball(R0), filter: 'none' },
-    { transform: 'scale(1.05, .9) rotate(-3deg)', clipPath: ball(R0 * .9), offset: .14 },
-    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(.5) rotate(-170deg)`, clipPath: ball(R1 * 1.1), filter: 'brightness(.93)', offset: .6 },
-    { transform: `translate(${tx}px, ${ty}px) scale(.2) rotate(-340deg)`, clipPath: ball(R1 * .8), filter: 'brightness(.8)', opacity: .95 },
-  ], { duration: 900, easing: 'cubic-bezier(.4, 0, .65, 1)', fill: 'forwards' }));
+    { transform: 'none', clipPath: circ(R0), filter: 'none' },
+    { transform: 'scale(1.05, .9) rotate(-3deg)', clipPath: circ(R0 * .9), offset: .12 },
+    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(.5) rotate(-170deg)`, clipPath: circ(R1 * 1.1), filter: 'brightness(.94)', offset: .62 },
+    { transform: `translate(${tx}px, ${ty - 22}px) scale(.22) rotate(-330deg)`, clipPath: circ(R1 * .8), filter: 'brightness(.85)' },
+  ], { duration: 1100, easing: 'cubic-bezier(.4, 0, .65, 1)', fill: 'forwards' }));
   clone.remove();
-  lid.animate([{ transform: 'rotate(-32deg)' }, { transform: 'rotate(0deg)' }], { duration: 220, fill: 'forwards' });
-  await done(bin.animate([{ transform: 'none' }, { transform: 'translateX(-3px) rotate(-3deg)' }, { transform: 'translateX(3px) rotate(3deg)' }, { transform: 'none' }], { duration: 380 }));
-  await done(bin.animate([{ opacity: 1 }, { transform: 'translateY(90px)', opacity: 0 }], { duration: 280, fill: 'forwards' }));
+  // la boule tombe dans la corbeille et rebondit au fond, visible à travers le grillage
+  const floor = bin.offsetHeight * .8, x0 = bin.offsetWidth * .5 - 17, dx = (Math.random() - .5) * 26;
+  ball.style.left = `${x0}px`; ball.style.top = `${bin.offsetHeight * .1}px`;
+  bits(mouthX, mouthY - 4, { n: 9, power: 64, up: 70 });
+  const drop = done(ball.animate([
+    { transform: 'translate(0, 0)', opacity: 1 },
+    { transform: `translate(${dx * .5}px, ${floor * .9}px)`, offset: .55, easing: 'ease-in' },
+    { transform: `translate(${dx * .8}px, ${floor * .62}px)`, offset: .72, easing: 'ease-in' },
+    { transform: `translate(${dx}px, ${floor}px)`, offset: .88, easing: 'ease-out' },
+    { transform: `translate(${dx}px, ${floor * .9}px)`, offset: .94 },
+    { transform: `translate(${dx}px, ${floor}px)` },
+  ], { duration: 820, easing: 'ease-out', fill: 'forwards' }));
+  await pause(300);
+  bin.animate([{ transform: 'none' }, { transform: 'translateX(-4px) rotate(-3deg)' }, { transform: 'translateX(4px) rotate(3deg)' }, { transform: 'translateX(-2px) rotate(-1deg)' }, { transform: 'none' }], { duration: 480 });
+  await drop;
+  await pause(450);
+  await done(bin.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(190px)', opacity: 0 }], { duration: 380, easing: 'ease-in', fill: 'forwards' }));
   bin.remove();
 }
 
 // ---------- déchiqueteuse (chantier, projet) ----------
 
-/** Le grand morceau de papier est avalé par la déchiqueteuse et ressort en bandelettes. `html` sert quand rien n'est à l'écran. */
+/** Le grand morceau de papier est avalé par la déchiqueteuse et ressort en bandelettes qui s'entassent dans le bac. `html` sert quand rien n'est à l'écran. */
 export async function shred(el, html) {
   if (reduced()) return;
   const L = getLayer();
@@ -104,53 +162,64 @@ export async function shred(el, html) {
     temp = document.createElement('div'); temp.className = 'fx-temp'; temp.innerHTML = html; L.append(temp); src = temp.firstElementChild;
   }
   if (!src) return;
-  const W = Math.min(270, innerWidth - 32);
+  const W = Math.min(340, innerWidth - 24);
   const machine = document.createElement('div'); machine.className = 'fx-shredder'; machine.style.setProperty('--w', `${W}px`);
-  machine.innerHTML = '<div class="sh-head"><i class="sh-led"></i></div><div class="sh-body"></div>'; L.append(machine);
-  const rise = machine.animate([{ transform: 'translateY(60px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: 'ease-out', fill: 'forwards' });
+  machine.innerHTML = `<div class="sh-head"><i class="sh-top"></i><i class="sh-slot"></i><span class="sh-vents"></span><i class="sh-led"></i><span class="sh-label">à déchiqueter</span></div>
+    <div class="sh-box"><i class="sh-window"></i><i class="sh-tape"></i><span class="sh-note">à recycler</span></div>`;
+  L.append(machine);
+  const rise = machine.animate([{ transform: 'translateY(300px)', opacity: 0 }, { transform: 'translateY(-16px)', opacity: 1, offset: .7 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 520, easing: 'cubic-bezier(.3, .7, .4, 1)', fill: 'forwards' });
   const r = src.getBoundingClientRect();
-  const s = Math.min(1, (W - 60) / r.width, 150 / r.height);
+  const s = Math.min(1, (W - 80) / r.width, 190 / r.height);
   const cw = r.width * s, ch = r.height * s;
   const clone = ghost(src, r);
   L.append(clone);
   if (el) el.style.visibility = 'hidden'; else temp.style.visibility = 'hidden';
   await done(rise);
-  const mx = machine.offsetLeft, my = machine.offsetTop;      // la déchiqueteuse en place
-  const cardX = mx + (W - cw) / 2, slotY = my + 16;
+  const head = machine.querySelector('.sh-head'), win = machine.querySelector('.sh-window');
+  const mr = machine.getBoundingClientRect(), mx = mr.left, my = mr.top;
+  const cardX = mx + (W - cw) / 2, slotY = my + 34;
   // 1. le papier vient se poser au-dessus de la fente
-  const aboveY = slotY - ch - 10;
+  const aboveY = slotY - ch - 14;
   clone.style.transformOrigin = '0 0';
-  await done(clone.animate([{ transform: 'none' }, { transform: `translate(${cardX - r.left}px, ${aboveY - r.top}px) scale(${s})` }],
-    { duration: 480, easing: 'cubic-bezier(.3, 1, .5, 1)', fill: 'forwards' }));
-  // 2. il est avalé (rogné à la fente) pendant que les bandelettes sortent dessous
+  await done(clone.animate([{ transform: 'none' }, { transform: `translate(${cardX - r.left}px, ${aboveY - r.top - 14}px) scale(${s}) rotate(-2deg)`, offset: .75 }, { transform: `translate(${cardX - r.left}px, ${aboveY - r.top}px) scale(${s})` }],
+    { duration: 620, easing: 'cubic-bezier(.3, 1, .5, 1)', fill: 'forwards' }));
+  // 2. il est avalé (rogné à la fente) pendant que les bandelettes sortent dans le bac
   clone.remove();
+  machine.classList.add('on');
   const clip = document.createElement('div'); clip.className = 'fx-clip';
   Object.assign(clip.style, { left: `${cardX}px`, top: '0px', width: `${cw}px`, height: `${slotY}px` });
-  const card = ghost(src, { left: 0, top: aboveY, width: r.width, height: r.height });
+  const card = ghost(src, { left: 0, top: aboveY, width: r.width, height: r.height }, 'absolute');
   card.style.transformOrigin = '0 0'; card.style.transform = `scale(${s})`; card.classList.add('fx-feed');
   clip.append(card); L.append(clip);
-  const N = 9, sw = cw / N, strips = [];
-  const strip0 = my + 64;
+  // le bac : les bandelettes y restent et s'entassent
+  const wr = win.getBoundingClientRect(), bx = wr.left, by = wr.top, bw = wr.width, bh = wr.height;
+  const pile = document.createElement('div'); pile.className = 'fx-pile';
+  Object.assign(pile.style, { left: `${bx}px`, top: `${by}px`, width: `${bw}px`, height: `${bh}px` });
+  L.append(pile);
+  const N = 11, sw = cw / N, strips = [];
   for (let i = 0; i < N; i++) {
     const st = document.createElement('div'); st.className = 'fx-strip';
-    Object.assign(st.style, { left: `${cardX + i * sw}px`, top: `${strip0}px`, width: `${sw - 1}px`, height: `${ch}px` });
-    const c = ghost(src, { left: -i * sw, top: 0, width: r.width, height: r.height });
+    Object.assign(st.style, { left: `${cardX - bx + i * sw}px`, top: '-40px', width: `${sw - 1}px`, height: `${ch}px` });
+    const c = ghost(src, { left: -i * sw, top: 0, width: r.width, height: r.height }, 'absolute');
     c.style.transformOrigin = '0 0'; c.style.transform = `scale(${s})`;
-    st.append(c); L.append(st); strips.push(st);
+    st.append(c); pile.append(st); strips.push(st);
     st.style.clipPath = 'inset(0 0 100% 0)';
   }
-  machine.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-1.5px)' }, { transform: 'translateX(1.5px)' }, { transform: 'translateX(0)' }], { duration: 110, iterations: 9 });
-  const feed = 900;
+  machine.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-2px)' }, { transform: 'translateX(2px)' }, { transform: 'translateX(0)' }], { duration: 100, iterations: 11 });
+  const feed = 1000, slotMid = { x: mx + W / 2, y: slotY + 4 };
+  for (let k = 0; k < 4; k++) setTimeout(() => bits(rnd(cardX, cardX + cw), slotMid.y, { n: 4, power: 36, up: 24, life: 600 }), k * 220);
   strips.forEach((st) => st.animate([{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)' }], { duration: feed, delay: 60, easing: 'linear', fill: 'forwards' }));
-  await done(card.animate([{ transform: `scale(${s}) translateY(0)` }, { transform: `scale(${s}) translateY(${(ch + 24) / s}px)` }], { duration: feed, easing: 'cubic-bezier(.45, 0, .8, .7)', fill: 'forwards' }));
+  await done(card.animate([{ transform: `scale(${s}) translateY(0)` }, { transform: `scale(${s}) translateY(${(ch + 28) / s}px)` }], { duration: feed, easing: 'cubic-bezier(.45, 0, .8, .7)', fill: 'forwards' }));
   clip.remove();
-  // 3. les bandelettes tombent dans le bac
+  machine.classList.remove('on');
+  // 3. les bandelettes tombent dans le bac et s'y entassent
+  const floor = bh + 40 - 6;
   await Promise.all(strips.map((st, i) => done(st.animate([
-    { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
-    { transform: `translateY(${90 + (i % 3) * 14}px) rotate(${(i % 2 ? 1 : -1) * (4 + i * 1.6)}deg)`, opacity: 0 },
-  ], { duration: 620, delay: i * 40, easing: 'cubic-bezier(.5, 0, 1, .6)', fill: 'forwards' }))));
-  strips.forEach((st) => st.remove());
-  await pause(120);
-  await done(machine.animate([{ opacity: 1 }, { transform: 'translateY(60px)', opacity: 0 }], { duration: 300, fill: 'forwards' }));
-  machine.remove(); temp?.remove();
+    { transform: 'translateY(0) rotate(0deg)' },
+    { transform: `translateY(${floor - ch * (.42 + (i % 4) * .08)}px) rotate(${(i % 2 ? 1 : -1) * (3 + (i * 7) % 17)}deg)` },
+  ], { duration: 760, delay: i * 45, easing: 'cubic-bezier(.5, 0, 1, .7)', fill: 'forwards' }))));
+  await pause(650);
+  pile.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, fill: 'forwards' });
+  await done(machine.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(300px)', opacity: 0 }], { duration: 420, easing: 'ease-in', fill: 'forwards' }));
+  pile.remove(); machine.remove(); temp?.remove();
 }

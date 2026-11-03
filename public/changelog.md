@@ -5,7 +5,8 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 ## 0.22.0
 - Par statut : tu peux déposer une tâche n'importe où dans une autre colonne, même par-dessus les autres tâches. Sur téléphone, appuie longtemps sur la tâche puis dépose-la sur l'onglet « À faire », « En cours » ou « Fait ».
 - Animations : la tâche que tu déplaces, ranges ou modifies glisse jusqu'à sa nouvelle place au lieu de sauter, et une nouvelle tâche se colle avec un petit rebond. Rien ne bouge quand ce n'est pas toi qui agis.
-- Suppression animée : une tâche ou un post-it supprimé se froisse et part à la corbeille ; un chantier ou un projet est avalé par une déchiqueteuse et ressort en bandelettes.
+- Suppression animée : une tâche ou un post-it supprimé se froisse et tombe dans une corbeille à papier de bureau en métal grillagé ; un chantier ou un projet est avalé par une déchiqueteuse (verte, avec son étiquette « à déchiqueter ») et ses bandelettes s'entassent dans un carton « à recycler ».
+- Supprimer un chantier : une case permet de supprimer aussi ses tâches ; décochée, elles sont gardées, hors chantier.
 - Fenêtres : la barre « Enregistrer » épinglée ne cache plus le haut du titre qui suit (les accents de « Clés d'accès » étaient coupés).
 - Mon compte : tout le menu est une carte d'accès (badge de bureau) accrochée à une lanière qui passe dans la fente, avec ton profil en haut. La carte entière défile, et ton profil (nom, identifiant, icône, couleur) s'enregistre tout seul à chaque changement : plus de bouton « Enregistrer ».
 - Intercalaires : l'onglet actif et son bandeau de couleur ne font plus qu'un (sur ordinateur).

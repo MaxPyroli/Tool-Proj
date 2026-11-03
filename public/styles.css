@@ -1093,23 +1093,39 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   .tab[aria-current="page"] { height: calc(var(--tabbar-h) - 2px); margin-top: 0; }
 }
 
-/* ---------- Animations bureau : corbeille et déchiqueteuse ---------- */
+/* ---------- Animations bureau : corbeille à papier grillagée et déchiqueteuse (même ton que le reste : à plat, papier, carton, vert de l'app) ---------- */
 .fx-layer { position: fixed; inset: 0; z-index: 100000; pointer-events: none; overflow: hidden; }
-.fx-clone { box-shadow: 0 10px 22px rgb(0 0 0 / .3); }
-.fx-bin { position: absolute; left: 50%; bottom: calc(var(--tabbar-h, 64px) + 30px + env(safe-area-inset-bottom, 0px)); width: 64px; height: 74px; margin-left: -32px; filter: drop-shadow(0 4px 6px rgb(0 0 0 / .35)); }
+.fx-clone { box-shadow: 0 12px 26px rgb(0 0 0 / .3); }
+.fx-creases { position: absolute; inset: 0; opacity: 0; mix-blend-mode: multiply; pointer-events: none; }
+.fx-bit { position: absolute; border-radius: 1px; box-shadow: 0 1px 1px rgb(0 0 0 / .2); z-index: 3; }
+.fx-bin { position: absolute; left: 50%; bottom: calc(var(--tabbar-h, 64px) + 26px + env(safe-area-inset-bottom, 0px)); width: 128px; height: 160px; margin-left: -64px; filter: drop-shadow(0 6px 8px rgb(0 0 0 / .28)); }
 @media (min-width: 720px) { .fx-bin { bottom: 40px; } }
-.fx-bin svg { width: 100%; height: 100%; overflow: visible; }
-.fx-bin .bin-body { fill: #8e97a7; } .fx-bin .bin-lid { fill: #6c7484; transform-box: fill-box; transform-origin: left bottom; }
-.fx-bin .bin-ribs { stroke: rgb(0 0 0 / .22); stroke-width: 3; stroke-linecap: round; fill: none; }
-.fx-shredder { position: absolute; left: 50%; width: var(--w); margin-left: calc(var(--w) / -2); height: 150px; bottom: calc(var(--tabbar-h, 64px) + 16px + env(safe-area-inset-bottom, 0px)); filter: drop-shadow(0 6px 8px rgb(0 0 0 / .35)); }
-@media (min-width: 720px) { .fx-shredder { bottom: 36px; } }
-.sh-head { position: relative; height: 64px; border-radius: 10px 10px 4px 4px; background: linear-gradient(180deg, #6b7384, #454c5b); }
-.sh-head::before { content: ""; position: absolute; left: 8%; right: 8%; top: 12px; height: 9px; border-radius: 5px; background: #14171d; box-shadow: inset 0 2px 3px rgb(0 0 0 / .6); }
-.sh-head::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: 10px; height: 3px; border-radius: 2px; background: repeating-linear-gradient(90deg, rgb(255 255 255 / .25) 0 8px, transparent 8px 14px); }
-.sh-led { position: absolute; right: 12px; top: 28px; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; }
-.sh-body { height: 86px; margin: 0 6px; border-radius: 0 0 8px 8px; background: linear-gradient(180deg, #343a47, #272c36); box-shadow: inset 0 6px 8px rgb(0 0 0 / .4); }
+.fx-bin svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fx-ball { position: absolute; width: 34px; height: 34px; border-radius: 50%; background: #fffdf6; border: 1.5px solid #cfc4a0; opacity: 0;
+  background-image: conic-gradient(from 20deg at 50% 50%, rgb(0 0 0 / .12) 0 7deg, transparent 7deg 40deg, rgb(255 255 255 / .6) 40deg 46deg, transparent 46deg 110deg, rgb(0 0 0 / .12) 110deg 118deg, transparent 118deg 200deg, rgb(255 255 255 / .6) 200deg 206deg, transparent 206deg); }
+.fx-shredder { position: absolute; left: 50%; width: var(--w); margin-left: calc(var(--w) / -2); height: 250px; bottom: calc(var(--tabbar-h, 64px) + 14px + env(safe-area-inset-bottom, 0px)); filter: drop-shadow(0 8px 8px rgb(0 0 0 / .28)); }
+@media (min-width: 720px) { .fx-shredder { bottom: 34px; } }
+.sh-head { position: relative; height: 100px; border-radius: 16px 16px 8px 8px; background: #0f766e; box-shadow: 0 6px 0 #0a4f4a; }
+.sh-top { position: absolute; left: 0; right: 0; top: 0; height: 20px; border-radius: 16px 16px 0 0; background: #17a091; }
+.sh-slot { position: absolute; left: 7%; right: 7%; top: 28px; height: 15px; border-radius: 8px; background: #1b2130; box-shadow: inset 0 3px 0 #0e121b; transition: box-shadow .25s; }
+.sh-vents { position: absolute; left: 8%; top: 58px; width: 30%; height: 22px; background: repeating-linear-gradient(180deg, rgb(0 0 0 / .28) 0 3px, transparent 3px 7px); border-radius: 3px; }
+.sh-led { position: absolute; right: 9%; top: 60px; width: 11px; height: 11px; border-radius: 50%; background: #fff1a6; box-shadow: 0 0 0 3px rgb(0 0 0 / .18); transition: background .2s; }
+.fx-shredder.on .sh-led { background: #ff8a5c; box-shadow: 0 0 0 3px rgb(0 0 0 / .18), 0 0 10px #ff8a5c; }
+.fx-shredder.on .sh-slot { box-shadow: inset 0 3px 0 #0e121b, 0 0 14px rgb(255 160 90 / .55); }
+.sh-label { position: absolute; right: 7%; bottom: 10px; padding: 1px 10px 2px; border-radius: 2px; background: #fffdf6; color: #2b2717; rotate: -3deg; font: 700 .95rem/1.1 var(--f-hand, cursive); box-shadow: 0 1px 2px rgb(0 0 0 / .3); }
+.sh-box { position: relative; height: 150px; margin: 0 14px; border-radius: 0 0 6px 6px; background: #ead5a8; box-shadow: inset 0 0 0 2px #d4b97c; }
+.sh-window { position: absolute; left: 12%; right: 12%; top: 14px; bottom: 34px; border-radius: 6px; background: #3a3220; box-shadow: inset 0 4px 0 rgb(0 0 0 / .35); }
+.sh-tape { position: absolute; left: 0; right: 0; bottom: 8px; height: 14px; background: rgb(255 255 255 / .4); }
+.sh-note { position: absolute; left: 14%; bottom: 8px; padding: 0 8px; font: 700 .9rem/14px var(--f-hand, cursive); color: #2b2717; }
+.fx-pile { position: absolute; overflow: hidden; border-radius: 6px; }
 .fx-clip, .fx-strip { position: absolute; overflow: hidden; }
 .fx-strip > * { box-shadow: none; }
 .fx-temp { position: absolute; left: 50%; top: 38%; width: min(300px, 80vw); transform: translate(-50%, -50%); }
 .fx-temp .pcard { width: 100%; }
 .fx-temp .pc-front { min-height: 96px; }
+
+/* Case à cocher d'une confirmation */
+.check-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); cursor: pointer; }
+.check-row input { flex: none; width: 24px; height: 24px; margin: 1px 0 0; accent-color: var(--danger); }
+.check-row span { display: grid; gap: 2px; }
+.check-row small { color: var(--muted); }

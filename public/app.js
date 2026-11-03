@@ -336,6 +336,22 @@ async function render() {
   renderList();
 }
 
+/** Confirmation de suppression d'un chantier : une case pour supprimer aussi ses tâches (sinon elles sont gardées, hors chantier). */
+function confirmEpicSheet(e, n) {
+  return new Promise((resolve) => {
+    openSheet(`
+      <h2 id="sheet-title">Supprimer ce chantier ?</h2>
+      <p>« ${esc(e.title)} »</p>
+      ${n ? `<label class="check-row"><input type="checkbox" id="de-tasks"><span><b>Supprimer aussi ses ${n} tâche${n > 1 ? 's' : ''}</b><small>Décoché : elles sont gardées, hors chantier.</small></span></label>` : '<p class="small muted">Ce chantier est vide.</p>'}
+      <div class="row end"><button class="btn ghost" data-r="0">Annuler</button><button class="btn danger solid" data-r="1">Supprimer</button></div>`,
+    (root) => {
+      const onClick = (ev) => { const b = ev.target.closest('[data-r]'); if (b) { resolve(b.dataset.r === '1' ? { withTasks: !!root.querySelector('#de-tasks')?.checked } : null); closeSheet(); } };
+      root.addEventListener('click', onClick);
+      return () => { root.removeEventListener('click', onClick); resolve(null); };
+    });
+  });
+}
+
 /** Joue l'animation de suppression (corbeille ou déchiqueteuse) en même temps que la suppression ; si elle échoue, l'élément réapparaît. */
 async function removeWith(effect, node, remove, html) {
   let ok = false;
@@ -1964,10 +1980,13 @@ const actions = {
   'open-epic': (el) => epicSheet(state.data.epics.find((e) => e.id === Number(el.dataset.id))),
   'delete-epic': async (el) => {
     const e = state.data.epics.find((x) => x.id === Number(el.dataset.id));
-    if (!(await confirmSheet(`Supprimer le chantier « ${e.title} » ? Ses tâches sont gardées, hors chantier.`))) return;
+    const mine = state.data.tasks.filter((t) => t.epicId === e.id);
+    const choice = await confirmEpicSheet(e, mine.length);
+    if (!choice) return;
     closeSheet();
-    await removeWith('shred', $app.querySelector(`.ep-sheet[data-id="${e.id}"], .ep-closed[data-id="${e.id}"]`), () => db.deleteEpic(e.id));
-    toast('Chantier supprimé'); await reloadProject();
+    const ids = choice.withTasks ? mine.map((t) => t.id) : [];
+    await removeWith('shred', $app.querySelector(`.ep-sheet[data-id="${e.id}"], .ep-closed[data-id="${e.id}"]`), () => db.deleteEpic(e.id, ids));
+    toast(ids.length ? `Chantier et ${ids.length} tâche${ids.length > 1 ? 's' : ''} supprimés` : 'Chantier supprimé'); await reloadProject();
   },
   'pick-avatar-emoji': (el) => {
     const form = el.closest('form');

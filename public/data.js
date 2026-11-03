@@ -389,7 +389,11 @@ export async function addEpic(pid, f, epics) {
   return ok(await sb.from('epics').insert({ project_id: pid, horizon: 'now', position, ...epicRow(f) }).select('id').single()).id;
 }
 export async function updateEpic(id, f) { ok(await sb.from('epics').update(epicRow(f)).eq('id', id)); }
-export async function deleteEpic(id) { ok(await sb.from('epics').delete().eq('id', id)); }
+/** Deletes a chantier. Its tasks are kept (out of any chantier) unless `taskIds` lists the ones to delete with it (images included). */
+export async function deleteEpic(id, taskIds = []) {
+  for (const t of taskIds) await deleteTask(t);
+  ok(await sb.from('epics').delete().eq('id', id));
+}
 
 /** Turns a post-it into a chantier or an item (task, bug, improvement), then removes it from the wall. */
 export async function convertNote(pid, note, kind, data) {
