@@ -5,6 +5,7 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 ## 0.22.0
 - Les onglets du projet (Aperçu, Tâches, Post-it, Équipe) deviennent des intercalaires de classeur colorés : l'onglet actif dépasse, avec un bandeau de sa couleur sur toute la largeur. En haut sur ordinateur, dans la barre du bas sur téléphone.
 - Les fenêtres (ajout, modification, compte…) sont de petites feuilles d'un carnet prédécoupé : bord du haut en encoches, papier ligné avec marge rouge qui défile avec le contenu, boutons du bas épinglés sur la feuille. Papier crème en clair, papier sombre en mode sombre.
+- Liste des projets : chaque projet est une chemise cartonnée à la couleur du projet, avec son nom écrit à la main, son état sur l'onglet et son icône collée en pastille. Au survol, la chemise s'entrouvre et la feuille monte.
 - Mode sombre : les blocs-notes de chantier et les badges d'équipe passent sur du papier sombre, et les tâches sont plus sombres (elles gardent leur couleur par type).
 - Fini le coin arrondi tout seul : post-it, tâches et chantiers ont les coins droits.
 - Équipe : chaque personne a un badge de bureau à lanière (rôle en bandeau, icône, nom). Il se balance un peu quand on passe dessus.

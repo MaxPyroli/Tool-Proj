@@ -436,21 +436,22 @@ function passkeyOfferSheet() {
 function projectCard(p) {
   return `
   <a class="pcard" href="#/p/${p.id}" style="--pc:${esc(p.color)}">
-    <div class="pcard-head">
-      <span class="emoji-badge">${glyph(p.emoji)}</span>
-      <div class="grow stack" style="gap:4px">
-        <h2>${esc(p.name)}</h2>
-        <div class="row" style="gap:6px"><span class="pill ${p.status}">${STATUS[p.status]}</span>${p.role === 'admin' ? '<span class="role admin">admin</span>' : ''}</div>
+    <span class="pc-back" aria-hidden="true"></span>
+    <span class="pc-sheet" aria-hidden="true"></span>
+    <span class="pc-tab"><i class="pc-dot st-${p.status}"></i>${STATUS[p.status]}</span>
+    <div class="pc-front">
+      <span class="pc-sticker">${glyph(p.emoji)}</span>
+      <h2 class="pc-name">${esc(p.name)}</h2>
+      ${p.role === 'admin' ? '<span class="pc-role">admin</span>' : ''}
+      ${p.description ? `<p class="desc">${md(p.description)}</p>` : ''}
+      <div class="pc-progress">
+        <div class="row between small"><span>Avancement</span><strong class="num">${p.progress} %</strong></div>
+        <div class="progress"><i style="width:${p.progress}%"></i></div>
       </div>
-    </div>
-    ${p.description ? `<p class="desc">${md(p.description)}</p>` : ''}
-    <div class="pcard-progress">
-      <div class="row between small"><span class="muted">Avancement</span><strong class="num">${p.progress} %</strong></div>
-      <div class="progress"><i style="width:${p.progress}%"></i></div>
-    </div>
-    <div class="pcard-foot">
-      <div class="stats"><span>${p.tasks.total - p.tasks.done} à faire</span><span>${p.noteCount} post-it</span><span>${timeAgo(p.updatedAt)}</span></div>
-      <div class="avatars">${p.members.slice(0, 4).map((m) => avatar(m)).join('')}</div>
+      <div class="pcard-foot">
+        <div class="stats"><span>${p.tasks.total - p.tasks.done} à faire</span><span>${p.noteCount} post-it</span><span>${timeAgo(p.updatedAt)}</span></div>
+        <div class="avatars">${p.members.slice(0, 4).map((m) => avatar(m)).join('')}</div>
+      </div>
     </div>
   </a>`;
 }
