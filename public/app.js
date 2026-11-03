@@ -1790,7 +1790,8 @@ function accountSheet() {
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   openSheet(`
-    <div class="sheet-head"><div class="row">${avatar(me, 'lg')}<div><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div></div>
+    <div class="sheet-head"><div class="my-badge"><span class="badge-role">Mon profil</span>
+        <div class="row">${avatar(me, 'lg')}<div class="grow"><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div></div></div>
       <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
     <button class="news-row" data-action="changelog"><span><b>Nouveautés</b><small>Version ${APP_VERSION} · ce qui a changé</small></span>${hasNews() ? '<span class="cl-pill">Nouveau</span>' : ''}${ico('chev', 18)}</button>
     ${!standalone ? `<div class="panel" style="background:var(--accent-soft);border-color:transparent">

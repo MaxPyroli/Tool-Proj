@@ -907,12 +907,12 @@ mark { color: #2b2717; padding: 0 .18em; margin: 0 -.05em; border-radius: .25em 
 dialog#sheet { overflow: visible; background: transparent; box-shadow: none; border-radius: 0; color: var(--ink);
   filter: drop-shadow(0 6px 12px rgb(0 0 0 / .32));
   --paper: #fffdf6; --bg: #fffdf6; --surface: #fffdf6; --surface-2: #f6f1e1; --line: #e3dcc3;
-  --rule: rgb(70 100 150 / .11); --margin: rgb(212 78 78 / .35); --margin2: rgb(212 78 78 / .22); }
+  --rule: rgb(70 100 150 / .07); --margin: rgb(212 78 78 / .35); --margin2: rgb(212 78 78 / .22); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) dialog#sheet {
   --paper: #26241f; --bg: #26241f; --surface: #26241f; --surface-2: #312e27; --line: #4a4538;
-  --rule: rgb(255 255 255 / .05); --margin: rgb(224 110 110 / .34); --margin2: rgb(224 110 110 / .2); } }
+  --rule: rgb(255 255 255 / .035); --margin: rgb(224 110 110 / .34); --margin2: rgb(224 110 110 / .2); } }
 :root[data-theme="dark"] dialog#sheet { --paper: #26241f; --bg: #26241f; --surface: #26241f; --surface-2: #312e27; --line: #4a4538;
-  --rule: rgb(255 255 255 / .05); --margin: rgb(224 110 110 / .34); --margin2: rgb(224 110 110 / .2); }
+  --rule: rgb(255 255 255 / .035); --margin: rgb(224 110 110 / .34); --margin2: rgb(224 110 110 / .2); }
 dialog#sheet .sheet-body { border-radius: 0; padding-top: 26px; background-color: var(--paper); background-attachment: local;
   background-image: linear-gradient(90deg, transparent 10px, var(--margin) 10px 11px, transparent 11px 14px, var(--margin2) 14px 15px, transparent 15px),
     repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px);
@@ -1035,3 +1035,22 @@ dialog#sheet .sheet-body::before { content: none; }
 .ep-closed.hz-now { --ep: var(--pi-green); } .ep-closed.hz-done { --ep: var(--pi-yellow); }
 .ep-fold { flex: none; width: 30px; height: 30px; border: 0; border-radius: 3px; cursor: pointer; background: var(--np-chip-hi); color: var(--np-ink); font-size: .9rem; }
 .ep-closed.dragging { opacity: .4; }
+
+/* Intercalaires : l'onglet actif recouvre le bandeau (même couleur, sans trait de séparation) */
+.tabs { position: relative; z-index: 2; }
+@media (min-width: 720px) {
+  .tab[aria-current="page"] { margin-bottom: -6px; padding-bottom: 17px; box-shadow: inset 0 3px 0 rgb(255 255 255 / .45); }
+  .tab-band { position: relative; z-index: 1; box-shadow: none; }
+}
+
+/* Mon compte : le profil est un badge de bureau */
+.sheet-head .my-badge { --bd: #0f766e; position: relative; flex: 1; min-width: 0; margin-top: 20px; padding: 0 12px 12px; border-radius: 12px; background: var(--surface-2); color: var(--ink);
+  box-shadow: 0 3px 8px rgb(0 0 0 / .16); }
+.my-badge::before { content: ""; position: absolute; left: 50%; top: -20px; width: 16px; height: 26px; margin-left: -8px; background: var(--bd); border-radius: 3px 3px 0 0; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
+.my-badge::after { content: ""; position: absolute; left: 50%; top: 7px; width: 34px; height: 7px; margin-left: -17px; border-radius: 4px; background: rgb(0 0 0 / .35); box-shadow: inset 0 1px 2px rgb(0 0 0 / .4); }
+.my-badge .badge-role { display: block; margin: 0 -12px 10px; text-align: center; }
+.my-badge h2 { font-size: 1.15rem; overflow-wrap: anywhere; }
+.my-badge .row { gap: 12px; flex-wrap: nowrap; }
+.my-badge .grow { min-width: 0; }
+.sheet-head:has(.my-badge) { align-items: flex-start; }
+.sheet-head:has(.my-badge) > .btn { margin-top: 20px; }
