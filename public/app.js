@@ -598,9 +598,10 @@ function renderProject() {
     <a class="btn ghost icon" href="#/" aria-label="Retour aux projets">${icon.back}</a>
     <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${glyph(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
     ${isAdmin ? `<button class="btn ghost icon" data-action="edit-project" aria-label="Paramètres du projet">${icon.gear}</button>` : ''}`)}
-  <nav class="tabs" aria-label="Sections du projet">
+  <nav class="tabs" data-active="${state.tab}" aria-label="Sections du projet">
     ${tabs.map(([k, l, ic, n]) => `<a class="tab" data-k="${k}" href="#/p/${p.id}/${k}" ${state.tab === k ? 'aria-current="page"' : ''}><span class="ico">${ic}</span>${l}${n ? `<span class="count num">${n}</span>` : ''}</a>`).join('')}
   </nav>
+  <div class="tab-band" data-k="${state.tab}" aria-hidden="true"></div>
   <main class="page" style="--pc:${esc(p.color)}">
     ${{ apercu: viewOverview, taches: viewTasks, idees: viewNotes, equipe: viewTeam }[state.tab](d)}
   </main>
@@ -769,12 +770,12 @@ function viewTeam(d) {
       <h3>${d.members.length} personne${d.members.length > 1 ? 's' : ''} sur le projet</h3>
       <div class="members">
         ${d.members.map((m) => `
-          <div class="member">
+          <div class="member bd-${m.role}">
+            <span class="badge-role">${m.role === 'admin' ? 'Admin' : 'Membre'}</span>
             ${avatar(m, 'lg')}
             <div class="grow"><strong>${esc(m.displayName)}${m.id === state.me.id ? ' (toi)' : ''}</strong><span class="small muted">@${esc(m.username)}</span></div>
             ${isAdmin ? `<select aria-label="Rôle de ${esc(m.displayName)}" data-change="role" data-id="${m.id}">
-                <option value="member" ${m.role === 'member' ? 'selected' : ''}>Membre</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Admin</option></select>`
-              : `<span class="role ${m.role}">${m.role === 'admin' ? 'Admin' : 'Membre'}</span>`}
+                <option value="member" ${m.role === 'member' ? 'selected' : ''}>Membre</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Admin</option></select>` : ''}
             ${m.id === state.me.id ? '<button class="btn sm danger" data-action="remove-member" data-id="' + m.id + '">Quitter</button>'
               : isAdmin ? `<button class="btn sm ghost" data-action="remove-member" data-id="${m.id}" aria-label="Retirer ${esc(m.displayName)}">Retirer</button>` : ''}
           </div>`).join('')}
@@ -825,7 +826,9 @@ const HORIZON_ORDER = { now: 0, next: 1, later: 2, done: 3 };
 const CHECK_SVG = '<svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path pathLength="1" d="M7.500 16.500Q10.500 19.800 13 24Q18 12.500 27 5.500"/></svg>';
 const typeTag = (t) => (t.type === 'task' ? '' : `<span class="type-tag ty-${t.type}"><i aria-hidden="true">${typeIcon(t.type, 13)}</i>${TYPES[t.type]}</span>`);
 const prioTag = (t) => (t.priority === 'high' ? '<span class="stamp" title="Priorité haute">Urgent</span>' : t.priority === 'low' ? '<span class="prio low" title="Priorité basse">Basse</span>' : '');
-const sortItems = (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
+// la tâche qu'on vient de cocher garde sa place (son ancien statut) le temps de l'animation
+const sortStatus = (t) => (t.id === state.justDone ? state.justDoneFrom : t.status);
+const sortItems = (a, b) => STATUS_ORDER[sortStatus(a)] - STATUS_ORDER[sortStatus(b)] || PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority] || a.position - b.position;
 const sortEpics = (a, b) => HORIZON_ORDER[a.horizon] - HORIZON_ORDER[b.horizon] || a.position - b.position;
 
 function epicProgress(d, epicId) {
