@@ -3,6 +3,7 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
+- Mon compte → « Tester les animations » : un simulateur avec un bouton par animation (corbeille, déchiqueteuse chantier ou projet, pose d'une tâche, déplacement), avec de faux éléments.
 - Par statut : tu peux déposer une tâche n'importe où dans une autre colonne, même par-dessus les autres tâches. Sur téléphone, appuie longtemps sur la tâche puis dépose-la sur l'onglet « À faire », « En cours » ou « Fait ».
 - Animations : la tâche que tu déplaces, ranges ou modifies glisse jusqu'à sa nouvelle place au lieu de sauter, et une nouvelle tâche se colle avec un petit rebond. Rien ne bouge quand ce n'est pas toi qui agis.
 - Suppression animée : une tâche ou un post-it supprimé se froisse et tombe dans une corbeille à papier de bureau en métal grillagé ; un chantier ou un projet est avalé par une déchiqueteuse (verte, avec son étiquette « à déchiqueter ») et ses bandelettes s'entassent dans un carton « à recycler ».

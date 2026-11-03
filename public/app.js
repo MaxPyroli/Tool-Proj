@@ -1829,6 +1829,63 @@ function changelogSheet() {
 
 const badgeIdentity = (me) => `${avatar(me, 'lg')}<div class="grow"><h2 id="sheet-title">${esc(me.displayName)}</h2><p class="small muted">@${esc(me.username)}</p></div>`;
 
+/** Simulateur d'animations : un écran d'essai avec de faux éléments et un bouton par animation. */
+function openSim() {
+  document.querySelector('.sim')?.remove();
+  const me = state.me;
+  const mk = (over) => ({ id: 'd', type: 'task', status: 'todo', title: 'Tâche', priority: 'normal', description: '', images: [], assigneeId: null, epicId: null, ...over });
+  const stageHtml = () => {
+    const tasks = [mk({ id: 'd1', type: 'bug', title: 'Corriger le plantage', priority: 'high', epicId: 'e' }), mk({ id: 'd2', type: 'idea', title: 'Fiches vs retard', epicId: 'e' })];
+    const d = { tasks, epics: [] };
+    const epic = { id: 'e', title: 'Mode hors-ligne', horizon: 'now' };
+    const proj = { id: 0, name: 'Mon projet', emoji: '🚀', color: '#0d7c72', status: 'active', role: 'admin', progress: 40, description: '', tasks: { total: 5, done: 2 }, noteCount: 1, updatedAt: new Date().toISOString(), members: [me] };
+    return `<div class="sim-block">${epicNote(d, epic, tasks, {}, false, false, [], false)}</div>
+      <div class="sim-cols"><div class="sim-col" data-col="a"><h4>À faire</h4>${taskRow(mk({ id: 'm1', title: 'Tâche à déplacer' }), {})}</div><div class="sim-col" data-col="b"><h4>Fait</h4></div></div>
+      <div class="sim-block sim-chem">${projectCard(proj)}</div>`;
+  };
+  const el = document.createElement('div');
+  el.className = 'sim';
+  el.innerHTML = `<header class="sim-head"><h2>Simulateur d'animations</h2><button class="btn ghost icon" data-sim="close" aria-label="Fermer">${ico('x')}</button></header>
+    ${fx.animationsOff() ? '<p class="small sim-warn">Les animations sont coupées sur cet appareil (réglage « réduire les animations »). Rien ne bougera ici.</p>' : ''}
+    <div class="sim-stage" id="sim-stage"></div>
+    <div class="sim-actions">
+      <button class="btn primary" data-sim="trash">Corbeille</button>
+      <button class="btn primary" data-sim="shred-epic">Déchiqueteuse : chantier</button>
+      <button class="btn primary" data-sim="shred-proj">Déchiqueteuse : projet</button>
+      <button class="btn primary" data-sim="enter">Pose d'une tâche</button>
+      <button class="btn primary" data-sim="move">Déplacement</button>
+    </div>`;
+  document.body.append(el);
+  const stage = el.querySelector('#sim-stage');
+  const fresh = () => {
+    stage.innerHTML = stageHtml();
+    stage.querySelectorAll('[data-action], [data-drag], [href]').forEach((n) => { n.removeAttribute('data-action'); n.removeAttribute('data-drag'); n.removeAttribute('draggable'); n.removeAttribute('href'); });
+  };
+  fresh();
+  let busy = false;
+  const acts = {
+    trash: async () => { await fx.trash(stage.querySelector('.sim-col [data-id], .sim-col .task') ?? stage.querySelector('.task')); fresh(); },
+    'shred-epic': async () => { await fx.shred(stage.querySelector('.ep-sheet')); fresh(); },
+    'shred-proj': async () => { await fx.shred(stage.querySelector('.pcard')); fresh(); },
+    enter: async () => { fresh(); const t = stage.querySelector('.sim-col .task'); t.style.visibility = 'hidden'; await new Promise((r) => setTimeout(r, 250)); t.style.visibility = ''; fx.enter(t); },
+    move: async () => {
+      let t = stage.querySelector('.sim-col .task');
+      if (!t) { fresh(); t = stage.querySelector('.sim-col .task'); }
+      const here = t.closest('.sim-col').dataset.col;
+      fx.move(t, stage.querySelector(`.sim-col[data-col="${here === 'a' ? 'b' : 'a'}"]`));
+      if (here === 'a') t.classList.add('is-done'); else t.classList.remove('is-done');
+    },
+  };
+  el.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-sim]');
+    if (!b) return;
+    if (b.dataset.sim === 'close') { el.remove(); return; }
+    if (busy) return;
+    busy = true; el.classList.add('busy');
+    try { await acts[b.dataset.sim](); } finally { busy = false; el.classList.remove('busy'); }
+  });
+}
+
 /** Profile: saved on its own after each change (no « Enregistrer » button). */
 let profileTimer = null, profileForm = null;
 async function saveProfile(f) {
@@ -1857,6 +1914,7 @@ function accountSheet() {
     <div class="sheet-head"><div class="my-badge"><span class="badge-role">Mon profil</span>
         <div class="row">${badgeIdentity(me)}</div></div>
       <button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+    <button class="news-row" data-action="sim"><span><b>Tester les animations</b><small>Corbeille, déchiqueteuse, pose, déplacement</small></span>${ico('chev', 18)}</button>
     <button class="news-row" data-action="changelog"><span><b>Nouveautés</b><small>Version ${APP_VERSION} · ce qui a changé</small></span>${hasNews() ? '<span class="cl-pill">Nouveau</span>' : ''}${ico('chev', 18)}</button>
     ${!standalone ? `<div class="panel" style="background:var(--accent-soft);border-color:transparent">
       <h3>Installer l'app</h3>
@@ -1956,6 +2014,7 @@ const actions = {
   'board-group': (el) => { state.boardGroup = el.dataset.v; store.set('boardGroup', el.dataset.v); renderProject(); },
   'goto-roadmap': () => { state.boardGroup = 'epic'; store.set('boardGroup', 'epic'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
+  'sim': () => { closeSheet(); openSim(); },
   'toggle-done': () => { state.showDone = !state.showDone; renderProject(); },
   'epic-toggle': (el) => { const k = Number(el.dataset.id); state.epicOpen.has(k) ? state.epicOpen.delete(k) : state.epicOpen.add(k); renderProject(); },
   'toggle-later': () => { state.showLater = !state.showLater; renderProject(); },

@@ -43,6 +43,27 @@ export function play(prev) {
   }
 }
 
+/** Une tâche (ou autre) qui arrive : elle se colle avec un petit rebond. */
+export function enter(el) {
+  if (!el || reduced()) return;
+  el.animate([
+    { transform: 'translateY(-18px) scale(1.06) rotate(-2deg)', opacity: 0 },
+    { opacity: 1, offset: .35 },
+    { transform: 'translateY(0) scale(1) rotate(0deg)', opacity: 1 },
+  ], { composite: 'add', duration: 700, easing: 'cubic-bezier(.3, 1.2, .5, 1)' });
+}
+
+/** Déplace `el` dans un autre conteneur en le faisant glisser de son ancienne place à la nouvelle. */
+export function move(el, parent) {
+  const a = el.getBoundingClientRect();
+  parent.append(el);
+  if (reduced()) return;
+  const b = el.getBoundingClientRect();
+  el.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: 'translate(0, 0)' }], { composite: 'add', duration: 650, easing: 'cubic-bezier(.3, .9, .35, 1)' });
+}
+
+export const animationsOff = reduced;
+
 // ---------- couche des effets ----------
 
 let layer = null;
