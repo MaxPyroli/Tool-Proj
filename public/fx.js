@@ -226,7 +226,8 @@ export async function shred(el, html) {
     st.append(c); pile.append(st); strips.push(st);
     st.style.clipPath = 'inset(0 0 100% 0)';
   }
-  machine.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-2px)' }, { transform: 'translateX(2px)' }, { transform: 'translateX(0)' }], { duration: 100, iterations: 11 });
+  const shake = [{ transform: 'translateX(0)' }, { transform: 'translateX(-2px)' }, { transform: 'translateX(2px)' }, { transform: 'translateX(0)' }];
+  machine.animate(shake, { duration: 100, iterations: 11 }); pile.animate(shake, { duration: 100, iterations: 11 });
   const feed = 1000, slotMid = { x: mx + W / 2, y: slotY + 4 };
   for (let k = 0; k < 4; k++) setTimeout(() => bits(rnd(cardX, cardX + cw), slotMid.y, { n: 4, power: 36, up: 24, life: 600 }), k * 220);
   strips.forEach((st) => st.animate([{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)' }], { duration: feed, delay: 60, easing: 'linear', fill: 'forwards' }));
@@ -240,7 +241,9 @@ export async function shred(el, html) {
     { transform: `translateY(${floor - ch * (.42 + (i % 4) * .08)}px) rotate(${(i % 2 ? 1 : -1) * (3 + (i * 7) % 17)}deg)` },
   ], { duration: 760, delay: i * 45, easing: 'cubic-bezier(.5, 0, 1, .7)', fill: 'forwards' }))));
   await pause(650);
-  pile.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, fill: 'forwards' });
-  await done(machine.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(300px)', opacity: 0 }], { duration: 420, easing: 'ease-in', fill: 'forwards' }));
+  // les bandelettes repartent avec la machine : même mouvement, en même temps
+  const out = [{ transform: 'none', opacity: 1 }, { transform: 'translateY(300px)', opacity: 0 }], outOpts = { duration: 420, easing: 'ease-in', fill: 'forwards' };
+  pile.animate(out, outOpts);
+  await done(machine.animate(out, outOpts));
   pile.remove(); machine.remove(); temp?.remove();
 }
