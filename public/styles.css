@@ -725,7 +725,7 @@ dialog#sheet { overscroll-behavior: contain; }
 /* the Save / Add buttons of a sheet stay pinned at the bottom while the form scrolls */
 .sheet-body form > .row:last-child:has([type="submit"]) {
   position: sticky; bottom: calc(-1 * (20px + env(safe-area-inset-bottom, 0px))); z-index: 3;
-  margin: 0 -20px calc(-1 * (20px + env(safe-area-inset-bottom, 0px))); padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+  margin: 0 -20px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(to top, var(--paper, var(--surface)) 70%, transparent); border-top: 0;
   padding-top: 22px;
 }
@@ -1054,3 +1054,7 @@ dialog#sheet .sheet-body::before { content: none; }
 .my-badge .grow { min-width: 0; }
 .sheet-head:has(.my-badge) { align-items: flex-start; }
 .sheet-head:has(.my-badge) > .btn { margin-top: 20px; }
+
+/* La barre de boutons épinglée ne déborde pas sur ce qui suit le formulaire (elle cachait le haut du titre suivant) ;
+   seul un formulaire placé en dernier dans la fenêtre rentre dans la marge du bas */
+.sheet-body > form:last-child > .row:last-child:has([type="submit"]) { margin-bottom: calc(-1 * (20px + env(safe-area-inset-bottom, 0px))); }
