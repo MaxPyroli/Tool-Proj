@@ -99,12 +99,20 @@ function bits(x, y, { n = 9, power = 90, up = 70, colors = ['#fffdf6', '#f3e9c9'
 // ---------- corbeille (tâches, post-it) : une corbeille à papier de bureau en métal grillagé ----------
 
 const MESH_BODY = 'M13 34L107 34L98 134Q97 142 90 142H30Q23 142 22 134Z';
-const BIN_BACK = `<svg viewBox="0 0 120 150" aria-hidden="true">
+/** Contour irrégulier d'une boulette de papier : n points autour de (cx, cy), rayon et angle un peu au hasard. */
+const blobPts = (cx, cy, r, n = 12) => Array.from({ length: n }, (_, i) => {
+  const a = (i / n) * Math.PI * 2 + rnd(-.18, .18), k = rnd(.68, 1.04) * (i % 3 === 0 ? .9 : 1);
+  return [cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k * rnd(.88, 1.04)];
+});
+const svgBall = (cx, cy, r) => {
+  const pts = blobPts(cx, cy, r, 11), d = `M${pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join('L')}Z`;
+  const cr = Array.from({ length: 3 }, () => `M${(cx + rnd(-r, r) * .7).toFixed(1)} ${(cy + rnd(-r, r) * .7).toFixed(1)}l${rnd(-r, r).toFixed(1)} ${rnd(-r, r).toFixed(1)}`).join('');
+  return `<path d="${d}" fill="${Math.random() < .5 ? '#fffdf6' : '#f4ecd0'}" stroke="#cfc4a0" stroke-width="1.4" stroke-linejoin="round"/><path d="${cr}" stroke="#cfc4a0" stroke-width="1.1" fill="none" stroke-linecap="round"/>`;
+};
+const binBack = () => `<svg viewBox="0 0 120 150" aria-hidden="true">
   <ellipse cx="60" cy="146" rx="46" ry="5" fill="rgba(0,0,0,.2)"/>
   <ellipse cx="60" cy="34" rx="47" ry="10" fill="#262c38"/>
-  <g class="bin-old"><circle cx="40" cy="128" r="11" fill="#fffdf6" stroke="#cfc4a0" stroke-width="1.5"/><path d="M33 124l6 3 4-6M36 133l5-3 5 4" stroke="#cfc4a0" fill="none" stroke-width="1.2"/>
-    <circle cx="74" cy="126" r="12" fill="#f6efd6" stroke="#cfc4a0" stroke-width="1.5"/><path d="M67 121l7 4 5-6M69 131l6-3 4 5" stroke="#cfc4a0" fill="none" stroke-width="1.2"/>
-    <circle cx="58" cy="118" r="10" fill="#fffdf6" stroke="#cfc4a0" stroke-width="1.5"/></g>
+  <g>${svgBall(40, 127, 11)}${svgBall(75, 125, 12)}${svgBall(57, 116, 10)}</g>
 </svg>`;
 const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
   <defs>
@@ -122,52 +130,71 @@ const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
 
 const CREASES = 'conic-gradient(from 20deg at 50% 50%, rgba(0,0,0,.16) 0 7deg, transparent 7deg 32deg, rgba(255,255,255,.22) 32deg 38deg, transparent 38deg 72deg, rgba(0,0,0,.16) 72deg 80deg, transparent 80deg 124deg, rgba(255,255,255,.2) 124deg 130deg, transparent 130deg 196deg, rgba(0,0,0,.16) 196deg 204deg, transparent 204deg 252deg, rgba(255,255,255,.2) 252deg 258deg, transparent 258deg)';
 
-/** Le morceau de papier se froisse, file en arc et tombe dans la corbeille grillagée (on le voit tomber à travers le grillage). */
+/** Le papier se froisse en boule, est lancé en arc, puis tombe dans la corbeille grillagée (on le voit tomber à travers le grillage). */
 export async function trash(el) {
   if (!el || reduced()) return;
   const L = getLayer();
   const bin = document.createElement('div'); bin.className = 'fx-bin';
-  bin.innerHTML = BIN_BACK;
+  bin.innerHTML = binBack();
   const ball = document.createElement('i'); ball.className = 'fx-ball';
   bin.append(ball);
   bin.insertAdjacentHTML('beforeend', BIN_FRONT);
   L.append(bin);
   const rise = bin.animate([{ transform: 'translateY(190px)', opacity: 0 }, { transform: 'translateY(-14px)', opacity: 1, offset: .68 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.3, .7, .4, 1)', fill: 'forwards' });
   const r = el.getBoundingClientRect();
-  const clone = ghost(el, r);
-  const crease = document.createElement('i'); crease.className = 'fx-creases'; crease.style.background = CREASES; clone.append(crease);
+  const paper = getComputedStyle(el).backgroundColor, clone = ghost(el, r);
+  const crease = document.createElement('i'); crease.className = 'fx-creases';
+  crease.style.background = Array.from({ length: 6 }, () => `linear-gradient(${rnd(0, 180).toFixed(0)}deg, transparent 47%, rgba(0,0,0,.2) 48.5%, rgba(255,255,255,.35) 51%, transparent 52.5%) ${rnd(-30, 30).toFixed(0)}% ${rnd(-30, 30).toFixed(0)}% / ${rnd(70, 130).toFixed(0)}% ${rnd(70, 130).toFixed(0)}% no-repeat`).join(', ');
+  clone.append(crease);
   L.append(clone); el.style.visibility = 'hidden';
   await done(rise);
-  const mouthX = bin.offsetLeft + bin.offsetWidth * .5, mouthY = bin.offsetTop + bin.offsetHeight * .22;
-  const tx = mouthX - (r.left + r.width / 2), ty = mouthY - (r.top + r.height / 2);
-  const lift = Math.min(190, Math.abs(ty) * .4 + 70);
-  // le papier se froisse : le rectangle se referme en boule pendant qu'il vole
-  const R0 = Math.hypot(r.width, r.height) / 2, R1 = Math.min(r.width, r.height) / 2;
-  const circ = (k) => `circle(${k}px at 50% 50%)`;
-  crease.animate([{ opacity: 0 }, { opacity: .95, offset: .55 }, { opacity: 1 }], { duration: 1100, fill: 'forwards' });
+  const w = r.width, h = r.height, cx = w / 2, cy = h / 2, N = 16;
+  // contour de départ : le rectangle (16 points) ; contour d'arrivée : une boulette irrégulière (16 points)
+  const per = N / 4, rect = [];
+  for (let i = 0; i < per; i++) rect.push([w * i / per, 0]);
+  for (let i = 0; i < per; i++) rect.push([w, h * i / per]);
+  for (let i = 0; i < per; i++) rect.push([w * (1 - i / per), h]);
+  for (let i = 0; i < per; i++) rect.push([0, h * (1 - i / per)]);
+  const poly = (pts) => `polygon(${pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(', ')})`;
+  const Rb = Math.min(w, h) * .5;
+  const wad = poly(blobPts(cx, cy, Rb, N)), wad2 = poly(blobPts(cx, cy, Rb * .92, N));
+  // 1. le papier se froisse sur place (le rectangle se referme en boule irrégulière)
+  crease.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, fill: 'forwards' });
   await done(clone.animate([
-    { transform: 'none', clipPath: circ(R0), filter: 'none' },
-    { transform: 'scale(1.05, .9) rotate(-3deg)', clipPath: circ(R0 * .9), offset: .12 },
-    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(.5) rotate(-170deg)`, clipPath: circ(R1 * 1.1), filter: 'brightness(.94)', offset: .62 },
-    { transform: `translate(${tx}px, ${ty - 22}px) scale(.22) rotate(-330deg)`, clipPath: circ(R1 * .8), filter: 'brightness(.85)' },
-  ], { duration: 1100, easing: 'cubic-bezier(.4, 0, .65, 1)', fill: 'forwards' }));
+    { transform: 'none', clipPath: poly(rect), filter: 'none' },
+    { transform: 'scale(.9, 1.06) rotate(-4deg)', clipPath: poly(rect.map(([x, y]) => [cx + (x - cx) * .8, cy + (y - cy) * .8])), offset: .35 },
+    { transform: 'scale(.62) rotate(-14deg)', clipPath: wad, filter: 'brightness(.93)' },
+  ], { duration: 520, easing: 'cubic-bezier(.4, 0, .3, 1)', fill: 'forwards' }));
+  // 2. la boule est lancée en arc jusqu'au-dessus de l'ouverture
+  const mouthX = bin.offsetLeft + bin.offsetWidth * .5, topY = bin.offsetTop - 18;
+  const tx = mouthX - (r.left + cx), ty = topY - (r.top + cy);
+  const lift = Math.min(170, Math.abs(ty) * .35 + 60);
+  await done(clone.animate([
+    { transform: 'scale(.62) rotate(-14deg)', clipPath: wad },
+    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(.4) rotate(-170deg)`, clipPath: wad2, offset: .55 },
+    { transform: `translate(${tx}px, ${ty}px) scale(.3) rotate(-300deg)`, clipPath: wad },
+  ], { duration: 640, easing: 'cubic-bezier(.35, 0, .6, 1)', fill: 'forwards' }));
+  // 3. elle passe à l'intérieur : on la voit tomber à travers le grillage et rebondir au fond
+  const D = 34, bw = bin.offsetWidth, bh = bin.offsetHeight;
+  const ballPts = blobPts(D / 2, D / 2, D / 2 - 1, 11);
+  ball.style.clipPath = poly(ballPts); ball.style.left = `${bw * .5 - D / 2}px`; ball.style.top = `${-D * .55}px`;
+  ball.style.background = Array.from({ length: 4 }, () => `linear-gradient(${rnd(0, 180).toFixed(0)}deg, transparent 46%, rgba(0,0,0,.22) 48%, rgba(255,255,255,.55) 51%, transparent 53%)`).join(', ') + `, ${paper && paper !== 'rgba(0, 0, 0, 0)' ? paper : '#fffdf6'}`;
   clone.remove();
-  // la boule tombe dans la corbeille et rebondit au fond, visible à travers le grillage
-  const floor = bin.offsetHeight * .8, x0 = bin.offsetWidth * .5 - 17, dx = (Math.random() - .5) * 26;
-  ball.style.left = `${x0}px`; ball.style.top = `${bin.offsetHeight * .1}px`;
-  bits(mouthX, mouthY - 4, { n: 9, power: 64, up: 70 });
+  ball.style.opacity = 1;
+  const fall = bh * .66, dx = rnd(-12, 12);
   const drop = done(ball.animate([
-    { transform: 'translate(0, 0)', opacity: 1 },
-    { transform: `translate(${dx * .5}px, ${floor * .9}px)`, offset: .55, easing: 'ease-in' },
-    { transform: `translate(${dx * .8}px, ${floor * .62}px)`, offset: .72, easing: 'ease-in' },
-    { transform: `translate(${dx}px, ${floor}px)`, offset: .88, easing: 'ease-out' },
-    { transform: `translate(${dx}px, ${floor * .9}px)`, offset: .94 },
-    { transform: `translate(${dx}px, ${floor}px)` },
-  ], { duration: 820, easing: 'ease-out', fill: 'forwards' }));
-  await pause(300);
-  bin.animate([{ transform: 'none' }, { transform: 'translateX(-4px) rotate(-3deg)' }, { transform: 'translateX(4px) rotate(3deg)' }, { transform: 'translateX(-2px) rotate(-1deg)' }, { transform: 'none' }], { duration: 480 });
+    { transform: 'translate(0, 0) rotate(0deg)' },
+    { transform: `translate(${dx * .5}px, ${fall}px) rotate(120deg)`, offset: .52, easing: 'ease-out' },
+    { transform: `translate(${dx * .7}px, ${fall - 20}px) rotate(160deg)`, offset: .68, easing: 'ease-in' },
+    { transform: `translate(${dx}px, ${fall}px) rotate(190deg)`, offset: .82, easing: 'ease-out' },
+    { transform: `translate(${dx}px, ${fall - 6}px) rotate(196deg)`, offset: .91, easing: 'ease-in' },
+    { transform: `translate(${dx}px, ${fall}px) rotate(200deg)` },
+  ], { duration: 900, easing: 'cubic-bezier(.5, 0, .9, .6)', fill: 'forwards' }));
+  await pause(430);
+  bin.animate([{ transform: 'scale(1, 1)' }, { transform: 'scale(1.04, .95)', offset: .3 }, { transform: 'scale(.99, 1.02)', offset: .65 }, { transform: 'scale(1, 1)' }], { duration: 420, easing: 'ease-out' });
+  bits(mouthX + dx, bin.offsetTop + bh * .62, { n: 4, power: 34, up: 26, life: 520 });
   await drop;
-  await pause(450);
+  await pause(500);
   await done(bin.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(190px)', opacity: 0 }], { duration: 380, easing: 'ease-in', fill: 'forwards' }));
   bin.remove();
 }
