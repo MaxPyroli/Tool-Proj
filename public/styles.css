@@ -1081,3 +1081,14 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 
 /* très petits écrans : la carte du compte prend toute la largeur (le contenu serait trop serré) */
 @media (max-width: 340px) { dialog#sheet.badge-sheet { padding-left: 0; padding-right: 0; } }
+
+/* Téléphone : la bande colorée est tout en bas de l'écran, les intercalaires reposent dessus sans fond derrière */
+@media (max-width: 719px) {
+  .tabs { --band: var(--pi-blue); background: transparent; box-shadow: none; padding-top: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .tabs[data-active] { border-top: 0; }
+  .tabs[data-active="apercu"] { --band: var(--pi-blue); } .tabs[data-active="taches"] { --band: var(--pi-green); }
+  .tabs[data-active="idees"] { --band: var(--pi-yellow); } .tabs[data-active="equipe"] { --band: var(--pi-pink); }
+  .tabs::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--band); box-shadow: 0 -1px 0 rgb(0 0 0 / .08); z-index: 0; pointer-events: none; }
+  .tab { position: relative; z-index: 1; height: calc(var(--tabbar-h) - 10px); }
+  .tab[aria-current="page"] { height: calc(var(--tabbar-h) - 2px); margin-top: 0; }
+}
