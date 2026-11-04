@@ -1313,6 +1313,67 @@ function bindTaskDnD() {
   document.addEventListener('click', (e) => { if (Date.now() < swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
 })();
 
+// ---------- grille des post-it au doigt : appui long = on attrape le post-it, la corbeille monte du bas ----------
+(() => {
+  let g = null, swallow = 0, bin = null;
+  const getBin = () => {
+    if (!bin) { bin = document.createElement('div'); bin.className = 'hold-bin'; bin.setAttribute('aria-hidden', 'true'); bin.innerHTML = fx.binHtml('hg'); document.body.append(bin); }
+    return bin;
+  };
+  const over = (x, y) => { const r = getBin().getBoundingClientRect(); return x >= r.left - 24 && x <= r.right + 24 && y >= r.top - 40; };
+  const frame = () => {
+    if (!g?.active) return;
+    g.ghost.style.transform = `translate(${g.x - g.ox}px, ${g.y - g.oy}px) rotate(3deg)`;
+    if (g.y < 100) scrollBy(0, -12); // en haut ou en bas de l'écran, la page défile
+    g.over = over(g.x, g.y); getBin().classList.toggle('over', g.over);
+    g.raf = requestAnimationFrame(frame);
+  };
+  const begin = () => {
+    const r = g.el.getBoundingClientRect();
+    g.active = true; state.dragging = true; g.ox = g.x - r.left; g.oy = g.y - r.top;
+    const ghost = g.el.cloneNode(true); ghost.classList.add('dnd-ghost', 'fx-copy'); ['data-action', 'data-id', 'data-note', 'tabindex'].forEach((k) => ghost.removeAttribute(k));
+    ghost.style.cssText = `position:fixed;left:0;top:0;width:${r.width}px;margin:0;z-index:99999;pointer-events:none;`;
+    document.body.append(ghost); g.ghost = ghost; g.el.classList.add('held');
+    getBin().classList.add('armed');
+    navigator.vibrate?.(15);
+    frame();
+  };
+  const end = (drop) => {
+    if (!g) return;
+    clearTimeout(g.timer); cancelAnimationFrame(g.raf);
+    const { active, over: isOver, id, el, ghost } = g; g = null;
+    if (!active) return;
+    swallow = Date.now() + 500;
+    el.classList.remove('held'); state.dragging = false;
+    if (drop && isOver) {
+      // le post-it est lâché dans la corbeille : l'animation joue à la place de la vraie, qu'on cache le temps du jet
+      const b = getBin(), place = b.getBoundingClientRect();
+      ghost.remove(); b.style.visibility = 'hidden';
+      run(async () => {
+        try { await removeWith('trash', el, () => db.deleteNote(id), null, { place }); toast('Post-it décollé'); }
+        finally { b.style.visibility = ''; b.classList.remove('armed', 'over'); await reloadProject(); }
+      })();
+    } else { ghost.remove(); getBin().classList.remove('armed', 'over'); }
+  };
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || !e.isPrimary || state.tab !== 'idees') return;
+    const el = e.target.closest?.('.note-grid .note');
+    if (!el || e.target.closest('.vote') || !$app.contains(el)) return;
+    end(false);
+    g = { id: Number(el.dataset.note), el, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, active: false, timer: setTimeout(() => g && begin(), 380) };
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!g || !e.isPrimary) return;
+    g.x = e.clientX; g.y = e.clientY;
+    if (!g.active && Math.hypot(g.x - g.sx, g.y - g.sy) > 10) { clearTimeout(g.timer); g = null; } // c'est un défilement
+  });
+  document.addEventListener('pointerup', (e) => { if (g && e.isPrimary) end(true); });
+  document.addEventListener('pointercancel', () => end(false));
+  document.addEventListener('touchmove', (e) => { if (g?.active) e.preventDefault(); }, { passive: false });
+  document.addEventListener('contextmenu', (e) => { if (g || e.target.closest?.('.note-grid .note')) { if (matchMedia('(pointer: coarse)').matches) e.preventDefault(); } });
+  document.addEventListener('click', (e) => { if (Date.now() < swallow) { e.stopPropagation(); e.preventDefault(); } }, true);
+})();
+
 // ---------- notes ----------
 
 function noteSheet(n) {
