@@ -113,6 +113,7 @@ const svgBall = (cx, cy, r) => {
 const binBack = () => `<svg viewBox="0 0 120 150" aria-hidden="true">
   <ellipse cx="60" cy="146" rx="46" ry="4.5" fill="rgba(0,0,0,.2)"/>
   <ellipse cx="60" cy="34" rx="47" ry="10" fill="#262c38"/>
+  <path d="M13 34A47 10 0 0 1 107 34" stroke="#4a5365" stroke-width="5" fill="none" stroke-linecap="round"/>
   <g>${svgBall(41, 123, 10)}${svgBall(75, 122, 11)}${svgBall(58, 112, 9.5)}</g>
 </svg>`;
 const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
@@ -126,7 +127,6 @@ const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
   <path d="M16 38L23 132" stroke="rgba(255,255,255,.45)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
   <path d="M22 134A38 9 0 0 0 98 134" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
   <path d="M13 34A47 10 0 0 0 107 34" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
-  <path d="M13 34A47 10 0 0 1 107 34" stroke="#4a5365" stroke-width="5" fill="none" stroke-linecap="round"/>
 </svg>`;
 
 const CREASES = 'conic-gradient(from 20deg at 50% 50%, rgba(0,0,0,.16) 0 7deg, transparent 7deg 32deg, rgba(255,255,255,.22) 32deg 38deg, transparent 38deg 72deg, rgba(0,0,0,.16) 72deg 80deg, transparent 80deg 124deg, rgba(255,255,255,.2) 124deg 130deg, transparent 130deg 196deg, rgba(0,0,0,.16) 196deg 204deg, transparent 204deg 252deg, rgba(255,255,255,.2) 252deg 258deg, transparent 258deg)';
@@ -172,10 +172,10 @@ export async function trash(el) {
   const lift = Math.min(170, Math.abs(ty) * .35 + 60);
   const D = 34, sEnd = Math.min(.62, Math.max(.1, D / (1.7 * Rb))); // à l'arrivée, la boule fait la taille de celle qui va tomber
   await done(clone.animate([
-    { transform: 'scale(.62) rotate(-14deg)', clipPath: wad },
-    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(${(.62 + sEnd) / 2}) rotate(-170deg)`, clipPath: wad2, offset: .55 },
+    { transform: 'scale(.62) rotate(-14deg)', clipPath: wad, easing: 'cubic-bezier(.3, .6, .5, 1)' },
+    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(${(.62 + sEnd) / 2}) rotate(-170deg)`, clipPath: wad2, offset: .5, easing: 'cubic-bezier(.5, 0, .85, .6)' },
     { transform: `translate(${tx}px, ${ty}px) scale(${sEnd}) rotate(-300deg)`, clipPath: wad },
-  ], { duration: 640, easing: 'cubic-bezier(.35, 0, .6, 1)', fill: 'forwards' }));
+  ], { duration: 640, easing: 'linear', fill: 'forwards' }));
   // 3. elle passe à l'intérieur : la boule de la corbeille prend le relais au même endroit (fondu enchaîné), tombe à travers le grillage et rebondit au fond
   const bw = bin.offsetWidth, bh = bin.offsetHeight;
   ball.style.clipPath = poly(blobPts(D / 2, D / 2, D / 2 - 1, 11)); ball.style.left = `${bw * .5 - D / 2}px`; ball.style.top = `${topY - bin.offsetTop - D / 2}px`;
@@ -185,7 +185,7 @@ export async function trash(el) {
   ball.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160 });
   const fall = bh * .68, dx = rnd(-10, 10);
   const drop = done(ball.animate([
-    { transform: 'translate(0, 0) rotate(0deg)' },
+    { transform: 'translate(0, 0) rotate(0deg)', easing: 'cubic-bezier(.25, .45, .75, .8)' },
     { transform: `translate(${dx * .5}px, ${fall}px) rotate(120deg)`, offset: .52, easing: 'ease-out' },
     { transform: `translate(${dx * .7}px, ${fall - 20}px) rotate(160deg)`, offset: .68, easing: 'ease-in' },
     { transform: `translate(${dx}px, ${fall}px) rotate(190deg)`, offset: .82, easing: 'ease-out' },
