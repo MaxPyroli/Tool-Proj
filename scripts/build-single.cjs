@@ -27,6 +27,13 @@ let url = arg('url'), key = arg('key');
   let html = fs.readFileSync(path.join(pub, 'index.html'), 'utf8');
   html = html.replace(/\s*<link rel="(preload|manifest|apple-touch-icon|icon)"[^>]*>/g, '')
     .replace('<link rel="stylesheet" href="styles.css">', () => `<style>${css}\n.test-banner{position:fixed;z-index:99999;right:0;top:0;padding:3px 10px;background:#b45309;color:#fff;font:700 11px system-ui;letter-spacing:.08em;border-bottom-left-radius:0;${demo ? 'cursor:pointer' : 'pointer-events:none'}}</style>`)
+    .replace('<body>', () => `<body>
+<script>/* si quelque chose casse, on l'écrit à l'écran (pour pouvoir le photographier) */
+(function(){var box;function show(t){if(!box){box=document.createElement('pre');box.style.cssText='position:fixed;z-index:100000;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;margin:0;padding:10px 12px;background:#7f1d1d;color:#fff;font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap';box.onclick=function(){box.remove();box=null};document.body.appendChild(box);}box.textContent+=t+'\\n';}
+window.addEventListener('error',function(e){show('Erreur : '+e.message+(e.filename?' ('+String(e.filename).split('/').pop()+':'+e.lineno+')':''))});
+window.addEventListener('unhandledrejection',function(e){show('Erreur : '+(e.reason&&e.reason.message||e.reason))});
+setTimeout(function(){var a=document.getElementById('app');if(a&&!a.children.length)show("L'app ne s'est pas affichée. Ouvre ce fichier en double-cliquant dessus (Chrome, Edge ou Firefox), pas depuis un aperçu intégré.")},4000);})();
+</script>`)
     .replace('<script src="config.js"></script>', () => `<script>window.TOOL_PROJ_CONFIG=${JSON.stringify({ supabaseUrl: url, supabaseKey: key, allowSignup: false })};
 const __E=${JSON.stringify(embed)};const __f=window.fetch.bind(window);window.fetch=(u,o)=>{const n=String(u).split('?')[0];return __E[n]!==undefined?Promise.resolve(new Response(__E[n])):__f(u,o);};</script>`)
     .replace('<script type="module" src="app.js"></script>', () => `<div class="test-banner"${demo ? ' title="Toucher pour remettre les données de test à zéro"' : ''}>${demo ? 'VERSION DE TEST · DONNÉES FICTIVES' : 'VERSION DE TEST'}</div>${demo ? `<script>document.querySelector('.test-banner').onclick=()=>{if(confirm('Remettre les données de test à zéro ?')){localStorage.removeItem('tp-demo-db-v1');localStorage.removeItem('tp-demo-session');location.reload();}};</script>` : ''}<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);

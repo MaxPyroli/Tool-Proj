@@ -102,13 +102,14 @@ function redraw(key, draw) {
   const y = window.scrollY;
   const chips = document.querySelector('.chips')?.scrollLeft ?? 0;
   const before = same ? fx.snapshot() : null; // les éléments qui bougent glissent, les nouveaux se collent
+  const tabs = same ? null : fx.tabSnapshot(); // la barre d'onglets : ancien état, pour le fondre dans le nouveau
   draw();
   packLists(); // listes sur plusieurs colonnes : on répartit les blocs avant d'animer (les positions mesurées doivent être les bonnes)
   lastViewKey = key;
   window.scrollTo(0, same ? y : 0);
   const c = document.querySelector('.chips');
   if (c && same) c.scrollLeft = chips;
-  if (before) fx.play(before); else fx.view(prevKey, key);
+  if (before) fx.play(before); else fx.view(prevKey, key, tabs);
 }
 
 /** Liste des tâches sur ordinateur (plusieurs colonnes) : chaque bloc (chantier, tâche, titre…) occupe autant de « cases » invisibles (lignes de 6 px)
@@ -290,8 +291,10 @@ let sheetPushed = false, skipPop = false;
 const dropSheetEntry = (navigating) => {
   if (!sheetPushed) return;
   sheetPushed = false;
-  if (navigating) history.replaceState(null, ''); // on part ailleurs tout de suite : l'entrée reste mais ne sert plus
-  else if (history.state?.sheet) { skipPop = true; history.back(); }
+  try {
+    if (navigating) history.replaceState(null, ''); // on part ailleurs tout de suite : l'entrée reste mais ne sert plus
+    else if (history.state?.sheet) { skipPop = true; history.back(); }
+  } catch { /* page sans historique (aperçu isolé) */ }
 };
 window.addEventListener('popstate', (e) => {
   if (skipPop) { skipPop = false; e.stopImmediatePropagation(); return; }
@@ -299,7 +302,7 @@ window.addEventListener('popstate', (e) => {
 });
 function openSheet(html, onMount) {
   sheetToken++;
-  if (!sheet.open && !sheetPushed) { history.pushState({ sheet: 1 }, ''); sheetPushed = true; }
+  if (!sheet.open && !sheetPushed) { try { history.pushState({ sheet: 1 }, ''); sheetPushed = true; } catch { /* page sans historique (aperçu isolé) */ } }
   sheetCleanup?.();
   sheetCleanup = null;
   sheet.classList.remove('badge-sheet');
@@ -1465,8 +1468,10 @@ function setWallFullscreen(on) {
   const w = wallState();
   if (on === w.fs) return;
   w.fs = on;
-  if (on) history.pushState({ wallfs: 1 }, '');
-  else if (history.state?.wallfs) history.back();
+  try {
+    if (on) history.pushState({ wallfs: 1 }, '');
+    else if (history.state?.wallfs) history.back();
+  } catch { /* page sans historique (aperçu isolé) */ }
   syncWallChrome();
   renderProject();
 }
@@ -2514,7 +2519,7 @@ if ('serviceWorker' in navigator) {
 
 function signedIn() {
   state.authError = ''; state.authInfo = ''; state.authStep = 'email';
-  if (location.href.endsWith('#')) history.replaceState(null, '', location.pathname + location.search);
+  try { if (location.href.endsWith('#')) history.replaceState(null, '', location.pathname + location.search); } catch { /* idem */ }
   render();
   if (state.me && !state.me.onboarded) welcomeSheet();
   else if (state.me && passkeysMoved() && store.get('passkeysMoved', '') !== '1') {

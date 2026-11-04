@@ -3,6 +3,8 @@
 // (localStorage) : on peut tout casser, la pastille « VERSION DE TEST » en haut à droite remet tout à zéro. Jamais publié avec l'app.
 const KEY = 'tp-demo-db-v1', SESSION = 'tp-demo-session';
 const ME = 'u-demo';
+const mem = {}; // si le navigateur refuse localStorage (aperçu isolé, mode privé), on garde tout en mémoire
+const ls = { get: (k) => { try { return localStorage.getItem(k); } catch { return mem[k] ?? null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { mem[k] = v; } }, del: (k) => { try { localStorage.removeItem(k); } catch { delete mem[k]; } } };
 const iso = (d = 0) => new Date(Date.now() - d * 60000).toISOString();
 
 // ---------- données fictives ----------
@@ -55,9 +57,9 @@ function seed() {
 }
 
 let db;
-try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { db = null; }
+try { db = JSON.parse(ls.get(KEY) || 'null'); } catch { db = null; }
 if (!db) db = seed();
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* plein ou privé : on garde en mémoire */ } };
+const save = () => { try { ls.set(KEY, JSON.stringify(db)); } catch { /* trop gros */ } };
 const nextId = (t) => (db.seq[t] = (db.seq[t] || 0) + 1);
 db.seq = db.seq || {};
 const fixSeq = () => { for (const t of Object.keys(db)) if (Array.isArray(db[t])) db.seq[t] = Math.max(db.seq[t] || 0, ...db[t].map((r) => (typeof r.id === 'number' ? r.id : 0))); };
@@ -160,7 +162,7 @@ class Query {
 // ---------- faux client ----------
 const listeners = new Set();
 const user = () => ({ id: ME, email: 'demo@exemple.fr', user_metadata: { onboarded: db.onboarded !== false } });
-const active = () => localStorage.getItem(SESSION) !== 'off';
+const active = () => ls.get(SESSION) !== 'off';
 const notify = (ev) => listeners.forEach((cb) => cb(ev, active() ? { user: user() } : null));
 const noPasskey = async () => ({ data: null, error: { message: 'Les clés d\'accès ne sont pas disponibles dans la version de test.' } });
 
@@ -187,9 +189,9 @@ export function createClient() {
       getUser: async () => ({ data: { user: user() }, error: null }),
       onAuthStateChange: (cb) => { listeners.add(cb); return { data: { subscription: { unsubscribe: () => listeners.delete(cb) } } }; },
       signInWithOtp: async () => ({ data: {}, error: null }), // n'importe quelle adresse, n'importe quel code
-      verifyOtp: async () => { localStorage.setItem(SESSION, 'on'); setTimeout(() => notify('SIGNED_IN'), 0); return { data: { user: user() }, error: null }; },
+      verifyOtp: async () => { ls.set(SESSION, 'on'); setTimeout(() => notify('SIGNED_IN'), 0); return { data: { user: user() }, error: null }; },
       updateUser: async ({ data } = {}) => { if (data && 'onboarded' in data) { db.onboarded = !!data.onboarded; save(); } return { data: { user: user() }, error: null }; },
-      signOut: async () => { localStorage.setItem(SESSION, 'off'); setTimeout(() => notify('SIGNED_OUT'), 0); return { error: null }; },
+      signOut: async () => { ls.set(SESSION, 'off'); setTimeout(() => notify('SIGNED_OUT'), 0); return { error: null }; },
       signInWithPasskey: noPasskey, registerPasskey: noPasskey,
       passkey: { update: noPasskey, list: async () => ({ data: [], error: null }), delete: noPasskey },
     },

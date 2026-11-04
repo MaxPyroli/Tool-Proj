@@ -215,8 +215,34 @@ export async function trash(el, { place = null, from = null } = {}) {
 
 const TAB_ORDER = ['apercu', 'taches', 'idees', 'equipe'];
 
+// ---- onglets : la taille, les marges, la couleur et le poids du texte passent doucement de l'ancien état au nouveau ----
+// (l'écran est redessiné en entier, donc aucune transition CSS ne peut jouer : on mesure avant, on mesure après, et on anime la différence)
+const TAB_PROPS = ['marginTop', 'marginBottom', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'height', 'backgroundColor', 'color', 'fontWeight', 'boxShadow', 'borderTopColor'];
+const tabKey = (el) => (el.matches('.tab') ? `tab:${el.dataset.k}` : el.matches('.tab-band') ? 'band' : 'tabs');
+const tabStyle = (el, pseudo) => { const cs = getComputedStyle(el, pseudo); return Object.fromEntries(TAB_PROPS.map((p) => [p, cs[p]])); };
+/** À prendre juste avant de redessiner la barre d'onglets. */
+export function tabSnapshot() {
+  const m = new Map();
+  document.querySelectorAll('.tab, .tab-band, .tabs').forEach((el) => m.set(tabKey(el), tabStyle(el)));
+  const bar = document.querySelector('.tabs'); if (bar) m.set('after', tabStyle(bar, '::after'));
+  return m;
+}
+function tabMorph(prev) {
+  if (!prev?.size || reduced()) return;
+  const opts = { duration: 420, easing: 'cubic-bezier(.25, .8, .3, 1)' };
+  const run = (el, from, pseudo) => {
+    if (!from) return;
+    const to = tabStyle(el, pseudo), keys = TAB_PROPS.filter((p) => from[p] !== to[p]);
+    if (!keys.length) return;
+    const pick = (o) => Object.fromEntries(keys.map((p) => [p, o[p]]));
+    try { el.animate([pick(from), pick(to)], pseudo ? { ...opts, pseudoElement: pseudo } : opts); } catch { /* navigateur sans animation de pseudo-élément : on saute */ }
+  };
+  document.querySelectorAll('.tab, .tab-band, .tabs').forEach((el) => run(el, prev.get(tabKey(el))));
+  const bar = document.querySelector('.tabs'); if (bar) run(bar, prev.get('after'), '::after');
+}
+
 /** Un écran remplace l'autre : changement d'onglet (la page glisse du côté de l'onglet), ouverture d'un projet (la page monte), retour à la liste. */
-export function view(prevKey, key) {
+export function view(prevKey, key, tabs = null) {
   if (reduced() || !prevKey || prevKey === key) return;
   const parse = (k) => { const m = /^p(\d+)\/(\w+)/.exec(k); return m ? { id: m[1], tab: m[2] } : null; };
   const a = parse(prevKey), b = parse(key);
@@ -227,7 +253,7 @@ export function view(prevKey, key) {
     if (a.tab === b.tab) return;
     const dir = TAB_ORDER.indexOf(b.tab) > TAB_ORDER.indexOf(a.tab) ? 1 : -1;
     page.animate([{ transform: `translateX(${dir * 36}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 420, easing: 'cubic-bezier(.22, .8, .3, 1)' });
-    // l'onglet s'étend vers le haut sans se déformer (le contenu garde sa forme) : on révèle sa partie haute, le bas reste collé au bandeau ; la zone révélée déborde de 16 px pour ne jamais couper l'ombre
+    tabMorph(tabs);
     document.querySelector('.tab[aria-current]')?.animate([{ clipPath: 'inset(18px -16px -16px -16px)' }, { clipPath: 'inset(-16px -16px -16px -16px)' }], { ...o, duration: 380, easing: 'cubic-bezier(.2, .9, .3, 1.2)' });
   } else if (b && !a) {
     page.animate([{ transform: 'translateY(26px) scale(.985)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 340, easing: 'cubic-bezier(.2, .9, .3, 1)' });
