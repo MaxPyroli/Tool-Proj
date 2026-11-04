@@ -986,7 +986,7 @@ function viewBoard(d) {
   const draggable = matchMedia('(pointer: fine)').matches;
   const byEpic = state.boardGroup === 'epic';
   const group = (list) => boardGroups(d, list).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
-    : `<div class="ep-loose-label small muted">Sans chantier</div><div class="ep-loose">${items.map((t) => taskRow(t, byId, { draggable })).join('')}</div>`)).join('');
+    : items.map((t) => taskRow(t, byId, { draggable })).join(''))).join(''); // tâches sans chantier : directement dans la liste, à côté des chantiers (pas de séparation)
   if (byEpic) {
     const mine = d.tasks.filter(matchesFilter).sort(sortItems);
     // la tâche qu'on vient de cocher reste en place le temps de l'animation, puis passe dans « terminées »
