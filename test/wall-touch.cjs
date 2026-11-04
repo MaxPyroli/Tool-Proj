@@ -50,7 +50,7 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   await p.evaluate(() => document.querySelector('[data-action="wall-fit"]').click()); await wait(450);
   await p.click('[data-action="wall-zoom"][data-v="in"]'); await wait(450); await p.click('[data-action="wall-zoom"][data-v="in"]'); await wait(450);
   const rect = await p.locator('.board-wrap.fs').boundingBox();
-  const visibleNote = async (skip = []) => p.evaluate((skip) => { const ns = [...document.querySelectorAll('.board .note')].filter((n) => !skip.includes(n.innerText.split('\n')[0])); for (const n of ns) { const r = n.getBoundingClientRect(); const cx = r.x + r.width / 2, cy = r.y + r.height / 2; if (cx > 30 && cx < innerWidth - 30 && cy > 100 && cy < innerHeight - 110 && document.elementFromPoint(cx, cy)?.closest('.note') === n) return { t: n.innerText.split('\n')[0], x: cx, y: cy }; } return null; }, skip);
+  const visibleNote = async (skip = []) => p.evaluate((skip) => { const ns = [...document.querySelectorAll('.board .note:not(.fx-copy)')].filter((n) => !skip.includes(n.innerText.split('\n')[0])); for (const n of ns) { const r = n.getBoundingClientRect(); const cx = r.x + r.width / 2, cy = r.y + r.height / 2; if (cx > 30 && cx < innerWidth - 30 && cy > 100 && cy < innerHeight - 110 && document.elementFromPoint(cx, cy)?.closest('.note') === n) return { t: n.innerText.split('\n')[0], x: cx, y: cy }; } return null; }, skip);
 
   // S1 : un doigt tient un post-it, l'autre déplace la vue
   const n1 = await visibleNote(); const g1 = await get(n1.t); const k1 = (await cam()).k; const camA = await cam();

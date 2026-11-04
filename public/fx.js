@@ -251,7 +251,7 @@ export function gust(wrap, dir = 1) {
     // 2. le vrai coin (copie du post-it, contenu compris) tourne vers nous autour de la pliure, posé exactement au même endroit
     const box = document.createElement('div'); box.className = 'fx-lift'; box.setAttribute('aria-hidden', 'true');
     Object.assign(box.style, { left: `${el.offsetLeft}px`, top: `${el.offsetTop}px`, width: `${W}px`, height: `${H}px`, zIndex: String((parseInt(cs.zIndex, 10) || 0) + 1), transform: cs.transform === 'none' ? '' : cs.transform });
-    const c = el.cloneNode(true);
+    const c = el.cloneNode(true); c.classList.add('fx-copy'); // copie de passage : ignorée partout (`.note:not(.fx-copy)`)
     ['data-note', 'data-action', 'data-id', 'tabindex', 'aria-label', 'id'].forEach((k) => c.removeAttribute(k));
     Object.assign(c.style, { position: 'absolute', left: '0', top: '0', width: `${W}px`, height: `${H}px`, minHeight: '0', margin: '0', transform: 'none', rotate: 'none', translate: 'none', boxShadow: 'none', transition: 'none', zIndex: 'auto', fontSize: cs.fontSize, padding: cs.padding, lineHeight: cs.lineHeight, boxSizing: cs.boxSizing,
       transformOrigin: right ? `${W - S / 2}px ${H - S / 2}px` : `${S / 2}px ${H - S / 2}px`,

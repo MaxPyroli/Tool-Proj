@@ -108,7 +108,7 @@ const cam = (p) => p.evaluate(() => { const t = document.querySelector('.board')
   await q.click('[data-action="board-view"][data-v="wall"]'); await q.waitForSelector('.board-wrap.fs .note'); await wait(500);
   const mfs = await q.evaluate(() => { const w = document.querySelector('.board-wrap.fs'); const r = w.getBoundingClientRect(); const bar = document.querySelector('.wall-bar').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), iw: innerWidth, ih: innerHeight, barInside: bar.left >= 0 && bar.right <= innerWidth && bar.bottom <= innerHeight, tabsHidden: !document.querySelector('.tabs') || getComputedStyle(document.querySelector('.tabs')).zIndex < 70, sw: document.documentElement.scrollWidth }; });
   ok(mfs.w === mfs.iw && mfs.h === mfs.ih && mfs.barInside && mfs.sw <= mfs.iw, 'téléphone : le mur passe en plein écran, barre d\'outils dans l\'écran', JSON.stringify(mfs));
-  const vis = await q.$$eval('.board .note', (ns) => ns.filter((n) => { const r = n.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; }).length);
+  const vis = await q.$$eval('.board .note:not(.fx-copy)', (ns) => ns.filter((n) => { const r = n.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; }).length);
   ok(vis === 14, 'téléphone : les 14 post-it sont visibles d\'un coup', `(${vis})`);
   await q.screenshot({ path: SP + '/wall-m-fs.png' });
   await q.click('[data-action="wall-zoom"][data-v="in"]'); await wait(450); await q.click('[data-action="wall-zoom"][data-v="in"]'); await wait(450);

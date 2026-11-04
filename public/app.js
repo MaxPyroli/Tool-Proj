@@ -1441,7 +1441,7 @@ function bindWall(wrap) {
   const label = wrap.querySelector('.zoom-val');
   const mm = wrap.querySelector('.minimap');
   const view = () => ({ W: wrap.clientWidth, H: wrap.clientHeight });
-  const noteEls = () => [...board.querySelectorAll('.note')];
+  const noteEls = () => [...board.querySelectorAll('.note:not(.fx-copy)')];
   let raf = 0;
 
   // First time on this project: restore the last view, or show everything.
