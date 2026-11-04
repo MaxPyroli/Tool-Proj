@@ -39,8 +39,11 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   for (let i = 1; i <= 8; i++) await touch('touchMove', [{ x: c0.x + (vw.width / 2 - c0.x) * i / 8, y: c0.y + (vw.height - 30 - c0.y) * i / 8 }]);
   await wait(500); await p.screenshot({ path: `${SP}/gb1.png` });
   ok(await p.evaluate(() => document.querySelector('.hold-bin').classList.contains('over')), 'au-dessus de la corbeille : elle s\'allume');
+  const endPt = { x: c0.x + (vw.width / 2 - c0.x), y: c0.y + (vw.height - 30 - c0.y) };
   await touch('touchEnd', []);
-  await wait(1200); await p.screenshot({ path: `${SP}/gb2.png` });
+  await wait(120); const clone0 = await p.evaluate(() => { const c = document.querySelector('.fx-layer .fx-clone'); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  ok(!!clone0 && Math.hypot(clone0.x - endPt.x, clone0.y - endPt.y) < 140, 'l\'animation part de l\'endroit où le post-it est lâché', JSON.stringify({ clone0, endPt }));
+  await wait(1100); await p.screenshot({ path: `${SP}/gb2.png` });
   await wait(2800);
   ok((await countNotes()) === n0 - 1, 'lâché dans la corbeille : le post-it est supprimé', `(${n0} → ${await countNotes()})`);
   ok(await p.evaluate(() => !document.getElementById('sheet').open), 'et aucune fiche ne s\'ouvre');

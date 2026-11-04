@@ -1341,7 +1341,8 @@ function bindTaskDnD() {
   const end = (drop) => {
     if (!g) return;
     clearTimeout(g.timer); cancelAnimationFrame(g.raf);
-    const { active, over: isOver, id, el, ghost } = g; g = null;
+    const { active, over: isOver, id, el, ghost } = g, gr = el.getBoundingClientRect(), from = { left: g.x - g.ox, top: g.y - g.oy, width: gr.width, height: gr.height };
+    g = null;
     if (!active) return;
     swallow = Date.now() + 500;
     el.classList.remove('held'); state.dragging = false;
@@ -1350,7 +1351,7 @@ function bindTaskDnD() {
       const b = getBin(), place = b.getBoundingClientRect();
       ghost.remove(); b.style.visibility = 'hidden';
       run(async () => {
-        try { await removeWith('trash', el, () => db.deleteNote(id), null, { place }); toast('Post-it décollé'); }
+        try { await removeWith('trash', el, () => db.deleteNote(id), null, { place, from }); toast('Post-it décollé'); }
         finally { b.style.visibility = ''; b.classList.remove('armed', 'over'); await reloadProject(); }
       })();
     } else { ghost.remove(); getBin().classList.remove('armed', 'over'); }
