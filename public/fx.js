@@ -235,20 +235,22 @@ export function gust(wrap) {
   const wr = wrap.getBoundingClientRect();
   const L = Math.max(wr.left, 0), T = Math.max(wr.top, 0), R = Math.min(wr.right, innerWidth), B = Math.min(wr.bottom, innerHeight);
   if (R - L < 10 || B - T < 10) return;
-  const tf = (a) => `perspective(520px) rotate(var(--rot)) rotateX(${a}deg)`;
   [...wrap.querySelectorAll('.note')].forEach((el) => {
     const r = el.getBoundingClientRect();
     if (r.right < L || r.left > R || r.bottom < T || r.top > B) return; // hors de l'écran : rien
     const rx = Math.min(1, Math.max(0, (r.left - L) / (R - L))), ry = Math.min(1, Math.max(0, (r.top - T) / (B - T)));
-    const a = rnd(16, 22);
-    el.style.transformOrigin = '50% 0'; // le scotch tient le haut
+    const a = rnd(17, 24), k = rnd(2, 4) * (Math.random() < .5 ? -1 : 1), w = rnd(.8, 1.8) * (Math.random() < .5 ? -1 : 1), h2 = el.offsetHeight / 2;
+    // le haut (le scotch) reste en place : on lève le bas en tournant autour du bord haut, sans toucher à transform-origin (rien ne bouge à la fin)
+    const tf = (x, sk, wob) => `perspective(520px) rotate(var(--rot)) rotate(${wob}deg) translateY(${-h2}px) rotateX(${x}deg) skewX(${sk}deg) translateY(${h2}px)`;
     el.animate([
-      { transform: tf(0) },
-      { transform: tf(a), offset: .28, easing: 'ease-in-out' },
-      { transform: tf(a * .3), offset: .5, easing: 'ease-in-out' },
-      { transform: tf(a * .7), offset: .68, easing: 'ease-in-out' },
-      { transform: tf(0) },
-    ], { delay: rx * 380 + ry * 220 + rnd(0, 60), duration: 1050, easing: 'ease-out' }).finished.then(() => { el.style.transformOrigin = ''; }, () => { el.style.transformOrigin = ''; });
+      { transform: tf(0, 0, 0) },
+      { transform: tf(a, k, w * .5), offset: .2, easing: 'ease-in-out' },
+      { transform: tf(a * .45, -k * .6, -w * .4), offset: .38, easing: 'ease-in-out' },
+      { transform: tf(a * .85, k * .5, w * .7), offset: .56, easing: 'ease-in-out' },
+      { transform: tf(a * .12, -k * .25, -w * .2), offset: .76, easing: 'ease-in-out' },
+      { transform: tf(-a * .1, 0, 0), offset: .88, easing: 'ease-in-out' },
+      { transform: tf(0, 0, 0) },
+    ], { delay: rx * 380 + ry * 220 + rnd(0, 60), duration: 1400, easing: 'ease-out' });
   });
 }
 
