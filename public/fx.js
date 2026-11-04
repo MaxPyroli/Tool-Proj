@@ -213,7 +213,7 @@ export function view(prevKey, key) {
     if (a.tab === b.tab) return;
     const dir = TAB_ORDER.indexOf(b.tab) > TAB_ORDER.indexOf(a.tab) ? 1 : -1;
     page.animate([{ transform: `translateX(${dir * 22}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 240, easing: 'cubic-bezier(.2, .8, .3, 1)' });
-    document.querySelector('.tab[aria-current]')?.animate([{ transform: 'translateY(5px)' }, { transform: 'translateY(-3px)', offset: .55 }, { transform: 'none' }], { ...o, duration: 300, easing: 'ease-out' });
+    document.querySelector('.tab[aria-current]')?.animate([{ transform: 'translateY(5px)', boxShadow: '0 14px 0 var(--tc)' }, { transform: 'translateY(-4px)', boxShadow: '0 14px 0 var(--tc)', offset: .55 }, { transform: 'none', boxShadow: '0 14px 0 var(--tc)' }], { ...o, duration: 300, easing: 'ease-out' });
   } else if (b && !a) {
     page.animate([{ transform: 'translateY(26px) scale(.985)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 340, easing: 'cubic-bezier(.2, .9, .3, 1)' });
   } else if (a && !b) {
@@ -225,7 +225,7 @@ export function view(prevKey, key) {
 /** Les badges accrochés se balancent une fois, l'un après l'autre. */
 export function sway(list, max = 8) {
   if (reduced()) return;
-  [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg' }, { rotate: '3deg', offset: .3 }, { rotate: '-2deg', offset: .65 }, { rotate: '0deg' }], { delay: 140 + i * 70, duration: 800, easing: 'ease-in-out' }));
+  [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg' }, { rotate: '3deg', offset: .3 }, { rotate: '-2deg', offset: .65 }, { rotate: '0deg' }], { delay: i * 45, duration: 800, easing: 'ease-in-out' }));
 }
 
 /** Une feuille se pose (ordinateur ; sur téléphone elle monte déjà du bas) ou se retire. */
