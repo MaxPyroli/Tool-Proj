@@ -197,6 +197,47 @@ export async function trash(el) {
   bin.remove();
 }
 
+// ---------- changement d'écran, feuilles, badges ----------
+
+const TAB_ORDER = ['apercu', 'taches', 'idees', 'equipe'];
+
+/** Un écran remplace l'autre : changement d'onglet (la page glisse du côté de l'onglet), ouverture d'un projet (la page monte), retour à la liste. */
+export function view(prevKey, key) {
+  if (reduced() || !prevKey || prevKey === key) return;
+  const parse = (k) => { const m = /^p(\d+)\/(\w+)/.exec(k); return m ? { id: m[1], tab: m[2] } : null; };
+  const a = parse(prevKey), b = parse(key);
+  const page = document.querySelector('main.page'); if (!page) return;
+  const o = { fill: 'none' };
+  const root = document.documentElement; root.style.overflowX = 'hidden'; setTimeout(() => { root.style.overflowX = ''; }, 500); // la page qui glisse ne doit jamais élargir l'écran
+  if (a && b && a.id === b.id) {
+    if (a.tab === b.tab) return;
+    const dir = TAB_ORDER.indexOf(b.tab) > TAB_ORDER.indexOf(a.tab) ? 1 : -1;
+    page.animate([{ transform: `translateX(${dir * 22}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 240, easing: 'cubic-bezier(.2, .8, .3, 1)' });
+    document.querySelector('.tab[aria-current]')?.animate([{ transform: 'translateY(5px)' }, { transform: 'translateY(-3px)', offset: .55 }, { transform: 'none' }], { ...o, duration: 300, easing: 'ease-out' });
+  } else if (b && !a) {
+    page.animate([{ transform: 'translateY(26px) scale(.985)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 340, easing: 'cubic-bezier(.2, .9, .3, 1)' });
+  } else if (a && !b) {
+    page.animate([{ transform: 'translateY(-10px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 220, easing: 'ease-out' });
+  } else return;
+  sway(page.querySelectorAll('.member'));
+}
+
+/** Les badges accrochés se balancent une fois, l'un après l'autre. */
+export function sway(list, max = 8) {
+  if (reduced()) return;
+  [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg' }, { rotate: '3deg', offset: .3 }, { rotate: '-2deg', offset: .65 }, { rotate: '0deg' }], { delay: 140 + i * 70, duration: 800, easing: 'ease-in-out' }));
+}
+
+/** Une feuille se pose (ordinateur ; sur téléphone elle monte déjà du bas) ou se retire. */
+export function sheetIn(body) {
+  if (reduced() || !body || matchMedia('(max-width: 719px)').matches) return;
+  body.animate([{ transform: 'translateY(-22px) rotate(-1.2deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.2, .9, .3, 1.15)' });
+}
+export async function sheetOut(body) {
+  if (reduced() || !body) return;
+  await done(body.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(14px)', opacity: 0 }], { duration: 150, easing: 'ease-in', fill: 'forwards' }));
+}
+
 // ---------- déchiqueteuse (chantier, projet) ----------
 
 /** Le grand morceau de papier est avalé par la déchiqueteuse et ressort en bandelettes qui s'entassent dans le bac. `html` sert quand rien n'est à l'écran. */

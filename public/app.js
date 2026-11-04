@@ -95,7 +95,7 @@ document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 // Redrawing replaces the page content: remember where the reader was so the screen doesn't jump to the top.
 let lastViewKey = null;
 function redraw(key, draw) {
-  const same = key === lastViewKey;
+  const same = key === lastViewKey, prevKey = lastViewKey;
   const y = window.scrollY;
   const chips = document.querySelector('.chips')?.scrollLeft ?? 0;
   const before = same ? fx.snapshot() : null; // les éléments qui bougent glissent, les nouveaux se collent
@@ -104,7 +104,7 @@ function redraw(key, draw) {
   window.scrollTo(0, same ? y : 0);
   const c = document.querySelector('.chips');
   if (c && same) c.scrollLeft = chips;
-  if (before) fx.play(before);
+  if (before) fx.play(before); else fx.view(prevKey, key);
 }
 
 const store = {
@@ -247,13 +247,14 @@ function applyTheme() {
 
 // ---------- sheet (modal) ----------
 
-let sheetCleanup = null, sheetAt = 0;
+let sheetCleanup = null, sheetAt = 0, sheetToken = 0;
 function openSheet(html, onMount) {
+  sheetToken++;
   sheetCleanup?.();
   sheetCleanup = null;
   sheet.classList.remove('badge-sheet');
   sheet.innerHTML = `<div class="sheet-body">${html}</div>`;
-  if (!sheet.open) sheet.showModal();
+  if (!sheet.open) { sheet.showModal(); fx.sheetIn(sheet.querySelector('.sheet-body')); }
   sheet.querySelectorAll('textarea').forEach(mdPreview);
   sheet.querySelectorAll('textarea.input').forEach(autoGrow);
   sheetAt = Date.now();
@@ -264,7 +265,9 @@ function openSheet(html, onMount) {
 function closeSheet() {
   sheetCleanup?.();
   sheetCleanup = null;
-  if (sheet.open) sheet.close();
+  if (!sheet.open) return;
+  const t = ++sheetToken;
+  fx.sheetOut(sheet.querySelector('.sheet-body')).then(() => { if (t === sheetToken && sheet.open) sheet.close(); });
 }
 // the click that follows a tap lands on the backdrop right after opening: ignore it
 sheet.addEventListener('click', (e) => { if (e.target === sheet && Date.now() - sheetAt > 450) closeSheet(); });

@@ -15,6 +15,7 @@ const log = (...a) => console.log(...a); const wait = (ms) => new Promise((r) =>
 const errors = [];
 const problems = [];
 async function audit(p, label) {
+  await wait(450); // laisse finir les animations de changement d'écran (sinon la page qui glisse est vue « dépassant »)
   const r = await p.evaluate(() => {
     const vw = innerWidth; const out = [];
     const sel = (el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
