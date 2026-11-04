@@ -32,7 +32,10 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   await p.evaluate(() => document.getElementById('sheet').close()); await wait(500);
   // 2. appui long : le post-it est attrapé, la corbeille monte, il n'ouvre rien
   const n0 = await countNotes();
-  await touch('touchStart', [c0]); await wait(600);
+  await touch('touchStart', [c0]); await wait(420);
+  const gpos = await p.evaluate(() => { const g = document.querySelector('.note.dnd-ghost'); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  ok(!!gpos && Math.hypot(gpos.x - c0.x, gpos.y - c0.y) < 40, 'à l\'attrape, le post-it reste sous le doigt (pas de saut en haut)', JSON.stringify({ gpos, c0 }));
+  await wait(180);
   ok(await p.evaluate(() => !!document.querySelector('.note.dnd-ghost') && document.querySelector('.hold-bin')?.classList.contains('armed')), 'appui long : le post-it est attrapé et la corbeille monte');
   await p.screenshot({ path: `${SP}/gb0.png` });
   const vw = p.viewportSize();
