@@ -229,6 +229,25 @@ export function sway(list, max = 8) {
   [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg' }, { rotate: '3deg', offset: .3 }, { rotate: '-2deg', offset: .65 }, { rotate: '0deg' }], { delay: i * 45, duration: 800, easing: 'ease-in-out' }));
 }
 
+/** Coup de vent sur le mur : les post-it visibles, accrochés par leur scotch, se balancent en vague de gauche à droite. */
+export function gust(wrap) {
+  if (reduced() || !wrap) return;
+  const wr = wrap.getBoundingClientRect(); if (!wr.width) return;
+  [...wrap.querySelectorAll('.note')].forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.right < wr.left || r.left > wr.right || r.bottom < wr.top || r.top > wr.bottom) return; // hors de l'écran : rien
+    const rel = Math.min(1, Math.max(0, (r.left - wr.left) / wr.width)), a = rnd(4.5, 7), dx = rnd(3, 7);
+    el.style.transformOrigin = '50% 0';
+    el.animate([
+      { rotate: '0deg', translate: '0 0' },
+      { rotate: `${a}deg`, translate: `${dx}px 0`, offset: .25 },
+      { rotate: `${-a * .7}deg`, translate: `${-dx * .5}px 0`, offset: .5 },
+      { rotate: `${a * .35}deg`, translate: `${dx * .2}px 0`, offset: .75 },
+      { rotate: '0deg', translate: '0 0' },
+    ], { delay: rel * 420 + rnd(0, 70), duration: 1100, easing: 'ease-in-out' }).finished.then(() => { el.style.transformOrigin = ''; }, () => {});
+  });
+}
+
 /** Une feuille se pose (ordinateur ; sur téléphone elle monte déjà du bas) ou se retire. */
 export function sheetIn(body) {
   if (reduced() || !body || matchMedia('(max-width: 719px)').matches) return;

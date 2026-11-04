@@ -648,7 +648,11 @@ function renderProject() {
   ${state.tab === 'taches' ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`; });
 
   const wallEl = state.tab === 'idees' && state.boardView === 'wall' ? $app.querySelector('.board-wrap.wall') : null;
-  if (wallEl) bindWall(wallEl); else wallApi = null;
+  if (wallEl) {
+    bindWall(wallEl);
+    const gk = `${p.id}/${state.wall?.fs ? 'fs' : ''}`;
+    if (state.gustKey !== gk) { state.gustKey = gk; requestAnimationFrame(() => fx.gust(wallEl)); } // coup de vent à l'arrivée sur le mur
+  } else { wallApi = null; state.gustKey = null; }
   if (state.tab === 'taches') bindTaskDnD();
 }
 
