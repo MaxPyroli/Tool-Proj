@@ -413,6 +413,7 @@ function confirmEpicSheet(e, n) {
 
 /** Joue l'animation de suppression (corbeille ou déchiqueteuse) en même temps que la suppression ; si elle échoue, l'élément réapparaît. */
 /** Les tâches à l'écran glissent vers leur nouvelle place quand l'une d'elles part (sinon les suivantes sautent). */
+const noteKeys = () => [...$app.querySelectorAll('.note-grid [data-fx^="note:"]')].map((e) => e.dataset.fx); // les post-it restants se recalent en glissant
 const taskKeys = (id) => [`task:${id}`, ...[...$app.querySelectorAll('[data-fx^="task:"]')].map((e) => e.dataset.fx)];
 
 /** Vue « Liste » : la tâche terminée s'envole vers « Terminées » (en bas de la liste), puis la section fait un petit bond.
@@ -820,7 +821,7 @@ function viewOverview(d) {
 function noteHtml(n, wall) {
   const rot = (((n.id * 37) % 7) - 3) * 0.7;
   return `
-  <article class="note c-${n.color}" data-note="${n.id}" ${wall ? '' : `data-action="open-note" data-id="${n.id}"`}
+  <article class="note c-${n.color}" data-note="${n.id}" data-fx="note:${n.id}" ${wall ? '' : `data-action="open-note" data-id="${n.id}"`}
     style="--rot:${rot}deg;${wall ? `left:${n.x}px;top:${n.y}px;z-index:${n.z}` : ''}" tabindex="0" aria-label="Post-it : ${esc(n.text.slice(0, 60))}">
     <div class="n-text">${md(n.text)}</div>
     <div class="n-foot"><span class="who">${esc(n.author || '')}</span>
@@ -1397,7 +1398,7 @@ function bindTaskDnD() {
       ghost.remove(); b.style.visibility = 'hidden';
       run(async () => {
         try { await removeWith('trash', el, () => db.deleteNote(id), null, { place, from }); }
-        finally { fx.resetBin(b); await reloadProject(); }
+        finally { fx.resetBin(b); fx.focus(noteKeys()); await reloadProject(); }
       })();
     } else { ghost.remove(); getBin().classList.remove('armed', 'over'); }
   };
@@ -2258,7 +2259,7 @@ const actions = {
     const id = Number(el.dataset.id);
     closeSheet();
     await removeWith('trash', $app.querySelector(`.note[data-note="${id}"]`), () => db.deleteNote(id));
-    toast('Post-it décollé'); await reloadProject();
+    toast('Post-it décollé'); fx.focus(noteKeys()); await reloadProject();
   },
   'remove-member': async (el) => {
     const id = el.dataset.id;

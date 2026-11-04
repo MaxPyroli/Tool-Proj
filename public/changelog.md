@@ -3,6 +3,7 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
+- Quand on enlève un post-it de la grille, les autres glissent pour se recaler.
 - Écran de chargement : une machine à écrire dont les touches bougent, avec « Chargement... » écrit sur son bout de papier.
 - Nouveau look « bureau » (papier, chemises, classeur, post-it, badges), avec un vrai mode sombre.
 - Les tâches s'affichent dans un seul Tableau, en liste ou par chantier (le statut « En cours » disparaît ; « Fait » devient « Terminé » et se range dans une section repliée « Terminées ») : glisse-les où tu veux (sur téléphone, appui long puis dépose).
