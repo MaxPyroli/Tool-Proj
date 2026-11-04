@@ -369,6 +369,9 @@ function confirmEpicSheet(e, n) {
 }
 
 /** Joue l'animation de suppression (corbeille ou déchiqueteuse) en même temps que la suppression ; si elle échoue, l'élément réapparaît. */
+/** Les tâches à l'écran glissent vers leur nouvelle place quand l'une d'elles part (sinon les suivantes sautent). */
+const taskKeys = (id) => [`task:${id}`, ...[...$app.querySelectorAll('[data-fx^="task:"]')].map((e) => e.dataset.fx)];
+
 /** Téléphone, vue « par statut » : une tâche qui change de colonne sort de l'écran sur le côté (comme si la colonne était à côté), puis l'onglet fait un bond. */
 function flyToCol(id, dest, from = null) {
   if (!isPhone() || state.boardGroup === 'epic' || state.taskCol === dest) return;
@@ -2166,7 +2169,7 @@ const actions = {
     // la coche se trace au feutre (ou s'efface) une seule fois, la tâche reste en place le temps de l'animation
     state.justDone = finishing ? t.id : null; state.justDoneFrom = from; state.justUndone = finishing ? null : t.id;
     await reloadProject();
-    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { flyToCol(t.id, finishing ? 'done' : 'todo'); fx.focus([`task:${t.id}`]); renderProject(); } }, finishing ? 1300 : 900);
+    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { flyToCol(t.id, finishing ? 'done' : 'todo'); fx.focus(taskKeys(t.id)); renderProject(); } }, finishing ? 1300 : 900);
   },
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
   'img-open': (el) => openLightbox(Number(el.dataset.i)),
@@ -2339,7 +2342,7 @@ const forms = {
   async 'edit-task'(f) {
     const body = formData(f), id = Number(f.dataset.id);
     await db.updateTask(id, body);
-    closeSheet(); fx.focus([`task:${id}`]);
+    closeSheet(); fx.focus(taskKeys(id));
     if (body.status) flyToCol(id, body.status); // la tâche s'envole vers sa nouvelle colonne avant que l'écran soit redessiné
     await reloadProject();
   },
