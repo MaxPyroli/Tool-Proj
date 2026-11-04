@@ -1161,3 +1161,14 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .fax-paper h2 { margin: 0; }
 .fax-paper p { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .fax-bd { opacity: 1; } }
+
+/* ---------- chargement : machine à écrire ---------- */
+.tw { display: inline-flex; align-items: center; font: 700 1rem ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--ink); animation: tw-ding 3.6s linear infinite; }
+.tw > span { display: inline-block; overflow: hidden; white-space: nowrap; width: 0; animation: tw-type 3.6s steps(14, end) infinite; }
+.tw > i { width: 2px; height: 1.1em; margin-left: 2px; background: var(--accent, var(--ink)); animation: tw-caret .5s steps(2) infinite; }
+.small .tw, .tw.small { font-size: .85rem; }
+.loading .tw { font-size: 1.1rem; }
+@keyframes tw-type { 0% { width: 0; } 62%, 84% { width: 14ch; } 100% { width: 14ch; opacity: 0; } }
+@keyframes tw-caret { 50% { opacity: 0; } }
+@keyframes tw-ding { 0%, 62% { transform: translateX(0); } 64% { transform: translateX(6px); } 68%, 100% { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .tw, .tw > span, .tw > i { animation: none; } .tw > span { width: auto; } .tw > i { display: none; } }

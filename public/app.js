@@ -90,6 +90,8 @@ const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emo
 const BOARD_W = 3000, BOARD_H = 2400;
 const APP_VERSION = '0.22.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
+/** Chargement : « Chargement... » s'écrit à la machine à écrire (voir .tw dans styles.css). */
+const LOADING = '<span class="tw" role="status"><span>Chargement...</span><i></i></span>';
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
 // Redrawing replaces the page content: remember where the reader was so the screen doesn't jump to the top.
@@ -337,7 +339,7 @@ async function render() {
     state.tab = ['apercu', 'taches', 'idees', 'equipe'].includes(r.tab) ? r.tab : 'apercu';
     if (state.pid !== r.id || !state.data) {
       state.pid = r.id; state.data = null;
-      $app.innerHTML = '<div class="loading">Chargement…</div>';
+      $app.innerHTML = `<div class="loading">${LOADING}</div>`;
       try { state.data = await db.getProject(r.id, state.me.id); subscribe(r.id); }
       catch (e) { toast(e.message, true); location.hash = '#/'; return; }
     }
@@ -1856,7 +1858,7 @@ function changelogSheet() {
   document.querySelectorAll('.news-dot').forEach((d) => d.remove());
   openSheet(`
     <div class="sheet-head"><h2 id="sheet-title">Nouveautés</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
-    <div id="changelog" class="stack"><p class="muted small">Chargement…</p></div>`, () => {
+    <div id="changelog" class="stack"><p class="muted small">${LOADING}</p></div>`, () => {
     loadChangelog().then((versions) => {
       const box = sheet.querySelector('#changelog');
       if (!box) return;
@@ -1918,17 +1920,17 @@ function accountSheet() {
       <h3>Clés d'accès</h3>
       <p class="small muted">Pour te connecter avec Face ID, ton empreinte ou le code de l'appareil. Crée une clé sur chaque appareil que tu utilises.</p>
       ${passkeysMoved() ? '<p class="small muted"><b>Nouvelle adresse :</b> une clé créée avant le changement d\'adresse ne marche plus. Supprime-la et crée-en une nouvelle.</p>' : ''}
-      <div class="passkeys" id="pk-list"><p class="small muted">Chargement…</p></div>
+      <div class="passkeys" id="pk-list"><p class="small muted">${LOADING}</p></div>
       <button class="btn" data-action="passkey-add">${icon.key} Ajouter une clé sur cet appareil</button>
     </section>` : ''}
     <section class="stack" style="gap:10px">
       <h3>Notifications</h3>
-      <div id="push-box"><p class="small muted">Chargement…</p></div>
+      <div id="push-box"><p class="small muted">${LOADING}</p></div>
     </section>
     <section class="stack" style="gap:10px">
       <h3>Accès pour Claude</h3>
       <p class="small muted">Branche Claude sur tes projets : il peut lire (et, si tu le permets, ajouter ou modifier) tes tâches, post-it et chantiers, avec tes droits.</p>
-      <div class="passkeys" id="claude-box"><p class="small muted">Chargement…</p></div>
+      <div class="passkeys" id="claude-box"><p class="small muted">${LOADING}</p></div>
       <button class="btn" data-action="claude-new">Créer un accès</button>
     </section>
     <button class="btn danger" data-action="logout">Se déconnecter</button>
@@ -2404,7 +2406,7 @@ function signedIn() {
       (ou dans les variables du dépôt GitHub), puis recharge la page. Tout est expliqué dans le README.</p></div></main>`;
     return;
   }
-  $app.innerHTML = '<div class="loading">Chargement…</div>';
+  $app.innerHTML = `<div class="loading">${LOADING}</div>`;
   // Signing in from another tab (email link) or signing out elsewhere updates this tab too.
   db.onAuth(run(async (event) => {
     if (event === 'SIGNED_OUT' && state.me) { state.me = null; subscribe(null); render(); }
