@@ -35,12 +35,13 @@ const cam = (p) => p.evaluate(() => { const t = document.querySelector('.board')
   await wait(600);
   const visNote = async () => { const els = await p.locator('.board-wrap.wall .note').all(); for (const e of els) { const r = await e.boundingBox(); if (r && r.y > 200 && r.y < 700 && r.x > 150) return r; } return null; };
   const binBox = await p.locator('.wall-bin').boundingBox();
-  ok(!!binBox && binBox.width > 40, 'la corbeille est visible sur le mur', JSON.stringify(binBox));
+  ok(await p.evaluate(() => getComputedStyle(document.querySelector('.wall-bin')).opacity === '0'), 'la corbeille est cachée tant qu\'on ne tient pas de post-it');
   const before = (await notesInDb(pid)).length;
   const nb = await visNote();
   await p.mouse.move(nb.x + nb.width / 2, nb.y + nb.height / 2); await p.mouse.down();
   await p.mouse.move(nb.x + nb.width / 2 + 40, nb.y + nb.height / 2 - 40, { steps: 4 });
   await p.mouse.move(binBox.x + binBox.width / 2, binBox.y + binBox.height / 2, { steps: 12 }); await wait(120);
+  ok(await p.evaluate(() => getComputedStyle(document.querySelector('.wall-bin')).opacity === '1'), 'la corbeille apparaît quand on tient un post-it');
   ok(await p.evaluate(() => document.querySelector('.wall-bin').classList.contains('over')), 'la corbeille s\'allume quand le post-it est dessus');
   await p.mouse.up(); await wait(3800);
   const after = (await notesInDb(pid)).length;

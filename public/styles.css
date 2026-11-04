@@ -339,13 +339,13 @@ textarea.input { min-height: 96px; resize: vertical; }
 .wb:active { background: var(--accent-soft); }
 .wb.txt { font-size: .88rem; white-space: nowrap; }
 .wb.zoom-val { min-width: 64px; font-size: .82rem; font-variant-numeric: tabular-nums; color: var(--muted); }
-.wall-bin { position: absolute; z-index: 4; left: 12px; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; display: grid; place-items: center; color: var(--muted); background: var(--surface); box-shadow: 0 0 0 1px var(--line), var(--shadow-lift); border-radius: 4px; touch-action: none; cursor: default; transition: transform .15s, color .15s, background .15s, box-shadow .15s; }
+.wall-bin { position: absolute; z-index: 4; left: 12px; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); width: 54px; height: 54px; display: grid; place-items: center; color: var(--ink); background: var(--surface); box-shadow: 0 0 0 1px var(--line), var(--shadow-lift); border-radius: 4px; touch-action: none; cursor: default;
+  opacity: 0; transform: translateY(26px) scale(.7); pointer-events: none; transition: transform .28s cubic-bezier(.3, 1.5, .5, 1), opacity .18s, color .15s, background .15s, box-shadow .15s; } /* elle n'apparaît que quand on tient un post-it */
 .wall-bin svg { width: 26px; height: 26px; transition: transform .2s; transform-origin: 70% 90%; }
-.wall-bin.armed { color: var(--ink); animation: bin-nudge .5s ease-out; }
-.wall-bin.over { transform: scale(1.22); color: #fff; background: var(--danger, #c0262d); box-shadow: 0 0 0 2px var(--danger, #c0262d), var(--shadow-lift); }
+.wall-bin.armed { opacity: 1; transform: none; }
+.wall-bin.over { opacity: 1; transform: scale(1.22); color: #fff; background: var(--danger, #c0262d); box-shadow: 0 0 0 2px var(--danger, #c0262d), var(--shadow-lift); }
 .wall-bin.over svg { transform: rotate(-12deg); }
-@keyframes bin-nudge { 0% { transform: scale(1); } 40% { transform: scale(1.12) rotate(-4deg); } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .wall-bin, .wall-bin svg { transition: none; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .wall-bin, .wall-bin svg { transition: none; } }
 .minimap {
   position: absolute; z-index: 4; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); width: 132px; aspect-ratio: 5 / 4; /* same shape as the wall: no empty edges */
   background: var(--board); border: 0; box-shadow: 0 0 0 1px var(--line), var(--shadow-lift); border-radius: 8px; overflow: hidden;
