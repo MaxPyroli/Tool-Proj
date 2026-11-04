@@ -213,7 +213,8 @@ export function view(prevKey, key) {
     if (a.tab === b.tab) return;
     const dir = TAB_ORDER.indexOf(b.tab) > TAB_ORDER.indexOf(a.tab) ? 1 : -1;
     page.animate([{ transform: `translateX(${dir * 22}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 240, easing: 'cubic-bezier(.2, .8, .3, 1)' });
-    document.querySelector('.tab[aria-current]')?.animate([{ transform: 'translateY(5px)', boxShadow: '0 14px 0 var(--tc)' }, { transform: 'translateY(-4px)', boxShadow: '0 14px 0 var(--tc)', offset: .55 }, { transform: 'none', boxShadow: '0 14px 0 var(--tc)' }], { ...o, duration: 300, easing: 'ease-out' });
+    const tabEl = document.querySelector('.tab[aria-current]'); if (tabEl) tabEl.style.transformOrigin = '50% 100%'; // le bas de l'onglet reste collé au bandeau : il grandit vers le haut
+    tabEl?.animate([{ transform: 'scaleY(.86)' }, { transform: 'scaleY(1.06)', offset: .55 }, { transform: 'none' }], { ...o, duration: 300, easing: 'ease-out' });
   } else if (b && !a) {
     page.animate([{ transform: 'translateY(26px) scale(.985)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 340, easing: 'cubic-bezier(.2, .9, .3, 1)' });
   } else if (a && !b) {
