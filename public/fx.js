@@ -98,7 +98,8 @@ function bits(x, y, { n = 9, power = 90, up = 70, colors = ['#fffdf6', '#f3e9c9'
 
 // ---------- corbeille (tâches, post-it) : une corbeille à papier de bureau en métal grillagé ----------
 
-const MESH_BODY = 'M13 34L107 34L98 134Q97 142 90 142H30Q23 142 22 134Z';
+// le corps suit la perspective : le haut est l'arc avant du bord (au-dessus, on voit l'intérieur sombre), le bas est droit
+const MESH_BODY = 'M13 34A47 10 0 0 0 107 34L98 136H22Z';
 /** Contour irrégulier d'une boulette de papier : n points autour de (cx, cy), rayon et angle un peu au hasard. */
 const blobPts = (cx, cy, r, n = 12) => Array.from({ length: n }, (_, i) => {
   const a = (i / n) * Math.PI * 2 + rnd(-.18, .18), k = rnd(.68, 1.04) * (i % 3 === 0 ? .9 : 1);
@@ -112,7 +113,7 @@ const svgBall = (cx, cy, r) => {
 const binBack = () => `<svg viewBox="0 0 120 150" aria-hidden="true">
   <ellipse cx="60" cy="146" rx="46" ry="5" fill="rgba(0,0,0,.2)"/>
   <ellipse cx="60" cy="34" rx="47" ry="10" fill="#262c38"/>
-  <g>${svgBall(40, 127, 11)}${svgBall(75, 125, 12)}${svgBall(57, 116, 10)}</g>
+  <g>${svgBall(41, 123, 10)}${svgBall(75, 122, 11)}${svgBall(58, 112, 9.5)}</g>
 </svg>`;
 const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
   <defs>
@@ -121,9 +122,9 @@ const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
   </defs>
   <path d="${MESH_BODY}" fill="rgba(150,165,185,.14)"/>
   <rect x="0" y="30" width="120" height="116" fill="url(#fxm)" clip-path="url(#fxc)"/>
-  <path d="M19 40L26 136M40 44L43 140M60 45V141M80 44L77 140M101 40L94 136" stroke="#3b4352" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M19 39L26 136M40 43L43 136M60 44V136M80 43L77 136M101 39L94 136" stroke="#3b4352" stroke-width="3" stroke-linecap="round" fill="none"/>
   <path d="M16 38L23 132" stroke="rgba(255,255,255,.45)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-  <path d="M22 133Q60 150 98 133" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M20 137.5H100" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
   <path d="M13 34A47 10 0 0 0 107 34" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
   <path d="M13 34A47 10 0 0 1 107 34" stroke="#4a5365" stroke-width="5" fill="none" stroke-linecap="round"/>
 </svg>`;
@@ -182,7 +183,7 @@ export async function trash(el) {
   ball.style.opacity = 1;
   clone.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' }).finished.then(() => clone.remove(), () => clone.remove());
   ball.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160 });
-  const fall = bh * .66, dx = rnd(-12, 12);
+  const fall = bh * .68, dx = rnd(-10, 10);
   const drop = done(ball.animate([
     { transform: 'translate(0, 0) rotate(0deg)' },
     { transform: `translate(${dx * .5}px, ${fall}px) rotate(120deg)`, offset: .52, easing: 'ease-out' },
