@@ -1916,13 +1916,16 @@ async function showNews(i) {
       faxEl.dataset.at = String(Date.now());
       document.body.append(faxEl); bindActions(faxEl);
       faxEl.addEventListener('click', (e) => { if (e.target === faxEl || e.target.classList.contains('fax-bd')) { if (Date.now() - Number(faxEl.dataset.at) > 600) closeFax(); } });
-      await fx.fax(faxEl);
-      faxEl.querySelector('.btn.primary')?.focus({ preventScroll: true });
+      const ov = faxEl; // on garde l'élément : le fax peut être fermé (Échap) pendant l'impression
+      await fx.fax(ov);
+      ov.querySelector('.btn.primary')?.focus({ preventScroll: true });
     } else {
-      await fx.faxLeave(faxEl);
-      faxEl.querySelector('.fax-paper').innerHTML = newsHtml(i);
-      faxEl.querySelector('.fax-paper').getAnimations().forEach((x) => x.cancel());
-      await fx.fax(faxEl, { again: true });
+      const ov = faxEl;
+      await fx.faxLeave(ov);
+      if (faxEl !== ov) return;
+      ov.querySelector('.fax-paper').innerHTML = newsHtml(i);
+      ov.querySelector('.fax-paper').getAnimations().forEach((x) => x.cancel());
+      await fx.fax(ov, { again: true });
     }
   } finally { faxBusy = false; }
 }

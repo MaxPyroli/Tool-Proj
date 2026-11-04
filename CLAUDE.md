@@ -71,10 +71,11 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 
 ## Version de test AVANT de publier (règle de l'utilisateur)
 
-L'utilisateur veut **voir une version de test avant toute publication**. Donc : faire les changements, lancer les tests, **montrer l'aperçu**, et **ne pousser (`git push`) qu'après son feu vert** (sauf correctif qu'il vient de demander explicitement de mettre en ligne). Les commits locaux sont autorisés.
-- Aperçu : le site de test (`/var/tmp/sbweb/Tool-Proj/`, servi sur le port **8088**) avec un Supabase **local** et un compte de démonstration. Signaler le port avec `report_preview_port` (nom « app de test »). Adresse de connexion automatique : `/Tool-Proj/preview-login.html` (compte `demo@tool.proj`, mot de passe de démonstration local, **jamais utilisé sur la vraie base**).
-- Mise en place : lancer Docker + Supabase local (voir plus bas), copier `public/` dans `/var/tmp/sbweb/Tool-Proj/` **sans écraser `config.js`** (le garder avec l'URL/clé locales), copier `scripts/preview-login.html` à côté, créer les données avec `node scripts/preview-demo.cjs <clé-secrète-locale>`.
-- Ça s'arrête quand l'environnement redémarre (Docker) : le relancer avant de montrer l'aperçu.
+L'utilisateur veut **essayer une version de test avant toute publication**, **sans la vraie base de données**. Donc : faire les changements, lancer les tests, **fabriquer le fichier de test et le lui envoyer**, et **ne pousser (`git push`) qu'après son feu vert** (sauf correctif qu'il vient de demander explicitement de mettre en ligne). Les commits locaux sont autorisés.
+- **Fichier de test** : `npm run build:test` (= `node scripts/build-single.cjs --demo`) fabrique **un seul fichier HTML autonome** `dist/Tool-Proj-test.html` (CSS, polices, logo, JS intégrés ; esbuild est téléchargé à la demande dans un dossier temporaire). `--demo` remplace `vendor/supabase-js.js` par `scripts/mock-supabase.js` : une **fausse base de données dans le navigateur** (localStorage, clé `tp-demo-db-v1`) avec des données fictives (4 projets dont « Appli vélo » : 6 chantiers, 25 tâches, 12 post-it, 5 personnes, liens). Connexion automatique ; une fois déconnecté, n'importe quel e-mail et code passent. La pastille orange « VERSION DE TEST · DONNÉES FICTIVES » (en haut à droite) remet les données à zéro quand on la touche. Limites : pas d'images dans les tâches, pas de clés d'accès, pas de notifications, pas de temps réel.
+- L'envoyer avec `SendUserFile` (le fichier doit être dans le dossier du projet : `dist/` est ignoré par git). L'utilisateur le télécharge et double-clique dessus (aucune installation).
+- Si le mock ne gère pas un nouvel appel à la base (`data.js` : nouvelle table, nouvelle relation dans un `select`), **l'ajouter dans `scripts/mock-supabase.js`** (`RELS`, `DEFAULTS`, `CASCADE`, `rpc`) en même temps. Tester le fichier avec Playwright en `file://` (connexion, projet, tâches, mur, ajout, rechargement).
+- `build-single.cjs` sans `--demo` fabrique le même fichier branché sur une vraie base (`--url`, `--key`, par défaut ceux du site en ligne).
 
 ## Tester en local (bac à sable)
 
