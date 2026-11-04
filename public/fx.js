@@ -137,8 +137,6 @@ export async function trash(el) {
   const L = getLayer();
   const bin = document.createElement('div'); bin.className = 'fx-bin';
   bin.innerHTML = binBack();
-  const ball = document.createElement('i'); ball.className = 'fx-ball';
-  bin.append(ball);
   bin.insertAdjacentHTML('beforeend', BIN_FRONT);
   L.append(bin);
   const rise = bin.animate([{ transform: 'translateY(190px)', opacity: 0 }, { transform: 'translateY(-14px)', opacity: 1, offset: .68 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.3, .7, .4, 1)', fill: 'forwards' });
@@ -166,35 +164,34 @@ export async function trash(el) {
     { transform: 'scale(.9, 1.06) rotate(-4deg)', clipPath: poly(rect.map(([x, y]) => [cx + (x - cx) * .8, cy + (y - cy) * .8])), offset: .35 },
     { transform: 'scale(.62) rotate(-14deg)', clipPath: wad, filter: 'brightness(.93)' },
   ], { duration: 520, easing: 'cubic-bezier(.4, 0, .3, 1)', fill: 'forwards' }));
-  // 2. la boule est lancée en arc jusqu'au-dessus de l'ouverture
-  const mouthX = bin.offsetLeft + bin.offsetWidth * .5, topY = bin.offsetTop - 18;
-  const tx = mouthX - (r.left + cx), ty = topY - (r.top + cy);
+  // 2. la même boule est mise dans la corbeille (derrière le grillage) puis lancée en arc jusqu'à l'ouverture et tombe sans s'arrêter ni changer d'aspect
+  const bR = bin.getBoundingClientRect();
+  const sStart = .62, startState = `scale(${sStart}) rotate(-14deg)`;
+  Object.assign(clone.style, { position: 'absolute', left: `${r.left - bR.left}px`, top: `${r.top - bR.top}px`, zIndex: '3' });
+  bin.insertBefore(clone, bin.querySelector('svg:last-of-type'));
+  const mouthX = bin.offsetWidth * .5, topY = -18; // coordonnées dans la corbeille
+  const tx = mouthX - (r.left - bR.left + cx), ty = topY - (r.top - bR.top + cy);
   const lift = Math.min(170, Math.abs(ty) * .35 + 60);
-  const D = 34, sEnd = Math.min(.62, Math.max(.1, D / (1.7 * Rb))); // à l'arrivée, la boule fait la taille de celle qui va tomber
+  const D = 34, sEnd = Math.min(sStart, Math.max(.1, D / (2 * Rb)));
+  const bh = bin.offsetHeight, fall = bh * .68, dx = rnd(-10, 10);
   await done(clone.animate([
-    { transform: 'scale(.62) rotate(-14deg)', clipPath: wad, easing: 'cubic-bezier(.3, .6, .5, 1)' },
-    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(${(.62 + sEnd) / 2}) rotate(-170deg)`, clipPath: wad2, offset: .5, easing: 'cubic-bezier(.5, 0, .85, .6)' },
+    { transform: startState, clipPath: wad, easing: 'cubic-bezier(.3, .6, .5, 1)' },
+    { transform: `translate(${tx * .5}px, ${ty * .5 - lift}px) scale(${(sStart + sEnd) / 2}) rotate(-170deg)`, clipPath: wad2, offset: .5, easing: 'cubic-bezier(.5, 0, .85, .6)' },
     { transform: `translate(${tx}px, ${ty}px) scale(${sEnd}) rotate(-300deg)`, clipPath: wad },
-  ], { duration: 640, easing: 'linear', fill: 'forwards' }));
-  // 3. elle passe à l'intérieur : la boule de la corbeille prend le relais au même endroit (fondu enchaîné), tombe à travers le grillage et rebondit au fond
-  const bw = bin.offsetWidth, bh = bin.offsetHeight;
-  ball.style.clipPath = poly(blobPts(D / 2, D / 2, D / 2 - 1, 11)); ball.style.left = `${bw * .5 - D / 2}px`; ball.style.top = `${topY - bin.offsetTop - D / 2}px`;
-  ball.style.background = Array.from({ length: 4 }, () => `linear-gradient(${rnd(0, 180).toFixed(0)}deg, transparent 46%, rgba(0,0,0,.22) 48%, rgba(255,255,255,.55) 51%, transparent 53%)`).join(', ') + `, ${paper && paper !== 'rgba(0, 0, 0, 0)' ? paper : '#fffdf6'}`;
-  ball.style.opacity = 1;
-  clone.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' }).finished.then(() => clone.remove(), () => clone.remove());
-  ball.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160 });
-  const fall = bh * .68, dx = rnd(-10, 10);
-  const drop = done(ball.animate([
-    { transform: 'translate(0, 0) rotate(0deg)', easing: 'cubic-bezier(.25, .45, .75, .8)' },
-    { transform: `translate(${dx * .5}px, ${fall}px) rotate(120deg)`, offset: .52, easing: 'ease-out' },
-    { transform: `translate(${dx * .7}px, ${fall - 20}px) rotate(160deg)`, offset: .68, easing: 'ease-in' },
-    { transform: `translate(${dx}px, ${fall}px) rotate(190deg)`, offset: .82, easing: 'ease-out' },
-    { transform: `translate(${dx}px, ${fall - 6}px) rotate(196deg)`, offset: .91, easing: 'ease-in' },
-    { transform: `translate(${dx}px, ${fall}px) rotate(200deg)` },
-  ], { duration: 900, easing: 'cubic-bezier(.5, 0, .9, .6)', fill: 'forwards' }));
+  ], { duration: 560, easing: 'linear', fill: 'forwards' }));
+  clone.style.zIndex = '0'; // elle est à l'ouverture : elle passe maintenant derrière le bord avant et le grillage
+  const at = (x, y, rot) => `translate(${tx + x}px, ${ty + y}px) scale(${sEnd}) rotate(${rot}deg)`;
+  const drop = done(clone.animate([
+    { transform: at(0, 0, -300), easing: 'cubic-bezier(.2, .5, .7, .75)' },
+    { transform: at(dx * .5, fall, -180), offset: .5, easing: 'ease-out' },
+    { transform: at(dx * .7, fall - 20, -140), offset: .66, easing: 'ease-in' },
+    { transform: at(dx, fall, -110), offset: .8, easing: 'ease-out' },
+    { transform: at(dx, fall - 6, -104), offset: .9, easing: 'ease-in' },
+    { transform: at(dx, fall, -100) },
+  ], { duration: 900, easing: 'linear', fill: 'forwards' }));
   await pause(430);
   bin.animate([{ transform: 'scale(1, 1)' }, { transform: 'scale(1.04, .95)', offset: .3 }, { transform: 'scale(.99, 1.02)', offset: .65 }, { transform: 'scale(1, 1)' }], { duration: 420, easing: 'ease-out' });
-  bits(mouthX + dx, bin.offsetTop + bh * .2, { n: 3, power: 30, up: 30, life: 520 }); // quelques éclats au bord
+  bits(bin.offsetLeft + mouthX + dx, bin.offsetTop + bh * .2, { n: 3, power: 30, up: 30, life: 520 }); // quelques éclats au bord
   await drop;
   await pause(500);
   await done(bin.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(190px)', opacity: 0 }], { duration: 380, easing: 'ease-in', fill: 'forwards' }));
