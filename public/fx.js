@@ -123,8 +123,8 @@ const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
   </defs>
   <path d="${MESH_BODY}" fill="rgba(150,165,185,.14)"/>
   <rect x="0" y="30" width="120" height="116" fill="url(#fxm)" clip-path="url(#fxc)"/>
-  <path d="M19 39L26 138M40 43L43 142M60 44V143M80 43L77 142M101 39L94 138" stroke="#3b4352" stroke-width="3" stroke-linecap="round" fill="none"/>
-  <path d="M16 38L23 132" stroke="rgba(255,255,255,.45)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M13.4 38L22 134M40 43L43 142M60 44V143M80 43L77 142M106.6 38L98 134" stroke="#3b4352" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M17.4 44L24 120" stroke="rgba(255,255,255,.4)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
   <path d="M22 134A38 9 0 0 0 98 134" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
   <path d="M13 34A47 10 0 0 0 107 34" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
 </svg>`;
