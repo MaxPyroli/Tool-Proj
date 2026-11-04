@@ -229,39 +229,6 @@ export function sway(list, max = 8) {
   [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg', easing: 'ease-out' }, { rotate: '3deg', offset: .2, easing: 'ease-in-out' }, { rotate: '-2deg', offset: .55, easing: 'ease-in-out' }, { rotate: '0deg' }], { delay: i * 30, duration: 750, easing: 'linear' }));
 }
 
-/** Coup de vent sur les post-it (mur ou grille) : un coin du bas se décolle et se retourne sur le post-it (pliure arrondie, dos du papier
- *  visible, ombre portée) puis retombe. Le coin retourné est le miroir de la part retirée : le papier ne dépasse jamais du post-it.
- *  dir = 1 : on arrive d'un onglet de droite (coin droit, la vague part de la droite) ; -1 : de gauche (coin gauche). */
-let curlId = 0;
-export function gust(wrap, dir = 1) {
-  if (reduced() || !wrap) return;
-  const wr = wrap.getBoundingClientRect();
-  const L = Math.max(wr.left, 0), T = Math.max(wr.top, 0), R = Math.min(wr.right, innerWidth), B = Math.min(wr.bottom, innerHeight);
-  if (R - L < 10 || B - T < 10) return;
-  const right = dir >= 0;
-  [...wrap.querySelectorAll('.note:not(.fx-copy)')].forEach((el) => {
-    const r = el.getBoundingClientRect();
-    if (r.right < L || r.left > R || r.bottom < T || r.top > B) return; // hors de l'écran : rien
-    const rx = Math.min(1, Math.max(0, (r.left - L) / (R - L))), ry = Math.min(1, Math.max(0, (r.top - T) / (B - T)));
-    const W = el.offsetWidth, H = el.offsetHeight, S = Math.round(Math.min(W, H) * rnd(.3, .36)), m = 40, id = `fxc${++curlId}`;
-    const fx = (x) => (right ? W - x : x); // on dessine pour le coin gauche, puis on miroite pour le coin droit
-    // trou laissé par le coin décollé (coin du post-it en (0, H) ; pliure arrondie de (0, H-k·S) à (k·S, H))
-    const hole = (k) => { const d = k * S, q = d * .3; return `M${-m} ${-m}H${W + m}V${H + m}H${-m}Z M${fx(0)} ${H - d}Q${fx(q)} ${H - q} ${fx(d)} ${H}L${fx(d + 14)} ${H + 14}L${fx(-14)} ${H - d - 14}Z`; };
-    const curl = document.createElement('span'); curl.className = `fx-curl ${right ? 'r' : 'l'}`; curl.setAttribute('aria-hidden', 'true');
-    curl.style.setProperty('--s', `${S}px`);
-    // dos du papier : le miroir du coin retiré (angle droit arrondi vers l'intérieur du post-it), éclairé près de la pliure
-    curl.innerHTML = `<svg viewBox="0 0 100 100"><defs><linearGradient id="${id}" x1="0" y1="100" x2="100" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" style="stop-color: color-mix(in srgb, var(--note) 80%, #fff)"/><stop offset=".55" style="stop-color: color-mix(in srgb, var(--note) 90%, #000)"/><stop offset="1" style="stop-color: color-mix(in srgb, var(--note) 78%, #000)"/></linearGradient></defs>
-      <path d="M0 0Q30 70 100 100Q104 64 98 22Q60 -3 0 0Z" fill="url(#${id})"/></svg>`;
-    el.append(curl);
-    const steps = [0, 1, .5, .72, 0], offs = [0, .26, .5, .68, 1], ease = 'ease-in-out';
-    const opts = { delay: (right ? 1 - rx : rx) * 160 + ry * 90, duration: 1000, easing: 'linear' };
-    el.animate(steps.map((k, i) => ({ clipPath: `path(evenodd, "${hole(k)}")`, offset: offs[i], easing: ease })), opts);
-    curl.animate(steps.map((k, i) => ({ transform: `scale(${k})`, offset: offs[i], easing: ease })), { ...opts, fill: 'backwards' })
-      .finished.then(() => curl.remove(), () => curl.remove());
-  });
-}
-
 /** Une feuille se pose (ordinateur ; sur téléphone elle monte déjà du bas) ou se retire. */
 export function sheetIn(body) {
   if (reduced() || !body || matchMedia('(max-width: 719px)').matches) return;
