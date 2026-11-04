@@ -438,6 +438,16 @@ dialog#sheet::backdrop { background: rgb(10 14 20 / .45); }
 #toasts { position: fixed; z-index: 100; left: 50%; translate: -50% 0; top: calc(12px + env(safe-area-inset-top, 0px)); display: grid; gap: 8px; width: min(92vw, 420px); pointer-events: none; }
 .toast { background: var(--ink); color: var(--bg); padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow-lift); font-weight: 600; animation: toast-in .2s ease-out; }
 .toast.err { background: var(--danger); color: #fff; }
+/* message-tampon (petits messages) : l'encre rouge granuleuse + le tampon vu de haut */
+.toast.stamp { --sc: #b3261e; background: none; box-shadow: none; border-radius: 0; padding: 0; animation: none; position: relative; justify-self: center; max-width: 100%; color: inherit; font-weight: inherit; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .toast.stamp { --sc: #ff7d70; } }
+:root[data-theme="dark"] .toast.stamp { --sc: #ff7d70; }
+.st-ink { display: block; box-sizing: border-box; background: color-mix(in srgb, var(--bg) 90%, transparent); border: 3px solid var(--sc); color: var(--sc); padding: 9px 18px; border-radius: 3px; font-weight: 900; font-size: .95rem; letter-spacing: .06em; text-transform: uppercase; text-align: center; text-shadow: 0 0 1.5px var(--sc);
+  opacity: 0; transform: rotate(-4deg); filter: url(#ink); -webkit-mask-image: linear-gradient(100deg, rgb(0 0 0 / .72), #000 38%, rgb(0 0 0 / .9) 70%, rgb(0 0 0 / .65)); mask-image: linear-gradient(100deg, rgb(0 0 0 / .72), #000 38%, rgb(0 0 0 / .9) 70%, rgb(0 0 0 / .65)); }
+.st-tool { position: absolute; inset: -3px; opacity: 0; z-index: 2; transform: rotate(-4deg); border: 2px solid #1c2230; border-radius: 7px; filter: drop-shadow(0 5px 4px rgb(0 0 0 / .28));
+  background: linear-gradient(180deg, rgb(255 255 255 / .5), rgb(255 255 255 / 0) 14%, rgb(0 0 0 / 0) 84%, rgb(0 0 0 / .28)), repeating-linear-gradient(176deg, rgb(156 116 64 / .16) 0 1px, transparent 1px 9px), linear-gradient(180deg, #e2c392, #cfa66d 50%, #b98d55);
+  box-shadow: inset 0 0 0 5px rgb(255 255 255 / .18), inset 0 0 0 6px rgb(0 0 0 / .1); }
+.st-tool b { position: absolute; left: 50%; top: 50%; width: 66px; max-width: 70%; height: 32px; max-height: 70%; margin: -16px 0 0 -33px; border-radius: 50%; border: 2px solid #1c2230; background: radial-gradient(ellipse at 38% 30%, #e0a468, #a8683a 55%, #6e4120); box-shadow: 4px 4px 0 rgb(0 0 0 / .22), inset 0 0 0 5px rgb(0 0 0 / .1); }
 @keyframes toast-in { from { transform: translateY(-10px); opacity: 0; } }
 
 .loading { display: grid; place-items: center; min-height: 60dvh; color: var(--muted); }
@@ -1130,3 +1140,24 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .check-row small { color: var(--muted); }
 
 /* Simulateur d'animations (Mon compte → Tester les animations) */
+
+/* ---------- nouveautés par fax ---------- */
+.fax-ov { position: fixed; inset: 0; z-index: 2000; display: flex; flex-direction: column; align-items: center; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px calc(20px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; outline: none; overscroll-behavior: contain; }
+.fax-bd { position: fixed; inset: 0; background: rgb(10 14 20 / .55); opacity: 0; }
+.fax-m { position: relative; width: min(92vw, 360px); flex: none; z-index: 3; filter: drop-shadow(0 8px 8px rgb(0 0 0 / .3)); }
+.fax-top { height: 36px; background: #8d97a6; border-radius: 4px 4px 0 0; position: relative; }
+.fax-top::before { content: ""; position: absolute; left: 16px; top: 9px; width: 70px; height: 13px; background: #5f6878; }
+.fax-led { position: absolute; right: 16px; top: 12px; width: 11px; height: 11px; border-radius: 50%; background: #3b4352; }
+.fax-led.on { animation: fax-led .3s steps(2) infinite; }
+@keyframes fax-led { 50% { background: #ff5b4d; box-shadow: 0 0 8px #ff5b4d; } }
+.fax-body { height: 48px; background: #a7b0bd; display: flex; align-items: center; justify-content: flex-end; padding: 0 16px; }
+.fax-body i { display: flex; gap: 6px; } .fax-body s { width: 13px; height: 13px; background: #5f6878; border-radius: 2px; }
+.fax-slot { height: 8px; background: #232832; margin: 0 12px; position: relative; z-index: 2; }
+.fax-out { position: relative; width: min(84vw, 320px); flex: none; z-index: 1; margin-top: -1px; }
+.fax-paper { --fp: #fffdf6; position: relative; background: var(--fp); color: var(--ink); border: 1px solid var(--line); padding: 18px 18px 18px; box-shadow: var(--shadow-lift); border-radius: 0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fax-paper { --fp: #26241f; } }
+:root[data-theme="dark"] .fax-paper { --fp: #26241f; }
+.fax-paper .news-pop { gap: 12px; }
+.fax-paper h2 { margin: 0; }
+.fax-paper p { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .fax-bd { opacity: 1; } }

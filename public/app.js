@@ -223,6 +223,16 @@ const icon = {
 };
 
 function toast(msg, err = false, action = null) {
+  const box = document.getElementById('toasts');
+  if (!err && !action) { // message tout simple : un tampon encreur le pose sur l'écran
+    const el = document.createElement('div');
+    el.className = 'toast stamp';
+    el.innerHTML = `<span class="st-ink"></span><i class="st-tool" aria-hidden="true"><b></b></i>`;
+    el.querySelector('.st-ink').textContent = msg;
+    box.append(el);
+    fx.stamp(el).then(() => setTimeout(() => { const a = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 450, fill: 'forwards' }); a.finished.then(() => el.remove(), () => el.remove()); }, 1500));
+    return;
+  }
   const el = document.createElement('div');
   el.className = `toast${err ? ' err' : ''}${action ? ' has-act' : ''}`;
   el.textContent = msg;
@@ -232,7 +242,7 @@ function toast(msg, err = false, action = null) {
     b.addEventListener('click', () => { el.remove(); action.fn(); });
     el.append(b);
   }
-  document.getElementById('toasts').append(el);
+  box.append(el);
   setTimeout(() => el.remove(), err ? 4500 : action ? 9000 : 2500);
 }
 
@@ -1762,20 +1772,49 @@ async function renderPushBox() {
 const NEWS_MAX = 2; // a short run of cards, never a long parade
 let newsRun = [];
 
-function showNews(i) {
+let faxEl = null, faxBusy = false;
+function newsHtml(i) {
   const n = newsRun[i], last = i === newsRun.length - 1;
-  openSheet(`
-    <div class="stack news-pop">
+  return `<div class="stack news-pop">
       <div class="key-badge" aria-hidden="true">${ICON_PATHS[n.icon] ? ico(n.icon, 28) : ico('spark', 28)}</div>
       <span class="cl-pill">Nouveau · version ${esc(n.version)}${newsRun.length > 1 ? ` · ${i + 1}/${newsRun.length}` : ''}</span>
-      <h2 id="sheet-title">${esc(n.title)}</h2>
+      <h2 id="fax-title">${esc(n.title)}</h2>
       <p>${esc(n.text)}</p>
       <div class="row end">${last ? (n.button ? '<button class="btn ghost" data-action="close">Plus tard</button>' : '') : `<button class="btn ghost" data-action="news-next" data-i="${i + 1}">Suivant</button>`}${last && !n.button ? '<button class="btn primary" data-action="close">Compris !</button>' : ''}${n.button ? `<button class="btn primary" data-action="news-go" data-go="${esc(n.button.action)}" data-target="${esc(n.button.target || '')}">${esc(n.button.label)}</button>` : ''}</div>
-    </div>`);
+    </div>`;
 }
+/** Les nouveautés arrivent par fax : la machine tombe du haut et imprime la feuille. */
+async function showNews(i) {
+  if (faxBusy) return;
+  faxBusy = true;
+  try {
+    if (!faxEl) {
+      faxEl = document.createElement('div');
+      faxEl.className = 'fax-ov'; faxEl.setAttribute('role', 'dialog'); faxEl.setAttribute('aria-modal', 'true'); faxEl.setAttribute('aria-labelledby', 'fax-title'); faxEl.tabIndex = -1;
+      faxEl.innerHTML = `<div class="fax-bd"></div><div class="fax-m"><div class="fax-top"><i class="fax-led"></i></div><div class="fax-body"><i><s></s><s></s><s></s></i></div><div class="fax-slot"></div></div><div class="fax-out"><div class="fax-paper">${newsHtml(i)}</div></div>`;
+      faxEl.dataset.at = String(Date.now());
+      document.body.append(faxEl); bindActions(faxEl);
+      faxEl.addEventListener('click', (e) => { if (e.target === faxEl || e.target.classList.contains('fax-bd')) { if (Date.now() - Number(faxEl.dataset.at) > 600) closeFax(); } });
+      await fx.fax(faxEl);
+      faxEl.querySelector('.btn.primary')?.focus({ preventScroll: true });
+    } else {
+      await fx.faxLeave(faxEl);
+      faxEl.querySelector('.fax-paper').innerHTML = newsHtml(i);
+      faxEl.querySelector('.fax-paper').getAnimations().forEach((x) => x.cancel());
+      await fx.fax(faxEl, { again: true });
+    }
+  } finally { faxBusy = false; }
+}
+async function closeFax(fast = false) {
+  const el = faxEl; if (!el) return;
+  faxEl = null;
+  if (!fast) await fx.faxLeave(el, true);
+  el.remove();
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && faxEl) { e.preventDefault(); closeFax(); } });
 
 async function maybeNewsPopup() {
-  if (!state.me || !state.me.onboarded || sheet.open) return;
+  if (!state.me || !state.me.onboarded || sheet.open || faxEl) return;
   let list = [];
   try {
     const res = await fetch('nouveautes.json', { cache: 'no-cache' });
@@ -1785,7 +1824,7 @@ async function maybeNewsPopup() {
   let seen = store.get('seenNews2', '0.0.0');
   if (cmpVersion(seen, APP_VERSION) > 0) seen = APP_VERSION; // the version number was lowered: do not hide later pop-ups
   const fresh = list.filter((n) => cmpVersion(n.version, APP_VERSION) <= 0 && cmpVersion(n.version, seen) > 0).sort((a, b) => cmpVersion(a.version, b.version));
-  if (!fresh.length || sheet.open) return;
+  if (!fresh.length || sheet.open || faxEl) return;
   newsRun = fresh.slice(-NEWS_MAX); // the most recent ones, oldest first
   store.set('seenNews2', fresh.at(-1).version);
   showNews(0);
@@ -1935,7 +1974,7 @@ const actions = {
     await db.deletePasskey(el.dataset.id);
     toast('Clé supprimée'); loadPasskeys();
   },
-  close: closeSheet,
+  close: () => (faxEl ? closeFax() : closeSheet()),
   account: accountSheet,
   changelog: changelogSheet,
   filter: (el) => { state.filter = el.dataset.v; renderList(); },
@@ -2111,6 +2150,7 @@ const actions = {
   },
   'news-next': (el) => showNews(Number(el.dataset.i)),
   'news-go': (el) => {
+    closeFax(true);
     const go = actions[el.dataset.go]; if (!go) return closeSheet();
     go(el);
     const t = el.dataset.target; if (t) setTimeout(() => sheet.querySelector(`#${t}`)?.scrollIntoView({ block: 'center' }), 350);
@@ -2248,7 +2288,7 @@ const forms = {
   async profile(f) { await saveProfile(f); },
 };
 
-for (const root of [$app, sheet]) {
+function bindActions(root) {
   root.addEventListener('click', (e) => {
     const el = e.target.closest('[data-action]');
     if (!el || !root.contains(el)) return;
@@ -2267,6 +2307,7 @@ for (const root of [$app, sheet]) {
     run(forms[f.dataset.form])(f).finally(() => { if (btn?.isConnected) btn.disabled = false; });
   });
 }
+[$app, sheet].forEach(bindActions);
 
 $app.addEventListener('change', run(async (e) => {
   if (e.target.dataset.change === 'progress') {

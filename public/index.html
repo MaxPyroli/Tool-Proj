@@ -21,6 +21,7 @@
 <body>
   <div id="app" aria-live="polite"></div>
   <div id="toasts" role="status"></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><filter id="ink" x="-5%" y="-15%" width="110%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" seed="4" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 6.9" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in" result="g"/><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="1" seed="9" result="n2"/><feDisplacementMap in="g" in2="n2" scale="3.5"/></filter></defs></svg>
   <dialog id="sheet" aria-labelledby="sheet-title"></dialog>
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>

@@ -239,6 +239,55 @@ export async function sheetOut(body) {
   await done(body.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(14px)', opacity: 0 }], { duration: 150, easing: 'ease-in', fill: 'forwards' }));
 }
 
+// ---------- tampon (petits messages) et fax (nouveautés) ----------
+
+/** Un petit message est tamponné : le tampon (même taille que l'empreinte) arrive en rétrécissant, s'abat dessus, appuie, puis se relève
+ *  et laisse l'encre. `el` contient `.st-ink` (l'empreinte) et `.st-tool` (le tampon vu de haut). Rend la main quand le tampon est reparti. */
+export async function stamp(el) {
+  const ink = el.querySelector('.st-ink'), tool = el.querySelector('.st-tool');
+  if (!ink) return;
+  if (reduced() || !tool) { ink.style.opacity = 1; tool?.remove(); return; }
+  const R = 'rotate(-4deg)';
+  await done(tool.animate([{ transform: `translateY(-70px) ${R} scale(1.5)`, opacity: 0 }, { transform: `translateY(-20px) ${R} scale(1.15)`, opacity: 1, offset: .65 }, { transform: `translateY(-10px) ${R} scale(1.08)`, opacity: 1 }], { duration: 520, easing: 'ease-out', fill: 'forwards' }));
+  await pause(100);
+  await done(tool.animate([{ transform: `translateY(-10px) ${R} scale(1.08)` }, { transform: `translateY(0) ${R} scale(1)` }], { duration: 150, easing: 'cubic-bezier(.6, 0, 1, 1)', fill: 'forwards' }));
+  ink.style.opacity = 1; // l'encre est déposée sous le tampon, qui la cache encore
+  tool.animate([{ transform: `${R} scale(1)` }, { transform: `${R} scale(.985)` }], { duration: 240, fill: 'forwards' });
+  await pause(250);
+  ink.animate([{ transform: `${R} scale(1.04)`, opacity: .55 }, { transform: `${R} scale(1)`, opacity: 1 }], { duration: 380, easing: 'ease-out', fill: 'forwards' });
+  await done(tool.animate([{ transform: `${R} scale(.985)`, opacity: 1 }, { transform: `translateY(-26px) ${R} scale(1.15)`, opacity: 1, offset: .4 }, { transform: `translateY(-100px) ${R} scale(1.6)`, opacity: 0 }], { duration: 520, easing: 'ease-in', fill: 'forwards' }));
+  tool.remove();
+}
+
+/** Fax : la machine tombe du haut, tremble, puis la feuille sort de la fente par saccades. `again` = juste la feuille (page suivante). */
+export async function fax(ov, { again = false } = {}) {
+  const m = ov.querySelector('.fax-m'), out = ov.querySelector('.fax-out'), paper = ov.querySelector('.fax-paper'), bd = ov.querySelector('.fax-bd'), led = ov.querySelector('.fax-led');
+  if (reduced()) { out.style.overflow = 'visible'; return; }
+  const h = paper.offsetHeight;
+  out.style.height = `${h + 14}px`; out.style.overflow = 'hidden';
+  paper.animate([{ transform: 'translateY(-100%)' }, { transform: 'translateY(-100%)' }], { duration: 1, fill: 'forwards' });
+  if (!again) {
+    bd.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, fill: 'forwards' });
+    await done(m.animate([{ transform: 'translateY(-90px)', opacity: 0 }, { transform: 'translateY(6px)', opacity: 1, offset: .7 }, { transform: 'none', opacity: 1 }], { duration: 380, easing: 'ease-out', fill: 'forwards' }));
+  }
+  m.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-2px)' }, { transform: 'translateX(2px)' }, { transform: 'translateX(0)' }], { duration: 240, iterations: 3 });
+  led?.classList.add('on'); await pause(300);
+  const steps = Math.max(10, Math.min(22, Math.round(h / 14)));
+  await done(paper.animate([{ transform: 'translateY(-100%)' }, { transform: 'translateY(0)' }], { duration: 900 + steps * 45, easing: `steps(${steps}, end)`, fill: 'forwards' }));
+  led?.classList.remove('on');
+  out.style.overflow = 'visible';
+  await done(paper.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(6px) rotate(-1.2deg)' }], { duration: 280, easing: 'cubic-bezier(.3, 1.4, .5, 1)', fill: 'forwards' }));
+}
+
+/** La feuille tombe (changement de page ou fermeture) ; `all` : la machine remonte aussi et le fond s'efface. */
+export async function faxLeave(ov, all = false) {
+  const m = ov.querySelector('.fax-m'), paper = ov.querySelector('.fax-paper'), bd = ov.querySelector('.fax-bd');
+  if (reduced()) return;
+  const jobs = [done(paper.animate([{ opacity: 1 }, { transform: 'translateY(50px) rotate(4deg)', opacity: 0 }].map((k, i) => (i ? k : { ...k, transform: getComputedStyle(paper).transform })), { duration: 280, easing: 'ease-in', fill: 'forwards' }))];
+  if (all) { jobs.push(done(m.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(-90px)', opacity: 0 }], { duration: 300, easing: 'ease-in', fill: 'forwards' }))); jobs.push(done(bd.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }))); }
+  await Promise.all(jobs);
+}
+
 // ---------- déchiqueteuse (chantier, projet) ----------
 
 /** Le grand morceau de papier est avalé par la déchiqueteuse et ressort en bandelettes qui s'entassent dans le bac. `html` sert quand rien n'est à l'écran. */
