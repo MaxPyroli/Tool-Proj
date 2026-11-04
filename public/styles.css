@@ -1203,10 +1203,7 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tm { --paper:#f6f1e4;--line:#9aa3b2;--teal:#4cc1ba;--tealD:#2f8f8a;--kraft:#d4b074;--kraftD:#a3834b;--key:#f6efdd;--keyD:#b9ae93;--typed:#1d2430;--roll:#5a6475;--bail:#b4bcca;--edge:rgba(255,255,255,.3); } }
 :root[data-theme="dark"] .tm { --paper:#f6f1e4;--line:#9aa3b2;--teal:#4cc1ba;--tealD:#2f8f8a;--kraft:#d4b074;--kraftD:#a3834b;--key:#f6efdd;--keyD:#b9ae93;--typed:#1d2430;--roll:#5a6475;--bail:#b4bcca;--edge:rgba(255,255,255,.3); }
 @keyframes tm-b { 50% { opacity: 0; } }
-.tm .cover{transform-box:fill-box;transform-origin:right center;animation:tm-rev 3.4s steps(13,end) infinite}
-.tm .caret{animation:tm-cm 3.4s steps(13,end) infinite,tm-b .5s steps(2) infinite}
-@keyframes tm-rev{0%{transform:scaleX(1)}75%,100%{transform:scaleX(0)}}
-@keyframes tm-cm{0%{transform:translateX(0)}75%,100%{transform:translateX(78px)}}
+.tm .caret{animation:tm-b .5s steps(2) infinite}
 .tm .k{animation:tm-press .28s ease-in-out infinite}
 @keyframes tm-press{0%,14%,100%{transform:translateY(0)}6%{transform:translateY(3px)}}
-@media (prefers-reduced-motion: reduce) { .tm .cover, .tm .caret, .tm .k { animation: none; } .tm .cover { transform: scaleX(0); } .tm .caret { display: none; } }
+@media (prefers-reduced-motion: reduce) { .tm .caret, .tm .k { animation: none; } }
