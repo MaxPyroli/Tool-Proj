@@ -103,12 +103,36 @@ function redraw(key, draw) {
   const chips = document.querySelector('.chips')?.scrollLeft ?? 0;
   const before = same ? fx.snapshot() : null; // les éléments qui bougent glissent, les nouveaux se collent
   draw();
+  packLists(); // listes sur plusieurs colonnes : on répartit les blocs avant d'animer (les positions mesurées doivent être les bonnes)
   lastViewKey = key;
   window.scrollTo(0, same ? y : 0);
   const c = document.querySelector('.chips');
   if (c && same) c.scrollLeft = chips;
   if (before) fx.play(before); else fx.view(prevKey, key);
 }
+
+/** Liste des tâches sur ordinateur (plusieurs colonnes) : chaque bloc (chantier, tâche, titre…) occupe autant de « cases » invisibles (lignes de 6 px)
+ *  que sa hauteur, et la grille « dense » les range au mieux pour ne laisser aucun trou. Sur téléphone (une colonne), rien n'est fait. */
+const PACK_ROW = 6, PACK_GAP = 12;
+let packRO = null, packRAF = 0;
+const packSeen = new Set();
+function packLists() {
+  const boxes = [...$app.querySelectorAll('.columns.one > .col, .done-list')];
+  // un bloc change de taille (police chargée, texte…) : on répartit de nouveau ; on ignore la première notification d'un bloc qui vient d'être observé
+  packRO ||= new ResizeObserver((entries) => {
+    if (!entries.some((e) => e.target._ph !== undefined && Math.abs(e.target.getBoundingClientRect().height - e.target._ph) > 1)) return;
+    cancelAnimationFrame(packRAF); packRAF = requestAnimationFrame(packLists);
+  });
+  for (const k of packSeen) if (!k.isConnected) { packRO.unobserve(k); packSeen.delete(k); }
+  for (const box of boxes) {
+    const kids = [...box.children];
+    kids.forEach((k) => { k.style.gridRowEnd = ''; });
+    if (getComputedStyle(box).gridTemplateColumns.split(' ').length < 2) continue;
+    const hs = kids.map((k) => k.getBoundingClientRect().height);
+    kids.forEach((k, i) => { k._ph = hs[i]; k.style.gridRowEnd = `span ${Math.max(1, Math.ceil((hs[i] + PACK_GAP) / PACK_ROW))}`; if (!packSeen.has(k)) { packSeen.add(k); packRO.observe(k); } });
+  }
+}
+window.addEventListener('resize', () => { cancelAnimationFrame(packRAF); packRAF = requestAnimationFrame(packLists); });
 
 const store = {
   get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
