@@ -229,28 +229,33 @@ export function sway(list, max = 8) {
   [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg' }, { rotate: '3deg', offset: .3 }, { rotate: '-2deg', offset: .65 }, { rotate: '0deg' }], { delay: i * 45, duration: 800, easing: 'ease-in-out' }));
 }
 
-/** Coup de vent sur les post-it (mur ou grille) : le haut reste collé par son scotch, seul le bas se soulève en vague, puis retombe. */
-export function gust(wrap) {
+/** Coup de vent sur les post-it (mur ou grille) : un coin du bas se plie et se relève, du côté d'où vient le vent.
+ *  dir = 1 : on est arrivé par la droite (le vent vient de la droite, le coin droit se plie, la vague va vers la gauche) ; -1 : l'inverse. */
+export function gust(wrap, dir = 1) {
   if (reduced() || !wrap) return;
   const wr = wrap.getBoundingClientRect();
   const L = Math.max(wr.left, 0), T = Math.max(wr.top, 0), R = Math.min(wr.right, innerWidth), B = Math.min(wr.bottom, innerHeight);
   if (R - L < 10 || B - T < 10) return;
+  const right = dir >= 0;
   [...wrap.querySelectorAll('.note')].forEach((el) => {
     const r = el.getBoundingClientRect();
     if (r.right < L || r.left > R || r.bottom < T || r.top > B) return; // hors de l'écran : rien
     const rx = Math.min(1, Math.max(0, (r.left - L) / (R - L))), ry = Math.min(1, Math.max(0, (r.top - T) / (B - T)));
-    const a = rnd(17, 24), k = rnd(2, 4) * (Math.random() < .5 ? -1 : 1), w = rnd(.8, 1.8) * (Math.random() < .5 ? -1 : 1), h2 = el.offsetHeight / 2;
-    // le haut (le scotch) reste en place : on lève le bas en tournant autour du bord haut, sans toucher à transform-origin (rien ne bouge à la fin)
-    const tf = (x, sk, wob) => `perspective(520px) rotate(var(--rot)) rotate(${wob}deg) translateY(${-h2}px) rotateX(${x}deg) skewX(${sk}deg) translateY(${h2}px)`;
-    el.animate([
-      { transform: tf(0, 0, 0) },
-      { transform: tf(a, k, w * .5), offset: .2, easing: 'ease-in-out' },
-      { transform: tf(a * .45, -k * .6, -w * .4), offset: .38, easing: 'ease-in-out' },
-      { transform: tf(a * .85, k * .5, w * .7), offset: .56, easing: 'ease-in-out' },
-      { transform: tf(a * .12, -k * .25, -w * .2), offset: .76, easing: 'ease-in-out' },
-      { transform: tf(-a * .1, 0, 0), offset: .88, easing: 'ease-in-out' },
-      { transform: tf(0, 0, 0) },
-    ], { delay: rx * 380 + ry * 220 + rnd(0, 60), duration: 1400, easing: 'ease-out' });
+    const W = el.offsetWidth, H = el.offsetHeight, S = Math.min(W, H) * rnd(.3, .4), m = 40;
+    // le post-it perd son coin (découpe en biais, large marge pour garder l'ombre) ...
+    const cut = (x) => right
+      ? `polygon(${-m}px ${-m}px, ${W + m}px ${-m}px, ${W + m}px ${H - x}px, ${W}px ${H - x}px, ${W - x}px ${H}px, ${W - x}px ${H + m}px, ${-m}px ${H + m}px)`
+      : `polygon(${-m}px ${-m}px, ${W + m}px ${-m}px, ${W + m}px ${H + m}px, ${x}px ${H + m}px, ${x}px ${H}px, 0px ${H - x}px, ${-m}px ${H - x}px)`;
+    // ... et le coin replié se pose dessus (le dos du papier, un peu plus sombre)
+    const flap = document.createElement('i'); flap.className = `fx-curl ${right ? 'r' : 'l'}`; flap.setAttribute('aria-hidden', 'true');
+    el.append(flap);
+    const steps = [0, 1, .5, .82, .22, 0], offs = [0, .24, .44, .6, .8, 1];
+    const opts = { delay: (right ? 1 - rx : rx) * 380 + ry * 200 + rnd(0, 60), duration: 1300, easing: 'linear' };
+    const ease = 'ease-in-out';
+    const sh = getComputedStyle(el).boxShadow, flat = '0 1px 2px rgb(0 0 0 / .14)'; // ombre resserrée pendant le pli : pas de marche nette autour du coin découpé
+    el.animate(steps.map((k, i) => ({ clipPath: cut(k * S), boxShadow: k ? flat : sh, offset: offs[i], easing: ease })), opts);
+    flap.animate(steps.map((k, i) => ({ width: `${k * S}px`, height: `${k * S}px`, offset: offs[i], easing: ease })), opts)
+      .finished.then(() => flap.remove(), () => flap.remove());
   });
 }
 
