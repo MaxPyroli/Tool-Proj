@@ -130,22 +130,27 @@ const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
 
 const CREASES = 'conic-gradient(from 20deg at 50% 50%, rgba(0,0,0,.16) 0 7deg, transparent 7deg 32deg, rgba(255,255,255,.22) 32deg 38deg, transparent 38deg 72deg, rgba(0,0,0,.16) 72deg 80deg, transparent 80deg 124deg, rgba(255,255,255,.2) 124deg 130deg, transparent 130deg 196deg, rgba(0,0,0,.16) 196deg 204deg, transparent 204deg 252deg, rgba(255,255,255,.2) 252deg 258deg, transparent 258deg)';
 
+/** Le dessin de la corbeille (fond + devant), à placer dans un conteneur de 128 × 160 ; `uid` rend les identifiants uniques. */
+export const binHtml = (uid = 'fxb') => (binBack() + BIN_FRONT).replaceAll('fxm', `${uid}m`).replaceAll('fxc', `${uid}c`);
+
 /** Le papier se froisse en boule, est lancé en arc, puis tombe dans la corbeille grillagée (on le voit tomber à travers le grillage). */
-export async function trash(el) {
+export async function trash(el, { place = null } = {}) {
   if (!el || reduced()) return;
   const L = getLayer();
   const bin = document.createElement('div'); bin.className = 'fx-bin';
   bin.innerHTML = binBack();
   bin.insertAdjacentHTML('beforeend', BIN_FRONT);
   L.append(bin);
-  const rise = bin.animate([{ transform: 'translateY(190px)', opacity: 0 }, { transform: 'translateY(-14px)', opacity: 1, offset: .68 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.3, .7, .4, 1)', fill: 'forwards' });
+  // `place` : la corbeille du mur est déjà là (rectangle donné) : la nôtre se met exactement à sa place, sans remonter
+  if (place) Object.assign(bin.style, { left: `${place.left}px`, top: `${place.top}px`, bottom: 'auto', margin: '0', width: `${place.width}px`, height: `${place.height}px` });
+  const rise = place ? null : bin.animate([{ transform: 'translateY(190px)', opacity: 0 }, { transform: 'translateY(-14px)', opacity: 1, offset: .68 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.3, .7, .4, 1)', fill: 'forwards' });
   const r = el.getBoundingClientRect();
   const paper = getComputedStyle(el).backgroundColor, clone = ghost(el, r);
   const crease = document.createElement('i'); crease.className = 'fx-creases';
   crease.style.background = Array.from({ length: 6 }, () => `linear-gradient(${rnd(0, 180).toFixed(0)}deg, transparent 47%, rgba(0,0,0,.2) 48.5%, rgba(255,255,255,.35) 51%, transparent 52.5%) ${rnd(-30, 30).toFixed(0)}% ${rnd(-30, 30).toFixed(0)}% / ${rnd(70, 130).toFixed(0)}% ${rnd(70, 130).toFixed(0)}% no-repeat`).join(', ');
   clone.append(crease);
   L.append(clone); el.style.visibility = 'hidden';
-  await done(rise);
+  if (rise) await done(rise);
   const w = r.width, h = r.height, cx = w / 2, cy = h / 2, N = 16;
   // contour de départ : le rectangle (16 points) ; contour d'arrivée : une boulette irrégulière (16 points)
   const per = N / 4, rect = [];
