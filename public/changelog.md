@@ -3,33 +3,10 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
-- Mon compte → « Tester les animations » : un simulateur avec un bouton par animation (corbeille, déchiqueteuse chantier ou projet, pose d'une tâche, déplacement), avec de faux éléments.
-- Par statut : tu peux déposer une tâche n'importe où dans une autre colonne, même par-dessus les autres tâches. Sur téléphone, appuie longtemps sur la tâche puis dépose-la sur l'onglet « À faire », « En cours » ou « Fait ».
-- Animations : la tâche que tu déplaces, ranges ou modifies glisse jusqu'à sa nouvelle place au lieu de sauter, et une nouvelle tâche se colle avec un petit rebond. Rien ne bouge quand ce n'est pas toi qui agis.
-- Suppression animée : une tâche ou un post-it supprimé se froisse en boule irrégulière, est lancé et tombe dans une corbeille à papier de bureau en métal grillagé (on le voit tomber à travers le grillage) ; un chantier ou un projet est avalé par une déchiqueteuse (verte, avec son étiquette « à déchiqueter ») et ses bandelettes s'entassent dans un carton « à recycler ».
-- Supprimer un chantier : une case permet de supprimer aussi ses tâches ; décochée, elles sont gardées, hors chantier.
-- Fenêtres : la barre « Enregistrer » épinglée ne cache plus le haut du titre qui suit (les accents de « Clés d'accès » étaient coupés).
-- Mon compte : tout le menu est une carte d'accès (badge de bureau) accrochée à une lanière qui passe dans la fente, avec ton profil en haut. La carte entière défile, et ton profil (nom, identifiant, icône, couleur) s'enregistre tout seul à chaque changement : plus de bouton « Enregistrer ».
-- Intercalaires : l'onglet actif et son bandeau de couleur ne font plus qu'un (sur ordinateur).
-- Chantiers : « Ensuite » disparaît (« Plus tard » fait le même travail). En « Plus tard », les chantiers sont des calepins fermés empilés, avec seulement le titre : on les ouvre au toucher. Dans « Par statut », les tâches de ces chantiers sont rangées (un lien permet de les afficher).
-- Titre barré : le trait de feutre se trace sur le texte de gauche à droite quand on coche, et se rétracte quand on décoche. La tâche reste en place pendant l'animation.
-- Détails d'une tâche : la zone s'agrandit avec le texte, sans poignée de redimensionnement.
-- Équipe : ton propre nom est en gras, les autres sont plus discrets.
-- Le « + » d'un chantier devient un mini sticker.
-- Les onglets du projet (Aperçu, Tâches, Post-it, Équipe) deviennent des intercalaires de classeur colorés : l'onglet actif dépasse, avec un bandeau de sa couleur sur toute la largeur. En haut sur ordinateur ; sur téléphone, la bande colorée est tout en bas de l'écran et les intercalaires reposent dessus, sans fond derrière.
-- Les fenêtres (ajout, modification, compte…) sont de petites feuilles d'un carnet prédécoupé : bord du haut en encoches, papier ligné avec marge rouge qui défile avec le contenu, boutons du bas épinglés sur la feuille. Papier crème en clair, papier sombre en mode sombre.
-- Liste des projets : chaque projet est une chemise cartonnée à la couleur du projet, avec son nom écrit à la main, son état sur l'onglet et son icône collée en pastille. Couleur unie, toutes de la même taille. Au survol, la chemise s'entrouvre et la feuille monte.
-- Mode sombre : les blocs-notes de chantier et les badges d'équipe passent sur du papier sombre, et les tâches sont plus sombres (elles gardent leur couleur par type).
-- Fini le coin arrondi tout seul : post-it, tâches et chantiers ont les coins droits.
-- Équipe : chaque personne a un badge de bureau à lanière (rôle en bandeau, icône, nom). Il se balance un peu quand on passe dessus.
-- La Feuille de route disparaît : il ne reste qu'un affichage, le Tableau. « Par chantier » range les chantiers par moment (Maintenant, Ensuite, Plus tard), avec les tâches sans chantier signalées en dessous. Chaque chantier a une ligne « N terminées » à déplier. Les tâches faites sont fanées pour s'effacer derrière le reste, et les tâches sans chantier s'étalent sur plusieurs colonnes.
-- Cocher une tâche : la coche se trace au feutre vert et le titre se barre, avec une petite animation.
-- Le texte sélectionné apparaît surligné en jaune.
-- Boutons principaux en étiquettes adhésives : droits au repos, ils se penchent un peu et leur coin se décolle quand on passe dessus ou qu'on appuie.
-- Tampon rouge « URGENT » sur les tâches de priorité haute, surligneur jaune avec ==texte==, et filtres en étiquettes cartonnées à œillet et ficelle.
-- Tableau : les chantiers prennent l'allure d'un bloc-note à spirale (papier ligné teinté selon le moment). Plus compact : titre, avancement (« 1/2 ») et « + » tiennent sur une ligne. La Feuille de route a le même style.
-- Tableau : glisse une tâche sur un chantier (le grand post-it) pour la ranger dedans, ou sur « hors chantier » pour l'en sortir. Sur téléphone : appuie longtemps sur la tâche, puis glisse-la.
-- Accès pour Claude : à chaque nouvelle conversation, Claude te demande sur quel projet travailler, puis reste sur ce projet uniquement (il ne voit plus les autres ; pour en changer, il suffit de le lui demander).
+- Nouveau look « bureau » (papier, chemises, classeur, post-it, badges), avec un vrai mode sombre.
+- Les tâches s'affichent dans un seul Tableau, par statut ou par chantier : glisse-les où tu veux (sur téléphone, appui long puis dépose).
+- Animations : les tâches glissent à leur place ; supprimer part à la corbeille (tâche, post-it) ou à la déchiqueteuse (chantier, projet). Pour un chantier, tu choisis de garder ou non ses tâches.
+- Mon compte s'enregistre tout seul ; Claude reste sur un seul projet par conversation.
 
 ## 0.21.3
 - Images dans les tâches : colle une capture (ou glisse-la, ou touche l'icône image) dans la description d'une tâche, d'un bug ou d'une idée. Les miniatures restent dans la zone de texte, tu les touches pour les voir en grand. 8 images au plus, réduites automatiquement ; seuls les membres du projet les voient.
