@@ -648,11 +648,12 @@ function renderProject() {
   ${state.tab === 'taches' ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`; });
 
   const wallEl = state.tab === 'idees' && state.boardView === 'wall' ? $app.querySelector('.board-wrap.wall') : null;
-  if (wallEl) {
-    bindWall(wallEl);
-    const gk = `${p.id}/${state.wall?.fs ? 'fs' : ''}`;
-    if (state.gustKey !== gk) { state.gustKey = gk; requestAnimationFrame(() => fx.gust(wallEl)); } // coup de vent à l'arrivée sur le mur
-  } else { wallApi = null; state.gustKey = null; }
+  if (wallEl) bindWall(wallEl); else wallApi = null;
+  // coup de vent sur les post-it à chaque arrivée sur l'onglet (mur ou grille ; une fois par arrivée, pas à chaque redessin)
+  if (state.tab === 'idees') {
+    const gk = `${p.id}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`;
+    if (state.gustKey !== gk) { state.gustKey = gk; const box = wallEl || $app.querySelector('.note-grid'); if (box) requestAnimationFrame(() => fx.gust(box)); }
+  } else state.gustKey = null;
   if (state.tab === 'taches') bindTaskDnD();
 }
 

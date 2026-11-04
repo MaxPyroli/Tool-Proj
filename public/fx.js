@@ -229,22 +229,23 @@ export function sway(list, max = 8) {
   [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg' }, { rotate: '3deg', offset: .3 }, { rotate: '-2deg', offset: .65 }, { rotate: '0deg' }], { delay: i * 45, duration: 800, easing: 'ease-in-out' }));
 }
 
-/** Coup de vent sur le mur : les post-it visibles, accrochés par leur scotch, se balancent en vague de gauche à droite. */
+/** Coup de vent sur les post-it (mur ou grille) : une vague les soulève un peu, ils flottent un instant, puis se reposent. */
 export function gust(wrap) {
   if (reduced() || !wrap) return;
-  const wr = wrap.getBoundingClientRect(); if (!wr.width) return;
+  const wr = wrap.getBoundingClientRect();
+  const L = Math.max(wr.left, 0), T = Math.max(wr.top, 0), R = Math.min(wr.right, innerWidth), B = Math.min(wr.bottom, innerHeight);
+  if (R - L < 10 || B - T < 10) return;
   [...wrap.querySelectorAll('.note')].forEach((el) => {
     const r = el.getBoundingClientRect();
-    if (r.right < wr.left || r.left > wr.right || r.bottom < wr.top || r.top > wr.bottom) return; // hors de l'écran : rien
-    const rel = Math.min(1, Math.max(0, (r.left - wr.left) / wr.width)), a = rnd(4.5, 7), dx = rnd(3, 7);
-    el.style.transformOrigin = '50% 0';
+    if (r.right < L || r.left > R || r.bottom < T || r.top > B) return; // hors de l'écran : rien
+    const rx = Math.min(1, Math.max(0, (r.left - L) / (R - L))), ry = Math.min(1, Math.max(0, (r.top - T) / (B - T)));
+    const lift = rnd(9, 14), tilt = rnd(2.5, 4.5), sc = rnd(1.05, 1.09);
     el.animate([
-      { rotate: '0deg', translate: '0 0' },
-      { rotate: `${a}deg`, translate: `${dx}px 0`, offset: .25 },
-      { rotate: `${-a * .7}deg`, translate: `${-dx * .5}px 0`, offset: .5 },
-      { rotate: `${a * .35}deg`, translate: `${dx * .2}px 0`, offset: .75 },
-      { rotate: '0deg', translate: '0 0' },
-    ], { delay: rel * 420 + rnd(0, 70), duration: 1100, easing: 'ease-in-out' }).finished.then(() => { el.style.transformOrigin = ''; }, () => {});
+      { translate: '0 0', scale: 1, rotate: '0deg', boxShadow: 'var(--note-sh, 0 6px 14px -4px rgb(0 0 0 / .25))' },
+      { translate: `${lift * .6}px ${-lift}px`, scale: sc, rotate: `${tilt}deg`, boxShadow: '0 22px 26px -10px rgb(0 0 0 / .35)', offset: .3, easing: 'ease-in-out' },
+      { translate: `${lift * .3}px ${-lift * .65}px`, scale: sc - .02, rotate: `${-tilt * .45}deg`, boxShadow: '0 16px 20px -8px rgb(0 0 0 / .3)', offset: .55, easing: 'ease-in-out' },
+      { translate: '0 0', scale: 1, rotate: '0deg', boxShadow: 'var(--note-sh, 0 6px 14px -4px rgb(0 0 0 / .25))' },
+    ], { delay: rx * 380 + ry * 220 + rnd(0, 60), duration: 1000, easing: 'ease-out' });
   });
 }
 
