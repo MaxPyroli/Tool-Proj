@@ -226,7 +226,7 @@ export function view(prevKey, key) {
 /** Les badges accrochés se balancent une fois, l'un après l'autre. */
 export function sway(list, max = 8) {
   if (reduced()) return;
-  [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg' }, { rotate: '3deg', offset: .3 }, { rotate: '-2deg', offset: .65 }, { rotate: '0deg' }], { delay: i * 45, duration: 800, easing: 'ease-in-out' }));
+  [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg', easing: 'ease-out' }, { rotate: '3deg', offset: .2, easing: 'ease-in-out' }, { rotate: '-2deg', offset: .55, easing: 'ease-in-out' }, { rotate: '0deg' }], { delay: i * 30, duration: 750, easing: 'linear' }));
 }
 
 /** Coup de vent sur les post-it (mur ou grille) : un coin du bas se plie et se relève, du côté d'où vient le vent.
@@ -241,7 +241,7 @@ export function gust(wrap, dir = 1) {
     const r = el.getBoundingClientRect();
     if (r.right < L || r.left > R || r.bottom < T || r.top > B) return; // hors de l'écran : rien
     const rx = Math.min(1, Math.max(0, (r.left - L) / (R - L))), ry = Math.min(1, Math.max(0, (r.top - T) / (B - T)));
-    const W = el.offsetWidth, H = el.offsetHeight, S = Math.min(W, H) * rnd(.3, .4), m = 40;
+    const W = el.offsetWidth, H = el.offsetHeight, S = Math.min(W, H) * rnd(.17, .22), m = 40;
     // le post-it perd son coin (découpe en biais, large marge pour garder l'ombre) ...
     const cut = (x) => right
       ? `polygon(${-m}px ${-m}px, ${W + m}px ${-m}px, ${W + m}px ${H - x}px, ${W}px ${H - x}px, ${W - x}px ${H}px, ${W - x}px ${H + m}px, ${-m}px ${H + m}px)`
@@ -249,8 +249,8 @@ export function gust(wrap, dir = 1) {
     // ... et le coin replié se pose dessus (le dos du papier, un peu plus sombre)
     const flap = document.createElement('i'); flap.className = `fx-curl ${right ? 'r' : 'l'}`; flap.setAttribute('aria-hidden', 'true');
     el.append(flap);
-    const steps = [0, 1, .5, .82, .22, 0], offs = [0, .24, .44, .6, .8, 1];
-    const opts = { delay: (right ? 1 - rx : rx) * 380 + ry * 200 + rnd(0, 60), duration: 1300, easing: 'linear' };
+    const steps = [0, 1, .35, .55, 0], offs = [0, .22, .48, .66, 1];
+    const opts = { delay: (right ? 1 - rx : rx) * 160 + ry * 90, duration: 950, easing: 'linear' };
     const ease = 'ease-in-out';
     const sh = getComputedStyle(el).boxShadow, flat = '0 1px 2px rgb(0 0 0 / .14)'; // ombre resserrée pendant le pli : pas de marche nette autour du coin découpé
     el.animate(steps.map((k, i) => ({ clipPath: cut(k * S), boxShadow: k ? flat : sh, offset: offs[i], easing: ease })), opts);
