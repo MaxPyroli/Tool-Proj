@@ -228,7 +228,7 @@ function toast(msg, err = false, action = null) {
   const box = document.getElementById('toasts');
   if (!err && !action) { // message tout simple : un tampon encreur le pose sur l'écran
     const el = document.createElement('div');
-    el.className = 'toast stamp';
+    el.className = 'toast st-toast';
     el.innerHTML = `<span class="st-ink"></span><i class="st-tool" aria-hidden="true"><b></b></i>`;
     el.querySelector('.st-ink').textContent = msg;
     box.append(el);
