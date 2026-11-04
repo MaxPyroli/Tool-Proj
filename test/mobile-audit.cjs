@@ -103,6 +103,9 @@ async function audit(p, label) {
   if (y3 < y2 - 40) problems.push('défilement perdu (temps réel)');
   await p.evaluate(() => window.scrollTo(0, 0)); await wait(200);
   await p.click('#task-new'); await wait(300);
+  // un navigateur sans vrai clavier n'en ouvre pas : on simule le clavier (la fenêtre visible rétrécit de 300 px)
+  const bNoKb = await bar(); log('barre avec un champ actif mais SANS clavier ouvert :', JSON.stringify(bNoKb), bNoKb?.vis ? '✓ reste affichée' : '✗ cachée sans clavier'); if (!bNoKb?.vis) problems.push('barre cachée sans clavier');
+  await p.evaluate(() => { Object.defineProperty(window.visualViewport, 'height', { configurable: true, get: () => innerHeight - 300 }); window.visualViewport.dispatchEvent(new Event('resize')); }); await wait(300);
   const b2 = await bar(); log('barre quand le clavier est ouvert (champ actif) :', JSON.stringify(b2), b2?.vis ? '✗ reste affichée (elle saute au-dessus du clavier)' : '✓ masquée');
   if (b2?.vis) problems.push('barre visible avec le clavier');
   console.log('\nRÉSUMÉ', WIDTH, 'px :', problems.length ? problems : 'aucun problème', '| erreurs JS :', errors.filter((e) => !/Failed to load resource/.test(e)));

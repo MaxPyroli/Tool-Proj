@@ -285,8 +285,21 @@ function applyTheme() {
 // ---------- sheet (modal) ----------
 
 let sheetCleanup = null, sheetAt = 0, sheetToken = 0;
+// Le bouton « retour » (Android, geste) ferme la feuille au lieu de quitter l'écran : une entrée d'historique est ajoutée à l'ouverture et retirée à la fermeture.
+let sheetPushed = false, skipPop = false;
+const dropSheetEntry = (navigating) => {
+  if (!sheetPushed) return;
+  sheetPushed = false;
+  if (navigating) history.replaceState(null, ''); // on part ailleurs tout de suite : l'entrée reste mais ne sert plus
+  else if (history.state?.sheet) { skipPop = true; history.back(); }
+};
+window.addEventListener('popstate', (e) => {
+  if (skipPop) { skipPop = false; e.stopImmediatePropagation(); return; }
+  if (sheetPushed) { sheetPushed = false; e.stopImmediatePropagation(); closeSheet(); }
+});
 function openSheet(html, onMount) {
   sheetToken++;
+  if (!sheet.open && !sheetPushed) { history.pushState({ sheet: 1 }, ''); sheetPushed = true; }
   sheetCleanup?.();
   sheetCleanup = null;
   sheet.classList.remove('badge-sheet');
@@ -299,16 +312,17 @@ function openSheet(html, onMount) {
   const auto = sheet.querySelector('[autofocus]');
   if (auto && !isPhone()) auto.focus();
 }
-function closeSheet() {
+function closeSheet(opt) {
   sheetCleanup?.();
   sheetCleanup = null;
+  dropSheetEntry(opt?.navigating);
   if (!sheet.open) return;
   const t = ++sheetToken;
   fx.sheetOut(sheet.querySelector('.sheet-body')).then(() => { if (t === sheetToken && sheet.open) sheet.close(); });
 }
 // the click that follows a tap lands on the backdrop right after opening: ignore it
 sheet.addEventListener('click', (e) => { if (e.target === sheet && Date.now() - sheetAt > 450) closeSheet(); });
-sheet.addEventListener('close', () => { sheetCleanup?.(); sheetCleanup = null; });
+sheet.addEventListener('close', () => { sheetCleanup?.(); sheetCleanup = null; dropSheetEntry(false); });
 // Live preview of **bold** / *italic* / __underline__ under long text fields (only when there is some markup).
 /** Textareas of a sheet grow with their text (no resize handle). */
 function autoGrow(ta) {
@@ -353,7 +367,7 @@ function route() {
   if (parts[0] === 'p' && parts[1]) return { name: 'project', id: Number(parts[1]), tab: parts[2] || 'apercu' };
   return { name: 'list' };
 }
-window.addEventListener('hashchange', () => { closeSheet(); render(); });
+window.addEventListener('hashchange', () => { closeSheet({ navigating: true }); render(); });
 
 async function render() {
   document.body.classList.remove('with-tabbar');
@@ -2292,7 +2306,7 @@ const actions = {
   logout: async () => {
     try { const sub = await thisDeviceSubscription(); if (sub) { await db.deletePushSubscription(sub.endpoint); await sub.unsubscribe(); } } catch { /* offline: it will be cleaned on the next failed send */ }
     await db.signOut();
-    closeSheet(); subscribe(null); state.me = null; state.authStep = 'email'; state.projects = []; state.data = null; state.pid = null;
+    closeSheet({ navigating: true }); subscribe(null); state.me = null; state.authStep = 'email'; state.projects = []; state.data = null; state.pid = null;
     location.hash = '#/'; render();
   },
 };
@@ -2320,7 +2334,7 @@ const forms = {
   },
   async 'new-project'(f) {
     const id = await db.createProject(formData(f));
-    closeSheet(); location.hash = `#/p/${id}`;
+    closeSheet({ navigating: true }); location.hash = `#/p/${id}`;
   },
   async 'edit-project'(f) {
     const body = formData(f);
@@ -2462,8 +2476,12 @@ document.addEventListener('visibilitychange', run(async () => { if (!document.hi
 
 // The bottom bar and the round button jump above the keyboard on phones: hide them while typing.
 const TYPING = 'input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=radio]), textarea, select';
-document.addEventListener('focusin', (e) => { if (e.target.matches?.(TYPING) && !e.target.closest('dialog')) document.body.classList.add('kbd'); });
-document.addEventListener('focusout', () => setTimeout(() => { if (!document.activeElement?.matches?.(TYPING)) document.body.classList.remove('kbd'); }, 80));
+// Elle ne se cache que si le clavier est vraiment ouvert : sur Android, fermer le clavier (retour) laisse le champ actif, et la barre restait cachée.
+const kbdOpen = () => { const vv = window.visualViewport; return !vv || window.innerHeight - vv.height > 120; };
+const syncKbd = () => document.body.classList.toggle('kbd', !!document.activeElement?.matches?.(TYPING) && !document.activeElement.closest('dialog') && kbdOpen());
+document.addEventListener('focusin', () => setTimeout(syncKbd, 60)); // le temps que le clavier s'ouvre
+document.addEventListener('focusout', () => setTimeout(syncKbd, 80));
+window.visualViewport?.addEventListener('resize', syncKbd);
 // Keep bottom sheets above the keyboard (iOS keeps the layout the same size and covers the bottom).
 if (window.visualViewport) {
   const sync = () => {

@@ -222,11 +222,11 @@ export function view(prevKey, key) {
   const a = parse(prevKey), b = parse(key);
   const page = document.querySelector('main.page'); if (!page) return;
   const o = { fill: 'none' };
-  const root = document.documentElement; root.style.overflowX = 'hidden'; setTimeout(() => { root.style.overflowX = ''; }, 500); // la page qui glisse ne doit jamais élargir l'écran
+  const root = document.documentElement; root.style.overflowX = 'hidden'; setTimeout(() => { root.style.overflowX = ''; }, 700); // la page qui glisse ne doit jamais élargir l'écran
   if (a && b && a.id === b.id) {
     if (a.tab === b.tab) return;
     const dir = TAB_ORDER.indexOf(b.tab) > TAB_ORDER.indexOf(a.tab) ? 1 : -1;
-    page.animate([{ transform: `translateX(${dir * 22}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 240, easing: 'cubic-bezier(.2, .8, .3, 1)' });
+    page.animate([{ transform: `translateX(${dir * 36}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 420, easing: 'cubic-bezier(.22, .8, .3, 1)' });
     // l'onglet s'étend vers le haut sans se déformer (le contenu garde sa forme) : on révèle sa partie haute, le bas reste collé au bandeau ; la zone révélée déborde de 16 px pour ne jamais couper l'ombre
     document.querySelector('.tab[aria-current]')?.animate([{ clipPath: 'inset(18px -16px -16px -16px)' }, { clipPath: 'inset(-16px -16px -16px -16px)' }], { ...o, duration: 380, easing: 'cubic-bezier(.2, .9, .3, 1.2)' });
   } else if (b && !a) {
