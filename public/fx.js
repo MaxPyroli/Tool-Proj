@@ -98,8 +98,8 @@ function bits(x, y, { n = 9, power = 90, up = 70, colors = ['#fffdf6', '#f3e9c9'
 
 // ---------- corbeille (tâches, post-it) : une corbeille à papier de bureau en métal grillagé ----------
 
-// le corps suit la perspective : le haut est l'arc avant du bord (au-dessus, on voit l'intérieur sombre), le bas est droit
-const MESH_BODY = 'M13 34A47 10 0 0 0 107 34L98 136H22Z';
+// le corps suit la perspective : le haut est l'arc avant du bord (au-dessus, on voit l'intérieur sombre), le bas est un arc arrondi qui répond à celui du bord
+const MESH_BODY = 'M13 34A47 10 0 0 0 107 34L98 134A38 9 0 0 1 22 134Z';
 /** Contour irrégulier d'une boulette de papier : n points autour de (cx, cy), rayon et angle un peu au hasard. */
 const blobPts = (cx, cy, r, n = 12) => Array.from({ length: n }, (_, i) => {
   const a = (i / n) * Math.PI * 2 + rnd(-.18, .18), k = rnd(.68, 1.04) * (i % 3 === 0 ? .9 : 1);
@@ -111,7 +111,7 @@ const svgBall = (cx, cy, r) => {
   return `<path d="${d}" fill="${Math.random() < .5 ? '#fffdf6' : '#f4ecd0'}" stroke="#cfc4a0" stroke-width="1.4" stroke-linejoin="round"/><path d="${cr}" stroke="#cfc4a0" stroke-width="1.1" fill="none" stroke-linecap="round"/>`;
 };
 const binBack = () => `<svg viewBox="0 0 120 150" aria-hidden="true">
-  <ellipse cx="60" cy="146" rx="46" ry="5" fill="rgba(0,0,0,.2)"/>
+  <ellipse cx="60" cy="146" rx="46" ry="4.5" fill="rgba(0,0,0,.2)"/>
   <ellipse cx="60" cy="34" rx="47" ry="10" fill="#262c38"/>
   <g>${svgBall(41, 123, 10)}${svgBall(75, 122, 11)}${svgBall(58, 112, 9.5)}</g>
 </svg>`;
@@ -122,9 +122,9 @@ const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
   </defs>
   <path d="${MESH_BODY}" fill="rgba(150,165,185,.14)"/>
   <rect x="0" y="30" width="120" height="116" fill="url(#fxm)" clip-path="url(#fxc)"/>
-  <path d="M19 39L26 136M40 43L43 136M60 44V136M80 43L77 136M101 39L94 136" stroke="#3b4352" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M19 39L26 138M40 43L43 142M60 44V143M80 43L77 142M101 39L94 138" stroke="#3b4352" stroke-width="3" stroke-linecap="round" fill="none"/>
   <path d="M16 38L23 132" stroke="rgba(255,255,255,.45)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-  <path d="M20 137.5H100" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M22 134A38 9 0 0 0 98 134" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
   <path d="M13 34A47 10 0 0 0 107 34" stroke="#3b4352" stroke-width="7" fill="none" stroke-linecap="round"/>
   <path d="M13 34A47 10 0 0 1 107 34" stroke="#4a5365" stroke-width="5" fill="none" stroke-linecap="round"/>
 </svg>`;
