@@ -73,9 +73,9 @@ const getLayer = () => {
 };
 const ghost = (el, rect, position = 'fixed') => {
   const c = el.cloneNode(true);
-  c.classList.add('fx-clone');
+  c.classList.add('fx-clone'); c.classList.remove('just-added'); // l'animation « post-it tout juste collé » écraserait sa position
   c.removeAttribute('data-fx'); c.removeAttribute('data-action'); c.removeAttribute('draggable');
-  Object.assign(c.style, { position, left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, margin: '0', transform: 'none', rotate: 'none', translate: 'none', zIndex: '2', visibility: 'visible' });
+  Object.assign(c.style, { position, left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, margin: '0', transform: 'none', rotate: 'none', translate: 'none', animation: 'none', zIndex: '2', visibility: 'visible' });
   return c;
 };
 const rnd = (a, b) => a + Math.random() * (b - a);

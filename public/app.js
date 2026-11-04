@@ -1331,9 +1331,9 @@ function bindTaskDnD() {
   const begin = () => {
     const r = g.el.getBoundingClientRect();
     g.active = true; state.dragging = true; g.ox = g.x - r.left; g.oy = g.y - r.top;
-    const ghost = g.el.cloneNode(true); ghost.classList.add('dnd-ghost', 'fx-copy'); ['data-action', 'data-id', 'data-note', 'tabindex'].forEach((k) => ghost.removeAttribute(k));
+    const ghost = g.el.cloneNode(true); ghost.classList.remove('just-added'); ghost.classList.add('dnd-ghost', 'fx-copy'); ['data-action', 'data-id', 'data-note', 'tabindex'].forEach((k) => ghost.removeAttribute(k));
     // transition coupée et position posée AVANT l'ajout : sinon le fantôme glisse depuis le coin en haut à gauche (`.note` a une transition sur transform)
-    ghost.style.cssText = `position:fixed;left:0;top:0;width:${r.width}px;margin:0;z-index:99999;pointer-events:none;transition:none;transform:translate(${r.left}px, ${r.top}px) rotate(3deg);`;
+    ghost.style.cssText = `position:fixed;left:0;top:0;width:${r.width}px;margin:0;z-index:99999;pointer-events:none;transition:none;animation:none;transform:translate(${r.left}px, ${r.top}px) rotate(3deg);`;
     document.body.append(ghost); g.ghost = ghost; g.el.classList.add('held');
     getBin().classList.add('armed');
     navigator.vibrate?.(15);

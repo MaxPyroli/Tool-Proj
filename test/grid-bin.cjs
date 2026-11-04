@@ -32,6 +32,7 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   await p.evaluate(() => document.getElementById('sheet').close()); await wait(500);
   // 2. appui long : le post-it est attrapé, la corbeille monte, il n'ouvre rien
   const n0 = await countNotes();
+  await p.evaluate(() => document.querySelectorAll('.note-grid .note')[1].classList.add('just-added')); // comme un post-it qu'on vient d'ajouter (animation d'arrivée)
   await touch('touchStart', [c0]); await wait(420);
   const gpos = await p.evaluate(() => { const g = document.querySelector('.note.dnd-ghost'); if (!g) return null; const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
   ok(!!gpos && Math.hypot(gpos.x - c0.x, gpos.y - c0.y) < 40, 'à l\'attrape, le post-it reste sous le doigt (pas de saut en haut)', JSON.stringify({ gpos, c0 }));
