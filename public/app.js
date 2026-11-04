@@ -14,6 +14,7 @@ const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨
 // Drawn icons (follow the text colour): interface, project and profile pictures.
 const ICON_PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  trash: '<path d="M4.500 7h15M9.500 7V4.500h5V7M6.500 7l1 13h9l1-13M10.500 11v5.500M13.500 11v5.500"/>',
   chev: '<path d="M6 9l6 6 6-6"/>',
   image: '<rect x="3.500" y="5" width="17" height="14" rx="2.500"/><path d="M3.500 16l4.500-4.500 4 4 3-3 5.500 5.500M15.500 9.500h.01"/>',
   bell: '<path d="M6 16.500V11a6 6 0 0 1 12 0v5.500l1.500 2h-15l1.500-2zM10 20.500a2 2 0 0 0 4 0"/>',
@@ -789,6 +790,7 @@ function viewNotes(d) {
         <div class="board" style="width:${BOARD_W}px;height:${BOARD_H}px">${sorted.map((n) => noteHtml(n, true)).join('')}</div>
         <div class="wall-top"><button class="btn sm" data-action="wall-exit">${ico('x', 15)} Fermer</button><span class="wall-title">Post-it · ${d.notes.length}</span><button class="btn sm primary" data-action="new-note">+ Post-it</button></div>
         <div class="minimap" aria-hidden="true"></div>
+        <div class="wall-bin" role="img" aria-label="Corbeille : glisse un post-it ici pour le jeter">${ico('trash', 26)}</div>
         <div class="wall-bar" role="toolbar" aria-label="Zoom et rangement">
           <button class="wb" data-action="wall-zoom" data-v="out" aria-label="Dézoomer">−</button>
           <button class="wb zoom-val" data-action="wall-100" aria-label="Revenir à 100 %">100 %</button>
@@ -1529,8 +1531,17 @@ function bindWall(wrap) {
   const ptrs = new Map();   // every finger down: pointerId -> {x, y}
   const drags = new Map();  // pointerId -> post-it being moved by that finger
   let pan = null, pinch = null, edge = 0;
-  const ignore = (t) => t.closest('.wall-bar, .wall-top, .minimap, .vote');
+  const ignore = (t) => t.closest('.wall-bar, .wall-top, .minimap, .wall-bin, .vote');
 
+  // corbeille du mur : un post-it lâché dessus est jeté
+  const bin = wrap.querySelector('.wall-bin');
+  const overBin = (cx, cy) => { if (!bin) return false; const r = bin.getBoundingClientRect(), m = 10; return cx >= r.left - m && cx <= r.right + m && cy >= r.top - m && cy <= r.bottom + m; };
+  const binOff = () => bin?.classList.remove('armed', 'over');
+  async function throwAway(d) {
+    d.el.classList.remove('dragging');
+    try { await removeWith('trash', d.el, () => db.deleteNote(d.id)); toast('Post-it décollé'); }
+    finally { await reloadProject(); }
+  }
   function posNote(d, cx, cy) {
     const p = toWorld(cx, cy);
     const x = Math.max(0, Math.min(BOARD_W - WALL.noteW, p.x - d.gx)), y = Math.max(10, Math.min(BOARD_H - WALL.noteH, p.y - d.gy));
@@ -1541,7 +1552,7 @@ function bindWall(wrap) {
   const refreshFlags = () => { state.dragging = [...drags.values()].some((d) => d.moved); state.panning = ptrs.size > 0; };
   function dropDrag(d, restore) {
     if (restore && d.moved) { d.el.style.left = `${d.ox}px`; d.el.style.top = `${d.oy}px`; }
-    d.el.classList.remove('dragging');
+    d.el.classList.remove('dragging'); binOff();
   }
   function resetGestures() { // forget fingers that never reported "up" (system gesture, lost event…)
     for (const d of drags.values()) dropDrag(d, true);
@@ -1614,6 +1625,7 @@ function bindWall(wrap) {
       if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) return;
       if (!d.moved) { d.moved = true; d.el.classList.add('dragging'); refreshFlags(); }
       posNote(d, e.clientX, e.clientY); queueMini();
+      bin?.classList.add('armed'); bin?.classList.toggle('over', overBin(e.clientX, e.clientY));
       if (!edge) edge = requestAnimationFrame(edgeLoop);
     } else if (pan && pan.pid === e.pointerId) {
       const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy;
@@ -1638,6 +1650,9 @@ function bindWall(wrap) {
     const n = state.data.notes.find((x) => x.id === d.id);
     refreshFlags();
     if (!d.moved) { d.el.classList.remove('dragging'); if (e.type === 'pointerup' && n && !ptrs.size) noteSheet(n); return; }
+    const thrown = e.type === 'pointerup' && overBin(e.clientX, e.clientY);
+    if (!drags.size) binOff();
+    if (thrown) { await throwAway(d); return; }
     // Put the note in front right away, locally: otherwise it drops behind the others until the save comes back.
     const x = Math.round(parseFloat(d.el.style.left)), y = Math.round(parseFloat(d.el.style.top));
     const z = Math.max(0, ...state.data.notes.map((o) => o.z)) + 1;

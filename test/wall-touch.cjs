@@ -100,6 +100,17 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   const camH = await cam();
   ok(Math.abs((camH.x - camG.x) - dir * 60) < 4 && Math.abs(camH.k - camG.k) < 0.001, 'un doigt fantôme ne bloque plus : un doigt déplace la vue', `(Δ ${Math.round(camH.x - camG.x)}, zoom ${Math.round(camH.k * 100)} %)`);
 
+  // S5 : un post-it déposé au doigt sur la corbeille est jeté
+  await p.click('[data-action="wall-fit"]'); await wait(450); await p.click('[data-action="wall-zoom"][data-v="in"]'); await wait(450);
+  const countNotes = async () => (await (await fetch(`${API}/notes?project_id=eq.${pid}&select=id`, { headers: H })).json()).length;
+  const nBefore = await countNotes();
+  const tn = await visibleNote([n1.t]); const binR = await p.evaluate(() => { const r = document.querySelector('.wall-bin').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await touch('touchStart', [{ x: tn.x, y: tn.y }]);
+  for (let i = 1; i <= 10; i++) await touch('touchMove', [{ x: tn.x + (binR.x - tn.x) * i / 10, y: tn.y + (binR.y - tn.y) * i / 10 }]);
+  ok(await p.evaluate(() => document.querySelector('.wall-bin').classList.contains('over')), 'au doigt : la corbeille s\'allume sous le post-it');
+  await touch('touchEnd', []); await wait(4000);
+  ok((await countNotes()) === nBefore - 1, 'au doigt : le post-it lâché sur la corbeille est supprimé', `(${nBefore} → ${await countNotes()})`);
+
   console.log('ERREURS :', errors.filter((e) => !/Failed to load resource/.test(e)));
   console.log(fails ? `${fails} en échec` : 'Tout est vert'); await b.close();
 })().catch((e) => { console.error('ÉCHEC', e.message.split('\n')[0]); process.exit(1); });
