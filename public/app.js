@@ -369,11 +369,13 @@ function confirmEpicSheet(e, n) {
 }
 
 /** Joue l'animation de suppression (corbeille ou déchiqueteuse) en même temps que la suppression ; si elle échoue, l'élément réapparaît. */
-/** Téléphone, vue « par statut » : une tâche qui change de colonne s'envole vers l'onglet de cette colonne (au lieu de disparaître). */
+/** Téléphone, vue « par statut » : une tâche qui change de colonne sort de l'écran sur le côté (comme si la colonne était à côté), puis l'onglet fait un bond. */
 function flyToCol(id, dest, from = null) {
   if (!isPhone() || state.boardGroup === 'epic' || state.taskCol === dest) return;
   const el = $app.querySelector(`.task[data-id="${id}"]`);
-  if (el) fx.flyTo(el, () => $app.querySelector(`[data-action="task-col"][data-v="${dest}"]`), from);
+  const order = [...$app.querySelectorAll('[data-action="task-col"]')].map((b) => b.dataset.v);
+  const dir = order.indexOf(dest) >= order.indexOf(state.taskCol) ? 1 : -1;
+  if (el) fx.flyTo(el, () => $app.querySelector(`[data-action="task-col"][data-v="${dest}"]`), dir, from);
 }
 
 async function removeWith(effect, node, remove, html, opts) {

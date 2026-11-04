@@ -253,21 +253,21 @@ export async function sheetOut(body) {
   await done(body.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(14px)', opacity: 0 }], { duration: 150, easing: 'ease-in', fill: 'forwards' }));
 }
 
-/** Sur téléphone, une tâche qui change de colonne sort de l'écran (une seule colonne est visible) : elle s'envole vers l'onglet de sa nouvelle colonne,
- *  rétrécit en y arrivant et l'onglet fait un petit bond. `target` = fonction qui rend l'onglet (il est redessiné entre-temps). `from` = rectangle de départ si la tâche n'est plus à sa place. */
-export async function flyTo(el, target, from = null) {
+/** Sur téléphone, une tâche qui change de colonne sort de l'écran sur le côté, comme si la colonne était à côté : à droite si la nouvelle colonne est à droite
+ *  de celle qu'on regarde, à gauche sinon ; l'onglet de la colonne fait ensuite un petit bond. `dir` = 1 (droite) ou -1 (gauche).
+ *  `target` = fonction qui rend l'onglet (redessiné entre-temps). `from` = rectangle de départ si la tâche n'est plus à sa place. */
+export async function flyTo(el, target, dir = 1, from = null) {
   if (reduced() || !el) return;
   const t0 = target(); if (!t0 || !t0.offsetParent) return; // onglet absent ou caché (grand écran : toutes les colonnes sont visibles)
-  const L = getLayer(), r = from || el.getBoundingClientRect(), tr = t0.getBoundingClientRect();
+  const L = getLayer(), r = from || el.getBoundingClientRect();
   const clone = ghost(el, r);
   L.append(clone); el.style.visibility = 'hidden';
-  const tx = Math.min(Math.max(tr.left + tr.width / 2, 20), innerWidth - 20), ty = Math.min(Math.max(tr.top + tr.height / 2, 20), innerHeight - 20);
-  const dx = tx - (r.left + r.width / 2), dy = ty - (r.top + r.height / 2);
+  const far = dir > 0 ? innerWidth - r.left + 30 : -(r.left + r.width + 30);
   await done(clone.animate([
     { transform: 'none', opacity: 1 },
-    { transform: `translate(${dx * .3}px, ${dy * .3 - 30}px) scale(.82) rotate(-3deg)`, opacity: 1, offset: .35, easing: 'ease-in' },
-    { transform: `translate(${dx}px, ${dy}px) scale(.16) rotate(7deg)`, opacity: .3 },
-  ], { duration: 620, easing: 'ease-in-out', fill: 'forwards' }));
+    { transform: `translate(${-dir * 10}px, 0) rotate(${-dir * 1.5}deg)`, opacity: 1, offset: .18, easing: 'ease-in' }, // petit recul avant de partir
+    { transform: `translate(${far}px, -10px) rotate(${dir * 5}deg)`, opacity: .85 },
+  ], { duration: 520, easing: 'cubic-bezier(.5, 0, .9, .6)', fill: 'forwards' }));
   clone.remove();
   target()?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: .4 }, { transform: 'scale(1)' }], { duration: 360, easing: 'ease-out' });
 }
