@@ -253,23 +253,23 @@ export async function sheetOut(body) {
   await done(body.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(14px)', opacity: 0 }], { duration: 150, easing: 'ease-in', fill: 'forwards' }));
 }
 
-/** Sur téléphone, une tâche qui change de colonne sort de l'écran sur le côté, comme si la colonne était à côté : à droite si la nouvelle colonne est à droite
- *  de celle qu'on regarde, à gauche sinon ; l'onglet de la colonne fait ensuite un petit bond. `dir` = 1 (droite) ou -1 (gauche).
- *  `target` = fonction qui rend l'onglet (redessiné entre-temps). `from` = rectangle de départ si la tâche n'est plus à sa place. */
-export async function flyTo(el, target, dir = 1, from = null) {
+/** Une tâche terminée s'envole vers la section « Terminées » (en bas de la liste) : elle rétrécit en arc, puis la section fait un petit bond.
+ *  `target` = fonction qui rend l'élément visé (il est redessiné entre-temps) ; s'il est hors de l'écran, la tâche part vers le bord de l'écran. */
+export async function flyTo(el, target, from = null) {
   if (reduced() || !el) return;
-  const t0 = target(); if (!t0 || !t0.offsetParent) return; // onglet absent ou caché (grand écran : toutes les colonnes sont visibles)
-  const L = getLayer(), r = from || el.getBoundingClientRect();
+  const t0 = target(); if (!t0) return;
+  const L = getLayer(), r = from || el.getBoundingClientRect(), tr = t0.getBoundingClientRect();
   const clone = ghost(el, r);
   L.append(clone); el.style.visibility = 'hidden';
-  const far = dir > 0 ? innerWidth - r.left + 30 : -(r.left + r.width + 30);
+  const tx = Math.min(Math.max(tr.left + tr.width / 2, 20), innerWidth - 20), ty = Math.min(Math.max(tr.top + tr.height / 2, 20), innerHeight - 20);
+  const dx = tx - (r.left + r.width / 2), dy = ty - (r.top + r.height / 2);
   await done(clone.animate([
     { transform: 'none', opacity: 1 },
-    { transform: `translate(${-dir * 10}px, 0) rotate(${-dir * 1.5}deg)`, opacity: 1, offset: .18, easing: 'ease-in' }, // petit recul avant de partir
-    { transform: `translate(${far}px, -10px) rotate(${dir * 5}deg)`, opacity: .85 },
-  ], { duration: 520, easing: 'cubic-bezier(.5, 0, .9, .6)', fill: 'forwards' }));
+    { transform: `translate(${dx * .25}px, ${dy * .25 - 16}px) scale(.88) rotate(-2deg)`, opacity: 1, offset: .3, easing: 'ease-in' },
+    { transform: `translate(${dx}px, ${dy}px) scale(.14) rotate(6deg)`, opacity: .3 },
+  ], { duration: 560, easing: 'ease-in-out', fill: 'forwards' }));
   clone.remove();
-  target()?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: .4 }, { transform: 'scale(1)' }], { duration: 360, easing: 'ease-out' });
+  target()?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)', offset: .4 }, { transform: 'scale(1)' }], { duration: 340, easing: 'ease-out' });
 }
 
 // ---------- tampon (petits messages) et fax (nouveautés) ----------

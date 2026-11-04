@@ -6,8 +6,8 @@ const $app = document.getElementById('app');
 const sheet = document.getElementById('sheet');
 
 const STATUS = { idea: 'Idée', active: 'En cours', paused: 'En pause', done: 'Terminé' };
-const TASK = { todo: 'À faire', doing: 'En cours', done: 'Fait' };
-const TASK_COLOR = { todo: 'var(--muted)', doing: 'var(--st-paused)', done: 'var(--st-active)' };
+const TASK = { todo: 'À faire', done: 'Terminé' };
+const TASK_COLOR = { todo: 'var(--muted)', done: 'var(--st-active)' };
 const NOTE_COLORS = { yellow: 'Jaune', pink: 'Rose', blue: 'Bleu', green: 'Vert', orange: 'Orange', purple: 'Violet' };
 const PROJECT_COLORS = ['#0d7c72', '#3b6fd8', '#7048c8', '#d6336c', '#e8590c', '#2b8a3e', '#5c6370'];
 const EMOJIS = ['🚀', '📱', '💡', '🛠️', '🎮', '🛒', '📊', '🎨', '🤖', '🌱'];
@@ -121,7 +121,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  taskCol: 'todo', boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), epicOpen: new Set(), showLater: false, justDone: null, justDoneFrom: 'todo', justUndone: null,
+  boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), epicOpen: new Set(), showLater: false, justDone: null, justDoneFrom: 'todo', justUndone: null,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -372,13 +372,14 @@ function confirmEpicSheet(e, n) {
 /** Les tâches à l'écran glissent vers leur nouvelle place quand l'une d'elles part (sinon les suivantes sautent). */
 const taskKeys = (id) => [`task:${id}`, ...[...$app.querySelectorAll('[data-fx^="task:"]')].map((e) => e.dataset.fx)];
 
-/** Téléphone, vue « par statut » : une tâche qui change de colonne sort de l'écran sur le côté (comme si la colonne était à côté), puis l'onglet fait un bond. */
-function flyToCol(id, dest, from = null) {
-  if (!isPhone() || state.boardGroup === 'epic' || state.taskCol === dest) return;
+/** Vue « Liste » : la tâche terminée s'envole vers « Terminées » (en bas de la liste), puis la section fait un petit bond.
+ *  À appeler AVANT le redessin ; la fonction rendue se lance APRÈS (la section « Terminées » n'existe qu'à ce moment-là). */
+function flyDone(id) {
+  if (state.boardGroup === 'epic') return null;
   const el = $app.querySelector(`.task[data-id="${id}"]`);
-  const order = [...$app.querySelectorAll('[data-action="task-col"]')].map((b) => b.dataset.v);
-  const dir = order.indexOf(dest) >= order.indexOf(state.taskCol) ? 1 : -1;
-  if (el) fx.flyTo(el, () => $app.querySelector(`[data-action="task-col"][data-v="${dest}"]`), dir, from);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return () => fx.flyTo(el, () => $app.querySelector('.done-head'), r);
 }
 
 async function removeWith(effect, node, remove, html, opts) {
@@ -740,8 +741,7 @@ function viewOverview(d) {
       </div>
       <div class="kv">
         <div><span class="label">À faire</span><strong class="num">${todo}</strong></div>
-        <div><span class="label">En cours</span><strong class="num">${p.tasks.doing}</strong></div>
-        <div><span class="label">Fait</span><strong class="num">${p.tasks.done}</strong></div>
+        <div><span class="label">Terminé</span><strong class="num">${p.tasks.done}</strong></div>
         <div class="${bugs ? 'warn' : ''}"><span class="label">Bugs ouverts</span><strong class="num">${bugs}</strong></div>
       </div>
       ${linksBlock(d)}
@@ -884,7 +884,7 @@ function applyTaskStyle(p) {
 }
 const PRIORITY = { high: 'Haute', normal: 'Normale', low: 'Basse' };
 const HORIZON = { now: 'Maintenant', later: 'Plus tard', done: 'Terminé' };
-const STATUS_ORDER = { doing: 0, todo: 1, done: 2 };
+const STATUS_ORDER = { todo: 0, done: 1 };
 const PRIO_ORDER = { high: 0, normal: 1, low: 2 };
 const HORIZON_ORDER = { now: 0, later: 1, done: 2 };
 
@@ -910,7 +910,7 @@ function matchesFilter(t) {
 function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
   return `
   <div data-fx="task:${t.id}" class="task t-${t.type} ${t.status === 'done' ? 'is-done' : ''} ${state.justDone === t.id ? 'just-done' : ''} ${state.justUndone === t.id ? 'just-undone' : ''}" data-action="open-task" data-id="${t.id}" data-drag="task" ${draggable ? 'draggable="true"' : ''}>
-    <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? CHECK_SVG : t.status === 'doing' ? '<i class="dot-doing"></i>' : ''}</button>
+    <button class="check ${t.status}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.status === 'done' ? 'Remettre à faire' : 'Marquer comme fait'}">${t.status === 'done' ? CHECK_SVG : ''}</button>
     <div class="t-main">
       <span class="t-title"><span class="t-txt">${esc(t.title)}</span></span>
       ${typeTag(t) || prioTag(t) || t.description || t.images?.length || showEpic ? `<span class="t-meta">${typeTag(t)}${prioTag(t)}${t.description ? '<span class="has-desc" title="A une description">≡ détails</span>' : ''}${t.images?.length ? `<span class="has-desc with-ico" title="${t.images.length} image${t.images.length > 1 ? 's' : ''}">${ico('image', 13)} ${t.images.length}</span>` : ''}${showEpic ? `<span class="t-epic">${esc(showEpic)}</span>` : ''}</span>` : ''}
@@ -929,7 +929,7 @@ function viewTasks(d) {
   return `
   <div class="task-tools">
     <div class="seg views" role="tablist" aria-label="Affichage">
-      ${[['status', 'Par statut'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}
+      ${[['status', 'Liste'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}
     </div>
     <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
   </div>
@@ -1018,22 +1018,25 @@ function viewBoard(d) {
   </section>` : ''}
   ${finished.length ? `<details class="done-epics"><summary>${finished.length} chantier${finished.length > 1 ? 's' : ''} terminé${finished.length > 1 ? 's' : ''}</summary><div class="ep-grid">${finished.map(note).join('')}</div></details>` : ''}`;
   }
-  // la tâche qu'on vient de cocher reste dans sa colonne d'origine le temps de l'animation
-  const colOf = (t) => (t.id === state.justDone ? state.justDoneFrom : t.id === state.justUndone ? 'done' : t.status);
+  // la tâche qu'on vient de cocher reste à sa place (« à faire ») le temps de l'animation, puis passe dans « Terminées »
+  const colOf = (t) => (t.id === state.justDone ? 'todo' : t.id === state.justUndone ? 'done' : t.status);
   const laterIds = new Set(d.epics.filter((e) => e.horizon === 'later').map((e) => e.id));
   const parked = d.tasks.filter((t) => laterIds.has(t.epicId) && matchesFilter(t));
   const visible = (t) => state.showLater || !laterIds.has(t.epicId);
-  const cols = Object.keys(TASK).map((s) => [s, d.tasks.filter((t) => colOf(t) === s && matchesFilter(t) && visible(t)).sort(sortItems)]);
+  const pick = (s) => d.tasks.filter((t) => colOf(t) === s && matchesFilter(t) && visible(t)).sort(sortItems);
+  const todoList = pick('todo'), doneList = pick('done');
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
-  <div class="seg hide-lg">${cols.map(([s, list]) => `<button data-action="task-col" data-v="${s}" aria-pressed="${state.taskCol === s}">${TASK[s]} <span class="num muted">${list.length}</span></button>`).join('')}</div>
-  <div class="columns">
-    ${cols.map(([s, list]) => `
-      <section class="col ${state.taskCol === s ? 'shown' : ''}" data-drop-status="${s}" aria-label="${TASK[s]}">
-        <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR[s]}"></span>${TASK[s]}</h3><span class="muted num small">${list.length}</span></div>
-        ${group(list) || `<p class="col-empty">${s === 'done' ? 'Rien de terminé pour le moment.' : 'Aucune tâche.'}</p>`}
-      </section>`).join('')}
+  <div class="columns one">
+    <section class="col shown" aria-label="${TASK.todo}">
+      <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR.todo}"></span>${TASK.todo}</h3><span class="muted num small">${todoList.length}</span></div>
+      ${group(todoList) || '<p class="col-empty">Rien à faire pour le moment.</p>'}
+    </section>
   </div>
+  ${doneList.length ? `<section class="done-box">
+    <button class="done-head" data-action="toggle-done" aria-expanded="${state.showDone}"><span>${TASK.done}es · ${doneList.length}</span><span class="chev" aria-hidden="true">${state.showDone ? '▴' : '▾'}</span></button>
+    ${state.showDone ? `<div class="done-list">${group(doneList)}</div>` : ''}
+  </section>` : ''}
   ${parked.length ? `<button class="link-btn" data-action="toggle-later">${state.showLater ? 'Masquer' : 'Afficher'} les ${parked.length} tâche${parked.length > 1 ? 's' : ''} rangée${parked.length > 1 ? 's' : ''} dans des chantiers « Plus tard »</button>` : ''}`;
 }
 
@@ -1233,26 +1236,18 @@ function bindTaskDnD() {
       await reloadProject();
     }));
   });
-  $app.querySelectorAll('[data-drop-status], [data-drop-horizon]').forEach((col) => {
-    const accepts = col.dataset.dropStatus ? 'task' : 'epic';
+  $app.querySelectorAll('[data-drop-horizon]').forEach((col) => {
+    const accepts = 'epic';
     col.addEventListener('dragover', (e) => { if (drag?.kind === accepts) { e.preventDefault(); col.classList.add('drop'); } });
     col.addEventListener('dragleave', () => col.classList.remove('drop'));
     col.addEventListener('drop', run(async (e) => {
       e.preventDefault(); col.classList.remove('drop');
       if (!drag || drag.kind !== accepts) return;
       const { id } = drag; drag = null;
-      if (accepts === 'task') {
-        const t = state.data.tasks.find((x) => x.id === id);
-        if (!t || t.status === col.dataset.dropStatus) return;
-        const maxPos = Math.max(0, ...state.data.tasks.map((x) => x.position));
-        await db.updateTask(id, { status: col.dataset.dropStatus, position: maxPos + 1 });
-      } else {
-        const ep = state.data.epics.find((x) => x.id === id);
-        if (!ep || ep.horizon === col.dataset.dropHorizon) return;
-        const maxPos = Math.max(0, ...state.data.epics.map((x) => x.position));
-        await db.updateEpic(id, { horizon: col.dataset.dropHorizon, position: maxPos + 1 });
-      }
-      if (accepts === 'task') fx.focus([`task:${id}`]);
+      const ep = state.data.epics.find((x) => x.id === id);
+      if (!ep || ep.horizon === col.dataset.dropHorizon) return;
+      const maxPos = Math.max(0, ...state.data.epics.map((x) => x.position));
+      await db.updateEpic(id, { horizon: col.dataset.dropHorizon, position: maxPos + 1 });
       await reloadProject();
     }));
   });
@@ -1266,8 +1261,6 @@ function bindTaskDnD() {
     const hit = document.elementFromPoint(g.x, g.y);
     const t = state.data?.tasks.find((x) => x.id === g.id);
     if (!t) return null;
-    const tab = hit?.closest('[data-action="task-col"]'); // vue par statut : on dépose sur « À faire », « En cours » ou « Fait »
-    if (tab) return tab.dataset.v !== t.status ? tab : null;
     const box = hit?.closest('[data-drop-epic]');
     return box && (t.epicId ?? null) !== (Number(box.dataset.dropEpic) || null) ? box : null;
   };
@@ -1288,11 +1281,7 @@ function bindTaskDnD() {
     state.dragging = false;
     if (drop && box) {
       run(async () => {
-        if (box.dataset.action === 'task-col') {
-          const maxPos = Math.max(0, ...state.data.tasks.map((x) => x.position));
-          await db.updateTask(id, { status: box.dataset.v, position: maxPos + 1 });
-          state.taskCol = box.dataset.v;
-        } else await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null });
+        await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null });
         fx.focus([`task:${id}`]); await reloadProject();
       })();
     }
@@ -2088,7 +2077,6 @@ const actions = {
     toast('Projet supprimé');
     state.data = null; location.hash = '#/';
   },
-  'task-col': (el) => { state.taskCol = el.dataset.v; renderProject(); },
   'board-group': (el) => { state.boardGroup = el.dataset.v; store.set('boardGroup', el.dataset.v); renderProject(); },
   'goto-roadmap': () => { state.boardGroup = 'epic'; store.set('boardGroup', 'epic'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
@@ -2112,7 +2100,7 @@ const actions = {
     await db.deleteLink(Number(el.dataset.id));
     toast('Lien supprimé'); await reloadProject(); linksSheet();
   },
-  'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: state.boardGroup !== 'epic' && isPhone() ? state.taskCol : 'todo' })),
+  'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: 'todo' })),
   'open-epic': (el) => epicSheet(state.data.epics.find((e) => e.id === Number(el.dataset.id))),
   'delete-epic': async (el) => {
     const e = state.data.epics.find((x) => x.id === Number(el.dataset.id));
@@ -2169,7 +2157,7 @@ const actions = {
     // la coche se trace au feutre (ou s'efface) une seule fois, la tâche reste en place le temps de l'animation
     state.justDone = finishing ? t.id : null; state.justDoneFrom = from; state.justUndone = finishing ? null : t.id;
     await reloadProject();
-    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { flyToCol(t.id, finishing ? 'done' : 'todo'); fx.focus(taskKeys(t.id)); renderProject(); } }, finishing ? 1300 : 900);
+    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { const fly = finishing ? flyDone(t.id) : null; fx.focus(taskKeys(t.id)); renderProject(); fly?.(); } }, finishing ? 1300 : 900);
   },
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
   'img-open': (el) => openLightbox(Number(el.dataset.i)),
@@ -2325,7 +2313,7 @@ const forms = {
   async 'add-task'(f) {
     const title = f.elements.title.value.trim();
     if (!title) return;
-    await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: state.boardGroup !== 'epic' && isPhone() ? state.taskCol : 'todo' }, state.data.tasks);
+    await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: 'todo' }, state.data.tasks);
     store.set(draftKey(), '');
     fx.focus([], { enter: true });
     await reloadProject();
@@ -2343,8 +2331,8 @@ const forms = {
     const body = formData(f), id = Number(f.dataset.id);
     await db.updateTask(id, body);
     closeSheet(); fx.focus(taskKeys(id));
-    if (body.status) flyToCol(id, body.status); // la tâche s'envole vers sa nouvelle colonne avant que l'écran soit redessiné
-    await reloadProject();
+    const fly = body.status === 'done' ? flyDone(id) : null;
+    await reloadProject(); fly?.();
   },
   async 'save-link'(f) {
     const b = formData(f);

@@ -688,6 +688,11 @@ dialog#sheet { overscroll-behavior: contain; }
 }
 
 /* chantiers: roadmap modes */
+.columns.one { grid-template-columns: minmax(0, 1fr); max-width: 780px; }
+.done-box { margin-top: 16px; max-width: 780px; }
+.done-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 4px; background: none; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
+.done-head:hover { color: var(--ink); background: var(--surface-2); }
+.done-list { display: grid; gap: 8px; margin-top: 10px; }
 .columns.rm { grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); }
 @media (max-width: 719px) {
   .columns.rm { grid-template-columns: minmax(0, 1fr); }

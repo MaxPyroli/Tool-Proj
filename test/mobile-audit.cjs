@@ -59,8 +59,9 @@ async function audit(p, label) {
   await p.reload(); await p.waitForSelector('.ring');
   await audit(p, 'liste des projets'); await p.goto(`${BASE}#/`); await p.waitForSelector('.pcard'); await audit(p, 'liste des projets');
   await p.goto(`${BASE}#/p/${pid}`); await p.waitForSelector('.ring'); await audit(p, 'aperçu');
-  for (const [view, sel] of [['status', '[data-drop-status]'], ['epic', '[data-drop-horizon]']]) {
+  for (const [view, sel] of [['status', '.columns.one'], ['epic', '[data-drop-horizon]']]) {
     await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click(`[data-action="board-group"][data-v="${view}"]`); await p.waitForSelector(sel); await audit(p, `tâches · ${view}`);
+    if (view === 'status' && await p.locator('.done-head').count()) { await p.click('.done-head'); await wait(300); await audit(p, 'tâches · liste, terminées dépliées'); await p.click('.done-head'); }
   }
   await p.goto(`${BASE}#/p/${pid}/idees`); await p.waitForSelector('.board-tools'); await p.click('[data-action="board-view"][data-v="grid"]'); await p.waitForSelector('.note-grid .note'); await audit(p, 'post-it · grille');
   await p.click('[data-action="board-view"][data-v="wall"]'); await p.waitForSelector('.board .note'); await audit(p, 'post-it · mur');
@@ -86,7 +87,7 @@ async function audit(p, label) {
   await p.click('a.tab >> nth=3'); await p.waitForSelector('.member'); await audit(p, 'équipe (projet vide)');
   // ---- barre de navigation et défilement ----
   log('— barre du bas —');
-  await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="board-group"][data-v="status"]'); await p.waitForSelector('[data-drop-status]');
+  await p.goto(`${BASE}#/p/${pid}/taches`); await p.waitForSelector('.task-tools'); await p.click('[data-action="board-group"][data-v="status"]'); await p.waitForSelector('.columns.one');
   const bar = () => p.evaluate(() => { const t = document.querySelector('.tabs'); if (!t) return null; const r = t.getBoundingClientRect(); return { bottom: Math.round(r.bottom), vis: getComputedStyle(t).display !== 'none', h: innerHeight }; });
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await wait(300);
   const y0 = await p.evaluate(() => Math.round(scrollY)); const b0 = await bar();

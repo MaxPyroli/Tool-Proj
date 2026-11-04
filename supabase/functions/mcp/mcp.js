@@ -8,7 +8,7 @@ const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const id = { type: "integer" };
 const obj = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
 const TYPES = ["task", "bug", "idea", "improvement"];
-const STATUSES = ["todo", "doing", "done"];
+const STATUSES = ["todo", "done"]; // « doing » (en cours) n'existe plus dans l'app : une ancienne valeur est lue comme « todo »
 
 export const TOOLS = [
   { name: "list_projects", description: "Liste les projets de la personne (id, nom, statut, avancement, rôle, nombre de tâches ouvertes). À appeler en premier pour connaître les id, puis demande quel projet utiliser et appelle select_project.",
@@ -32,7 +32,7 @@ export const TOOLS = [
       type: { type: "string", enum: TYPES }, priority: { type: "string", enum: ["high", "normal", "low"] }, status: { type: "string", enum: STATUSES },
       epic_id: id, assignee: { type: "string", description: "« me » (défaut), « none » ou l'identifiant d'un membre" } }, ["project_id", "title"]),
     annotations: { readOnlyHint: false, destructiveHint: false } },
-  { name: "update_task", description: "Modifie une tâche : titre, description, statut (todo, doing, done), type, priorité, chantier, personne assignée. Seuls les champs donnés changent.",
+  { name: "update_task", description: "Modifie une tâche : titre, description, statut (todo ou done), type, priorité, chantier, personne assignée. Seuls les champs donnés changent.",
     inputSchema: obj({ task_id: id, title: { type: "string" }, description: { type: "string" }, status: { type: "string", enum: STATUSES }, type: { type: "string", enum: TYPES },
       priority: { type: "string", enum: ["high", "normal", "low"] }, epic_id: { type: ["integer", "null"] }, assignee: { type: "string", description: "« me », « none » ou un identifiant" } }, ["task_id"]),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },

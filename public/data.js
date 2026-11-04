@@ -165,7 +165,7 @@ function summary(p, me) {
     role: members.find((m) => m.id === me)?.role ?? null,
     manualProgress: p.manual_progress,
     progress: p.manual_progress, // set by admins: upcoming tasks shouldn't make the project look less advanced
-    tasks: { total, done, doing: tasks.filter((t) => t.status === 'doing').length },
+    tasks: { total, done },
     noteCount: p.notes?.[0]?.count ?? 0,
     members,
   };
@@ -180,7 +180,8 @@ export async function listProjects(me) {
 
 const taskDto = (t, images = []) => ({
   images,
-  id: t.id, title: t.title, description: t.description ?? '', status: t.status, type: t.type ?? 'task', priority: t.priority ?? 'normal',
+  id: t.id, title: t.title, description: t.description ?? '', status: t.status === 'doing' ? 'todo' : t.status, // l'ancien statut « en cours » n'existe plus : il est lu comme « à faire »
+    type: t.type ?? 'task', priority: t.priority ?? 'normal',
   epicId: t.epic_id ?? null, position: t.position, assigneeId: t.assignee_id, createdAt: t.created_at, doneAt: t.done_at,
 });
 const linkDto = (l) => ({ id: l.id, label: l.label, url: l.url, position: l.position });

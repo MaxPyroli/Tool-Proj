@@ -75,6 +75,8 @@ create index if not exists epics_project_idx on public.epics (project_id);
 -- « Ensuite » n'existe plus : « Plus tard » fait le même travail (la valeur 'next' reste permise par la contrainte, mais plus utilisée)
 alter table public.epics alter column horizon set default 'now';
 update public.epics set horizon = 'later' where horizon = 'next';
+-- l'ancien statut « en cours » (doing) n'existe plus dans l'app : ces tâches passent à « à faire » (la valeur reste permise par la contrainte, au cas où un vieux client l'enverrait ; l'app la lit comme « à faire »)
+update public.tasks set status = 'todo' where status = 'doing';
 
 -- Tâches v2 : description, type, priorité, chantier (ajoutés sans toucher aux données existantes).
 alter table public.tasks add column if not exists description text not null default '';
