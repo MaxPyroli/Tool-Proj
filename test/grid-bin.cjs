@@ -48,6 +48,9 @@ const ok = (c, m, x = '') => { console.log(c ? '✓' : '✗', m, x); if (!c) fai
   ok(!!clone0 && Math.hypot(clone0.x - endPt.x, clone0.y - endPt.y) < 140, 'l\'animation part de l\'endroit où le post-it est lâché', JSON.stringify({ clone0, endPt }));
   await wait(1100); await p.screenshot({ path: `${SP}/gb2.png` });
   await wait(2800);
+  ok(await p.evaluate(() => document.querySelectorAll('.toast').length === 0), 'pas de tampon quand on jette un post-it à la corbeille');
+  const bp = await p.evaluate(() => { const b = document.querySelector('.hold-bin'); const r = b.getBoundingClientRect(); return { top: Math.round(r.top), vh: innerHeight, vis: getComputedStyle(b).visibility, armed: b.classList.contains('armed') }; });
+  ok(!bp.armed && bp.top >= bp.vh - 2, 'la vraie corbeille est bien redescendue (pas de seconde descente)', JSON.stringify(bp));
   ok((await countNotes()) === n0 - 1, 'lâché dans la corbeille : le post-it est supprimé', `(${n0} → ${await countNotes()})`);
   ok(await p.evaluate(() => !document.getElementById('sheet').open), 'et aucune fiche ne s\'ouvre');
   // 3. appui long puis lâché ailleurs : il reste

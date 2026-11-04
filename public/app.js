@@ -1352,8 +1352,8 @@ function bindTaskDnD() {
       const b = getBin(), place = b.getBoundingClientRect();
       ghost.remove(); b.style.visibility = 'hidden';
       run(async () => {
-        try { await removeWith('trash', el, () => db.deleteNote(id), null, { place, from }); toast('Post-it décollé'); }
-        finally { b.style.visibility = ''; b.classList.remove('armed', 'over'); await reloadProject(); }
+        try { await removeWith('trash', el, () => db.deleteNote(id), null, { place, from }); }
+        finally { fx.resetBin(b); await reloadProject(); }
       })();
     } else { ghost.remove(); getBin().classList.remove('armed', 'over'); }
   };
@@ -1604,8 +1604,8 @@ function bindWall(wrap) {
     d.el.classList.remove('dragging');
     const at = bin?.getBoundingClientRect(); // la vraie corbeille du mur reçoit le post-it : on cache l'originale pendant que l'animation joue à sa place
     if (bin) bin.style.visibility = 'hidden';
-    try { await removeWith('trash', d.el, () => db.deleteNote(d.id), null, at ? { place: at } : undefined); toast('Post-it décollé'); }
-    finally { if (bin) bin.style.visibility = ''; binOff(); await reloadProject(); }
+    try { await removeWith('trash', d.el, () => db.deleteNote(d.id), null, at ? { place: at } : undefined); }
+    finally { if (bin) fx.resetBin(bin); binOff(); await reloadProject(); }
   }
   function posNote(d, cx, cy) {
     const p = toWorld(cx, cy);

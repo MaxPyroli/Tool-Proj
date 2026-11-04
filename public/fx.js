@@ -130,6 +130,15 @@ const BIN_FRONT = `<svg viewBox="0 0 120 150" aria-hidden="true">
 
 const CREASES = 'conic-gradient(from 20deg at 50% 50%, rgba(0,0,0,.16) 0 7deg, transparent 7deg 32deg, rgba(255,255,255,.22) 32deg 38deg, transparent 38deg 72deg, rgba(0,0,0,.16) 72deg 80deg, transparent 80deg 124deg, rgba(255,255,255,.2) 124deg 130deg, transparent 130deg 196deg, rgba(0,0,0,.16) 196deg 204deg, transparent 204deg 252deg, rgba(255,255,255,.2) 252deg 258deg, transparent 258deg)';
 
+/** Remet la corbeille « du mur / de la grille » tout en bas, sans animation, puis la rend visible : sinon, après le jet, on la voit redescendre une seconde fois. */
+export function resetBin(b) {
+  b.style.transition = 'none';
+  b.classList.remove('armed', 'over');
+  void b.offsetHeight;
+  b.style.visibility = '';
+  b.style.transition = '';
+}
+
 /** Le dessin de la corbeille (fond + devant), à placer dans un conteneur de 128 × 160 ; `uid` rend les identifiants uniques. */
 export const binHtml = (uid = 'fxb') => (binBack() + BIN_FRONT).replaceAll('fxm', `${uid}m`).replaceAll('fxc', `${uid}c`);
 
