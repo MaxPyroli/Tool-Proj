@@ -5,7 +5,7 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 ## 0.22.0
 - Nouveau look « bureau » (papier, chemises, classeur, post-it, badges), avec un vrai mode sombre.
 - Les tâches s'affichent dans un seul Tableau, par statut ou par chantier : glisse-les où tu veux (sur téléphone, appui long puis dépose).
-- Animations : les tâches glissent à leur place ; supprimer part à la corbeille (tâche, post-it) ou à la déchiqueteuse (chantier, projet). Pour un chantier, tu choisis de garder ou non ses tâches. Les pages glissent quand tu changes d'onglet ou ouvres un projet, les fenêtres se posent et se retirent, les badges d'équipe se balancent, les petits messages (« Projet mis à jour »…) sont tamponnés sur l'écran les nouveautés arrivent par fax et « Chargement... » s'écrit à la machine à écrire.
+- Animations : les tâches glissent à leur place ; supprimer part à la corbeille (tâche, post-it) ou à la déchiqueteuse (chantier, projet). Pour un chantier, tu choisis de garder ou non ses tâches. Sur téléphone, une tâche cochée ou déplacée s'envole vers l'onglet de sa colonne. Les pages glissent quand tu changes d'onglet ou ouvres un projet, les fenêtres se posent et se retirent, les badges d'équipe se balancent, les petits messages (« Projet mis à jour »…) sont tamponnés sur l'écran les nouveautés arrivent par fax et « Chargement... » s'écrit à la machine à écrire.
 - Mon compte s'enregistre tout seul ; Claude reste sur un seul projet par conversation.
 
 ## 0.21.3

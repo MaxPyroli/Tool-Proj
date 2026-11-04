@@ -227,8 +227,8 @@ export function view(prevKey, key) {
     if (a.tab === b.tab) return;
     const dir = TAB_ORDER.indexOf(b.tab) > TAB_ORDER.indexOf(a.tab) ? 1 : -1;
     page.animate([{ transform: `translateX(${dir * 22}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 240, easing: 'cubic-bezier(.2, .8, .3, 1)' });
-    // l'onglet s'étend vers le haut sans se déformer (le contenu garde sa forme) : on révèle sa partie haute, le bas reste collé au bandeau
-    document.querySelector('.tab[aria-current]')?.animate([{ clipPath: 'inset(18px 0 0 0 round 10px 10px 0 0)' }, { clipPath: 'inset(0 0 0 0 round 10px 10px 0 0)' }], { ...o, duration: 380, easing: 'cubic-bezier(.2, .9, .3, 1.2)' });
+    // l'onglet s'étend vers le haut sans se déformer (le contenu garde sa forme) : on révèle sa partie haute, le bas reste collé au bandeau ; la zone révélée déborde de 16 px pour ne jamais couper l'ombre
+    document.querySelector('.tab[aria-current]')?.animate([{ clipPath: 'inset(18px -16px -16px -16px)' }, { clipPath: 'inset(-16px -16px -16px -16px)' }], { ...o, duration: 380, easing: 'cubic-bezier(.2, .9, .3, 1.2)' });
   } else if (b && !a) {
     page.animate([{ transform: 'translateY(26px) scale(.985)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 340, easing: 'cubic-bezier(.2, .9, .3, 1)' });
   } else if (a && !b) {
@@ -251,6 +251,25 @@ export function sheetIn(body) {
 export async function sheetOut(body) {
   if (reduced() || !body) return;
   await done(body.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(14px)', opacity: 0 }], { duration: 150, easing: 'ease-in', fill: 'forwards' }));
+}
+
+/** Sur téléphone, une tâche qui change de colonne sort de l'écran (une seule colonne est visible) : elle s'envole vers l'onglet de sa nouvelle colonne,
+ *  rétrécit en y arrivant et l'onglet fait un petit bond. `target` = fonction qui rend l'onglet (il est redessiné entre-temps). `from` = rectangle de départ si la tâche n'est plus à sa place. */
+export async function flyTo(el, target, from = null) {
+  if (reduced() || !el) return;
+  const t0 = target(); if (!t0 || !t0.offsetParent) return; // onglet absent ou caché (grand écran : toutes les colonnes sont visibles)
+  const L = getLayer(), r = from || el.getBoundingClientRect(), tr = t0.getBoundingClientRect();
+  const clone = ghost(el, r);
+  L.append(clone); el.style.visibility = 'hidden';
+  const tx = Math.min(Math.max(tr.left + tr.width / 2, 20), innerWidth - 20), ty = Math.min(Math.max(tr.top + tr.height / 2, 20), innerHeight - 20);
+  const dx = tx - (r.left + r.width / 2), dy = ty - (r.top + r.height / 2);
+  await done(clone.animate([
+    { transform: 'none', opacity: 1 },
+    { transform: `translate(${dx * .3}px, ${dy * .3 - 30}px) scale(.82) rotate(-3deg)`, opacity: 1, offset: .35, easing: 'ease-in' },
+    { transform: `translate(${dx}px, ${dy}px) scale(.16) rotate(7deg)`, opacity: .3 },
+  ], { duration: 620, easing: 'ease-in-out', fill: 'forwards' }));
+  clone.remove();
+  target()?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: .4 }, { transform: 'scale(1)' }], { duration: 360, easing: 'ease-out' });
 }
 
 // ---------- tampon (petits messages) et fax (nouveautés) ----------

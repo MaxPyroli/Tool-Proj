@@ -369,6 +369,13 @@ function confirmEpicSheet(e, n) {
 }
 
 /** Joue l'animation de suppression (corbeille ou déchiqueteuse) en même temps que la suppression ; si elle échoue, l'élément réapparaît. */
+/** Téléphone, vue « par statut » : une tâche qui change de colonne s'envole vers l'onglet de cette colonne (au lieu de disparaître). */
+function flyToCol(id, dest, from = null) {
+  if (!isPhone() || state.boardGroup === 'epic' || state.taskCol === dest) return;
+  const el = $app.querySelector(`.task[data-id="${id}"]`);
+  if (el) fx.flyTo(el, () => $app.querySelector(`[data-action="task-col"][data-v="${dest}"]`), from);
+}
+
 async function removeWith(effect, node, remove, html, opts) {
   let ok = false;
   const show = (effect === 'shred' ? fx.shred(node, html) : fx.trash(node, opts)).catch(() => {});
@@ -2157,7 +2164,7 @@ const actions = {
     // la coche se trace au feutre (ou s'efface) une seule fois, la tâche reste en place le temps de l'animation
     state.justDone = finishing ? t.id : null; state.justDoneFrom = from; state.justUndone = finishing ? null : t.id;
     await reloadProject();
-    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { fx.focus([`task:${t.id}`]); renderProject(); } }, finishing ? 1300 : 900);
+    setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { flyToCol(t.id, finishing ? 'done' : 'todo'); fx.focus([`task:${t.id}`]); renderProject(); } }, finishing ? 1300 : 900);
   },
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
   'img-open': (el) => openLightbox(Number(el.dataset.i)),
@@ -2328,8 +2335,11 @@ const forms = {
     fx.focus([], { enter: true }); await reloadProject();
   },
   async 'edit-task'(f) {
-    await db.updateTask(Number(f.dataset.id), formData(f));
-    closeSheet(); fx.focus([`task:${f.dataset.id}`]); await reloadProject();
+    const body = formData(f), id = Number(f.dataset.id);
+    await db.updateTask(id, body);
+    closeSheet(); fx.focus([`task:${id}`]);
+    if (body.status) flyToCol(id, body.status); // la tâche s'envole vers sa nouvelle colonne avant que l'écran soit redessiné
+    await reloadProject();
   },
   async 'save-link'(f) {
     const b = formData(f);
