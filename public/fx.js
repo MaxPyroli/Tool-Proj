@@ -241,8 +241,30 @@ function tabMorph(prev) {
   const bar = document.querySelector('.tabs'); if (bar) run(bar, prev.get('after'), '::after');
 }
 
+/** La page affichée, copiée avant le redessin : elle s'efface en fondu pendant que la nouvelle arrive (sinon l'écran est vide un instant : clignotement). */
+export function pageSnap() {
+  const p = document.querySelector('main.page');
+  return p ? { html: p.outerHTML, r: p.getBoundingClientRect() } : null;
+}
+function ghostPage(snap, dir) {
+  if (!snap || reduced()) return;
+  const bar = document.querySelector('.tabs'); if (!bar) return;
+  const phone = getComputedStyle(bar).position === 'fixed'; // téléphone : barre d'onglets en bas
+  const topbar = document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0, band = document.querySelector('.tab-band')?.getBoundingClientRect();
+  const top = phone ? topbar : Math.max(topbar, band?.height ? band.bottom : bar.getBoundingClientRect().bottom), bottom = phone ? bar.getBoundingClientRect().top : innerHeight;
+  if (bottom - top < 20) return;
+  const wrap = document.createElement('div'); wrap.setAttribute('aria-hidden', 'true');
+  Object.assign(wrap.style, { position: 'fixed', left: '0', top: `${top}px`, width: '100%', height: `${bottom - top}px`, overflow: 'hidden', pointerEvents: 'none', zIndex: '1' });
+  const inner = document.createElement('div');
+  Object.assign(inner.style, { position: 'absolute', left: `${snap.r.left}px`, top: `${snap.r.top - top}px`, width: `${snap.r.width}px` });
+  inner.innerHTML = snap.html; inner.querySelectorAll('[id]').forEach((e) => e.removeAttribute('id'));
+  wrap.append(inner); document.body.append(wrap);
+  const a = inner.animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-dir * 22}px)`, opacity: 0 }], { duration: 260, easing: 'ease-in', fill: 'forwards' });
+  a.finished.then(() => wrap.remove(), () => wrap.remove());
+}
+
 /** Un écran remplace l'autre : changement d'onglet (la page glisse du côté de l'onglet), ouverture d'un projet (la page monte), retour à la liste. */
-export function view(prevKey, key, tabs = null) {
+export function view(prevKey, key, tabs = null, snap = null) {
   if (reduced() || !prevKey || prevKey === key) return;
   const parse = (k) => { const m = /^p(\d+)\/(\w+)/.exec(k); return m ? { id: m[1], tab: m[2] } : null; };
   const a = parse(prevKey), b = parse(key);
@@ -252,6 +274,7 @@ export function view(prevKey, key, tabs = null) {
   if (a && b && a.id === b.id) {
     if (a.tab === b.tab) return;
     const dir = TAB_ORDER.indexOf(b.tab) > TAB_ORDER.indexOf(a.tab) ? 1 : -1;
+    ghostPage(snap, dir);
     page.animate([{ transform: `translateX(${dir * 36}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 420, easing: 'cubic-bezier(.22, .8, .3, 1)' });
     tabMorph(tabs);
     document.querySelector('.tab[aria-current]')?.animate([{ clipPath: 'inset(18px -16px -16px -16px)' }, { clipPath: 'inset(-16px -16px -16px -16px)' }], { ...o, duration: 380, easing: 'cubic-bezier(.2, .9, .3, 1.2)' });

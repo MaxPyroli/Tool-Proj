@@ -103,13 +103,14 @@ function redraw(key, draw) {
   const chips = document.querySelector('.chips')?.scrollLeft ?? 0;
   const before = same ? fx.snapshot() : null; // les éléments qui bougent glissent, les nouveaux se collent
   const tabs = same ? null : fx.tabSnapshot(); // la barre d'onglets : ancien état, pour le fondre dans le nouveau
+  const snap = same ? null : fx.pageSnap(); // l'ancienne page, pour un fondu enchaîné (pas d'écran vide au clic)
   draw();
   packLists(); // listes sur plusieurs colonnes : on répartit les blocs avant d'animer (les positions mesurées doivent être les bonnes)
   lastViewKey = key;
   window.scrollTo(0, same ? y : 0);
   const c = document.querySelector('.chips');
   if (c && same) c.scrollLeft = chips;
-  if (before) fx.play(before); else fx.view(prevKey, key, tabs);
+  if (before) fx.play(before); else fx.view(prevKey, key, tabs, snap);
 }
 
 /** Liste des tâches sur ordinateur (plusieurs colonnes) : chaque bloc (chantier, tâche, titre…) occupe autant de « cases » invisibles (lignes de 6 px)
