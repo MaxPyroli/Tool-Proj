@@ -688,8 +688,14 @@ dialog#sheet { overscroll-behavior: contain; }
 }
 
 /* chantiers: roadmap modes */
-.columns.one { grid-template-columns: minmax(0, 1fr); max-width: 780px; }
-.done-box { margin-top: 16px; max-width: 780px; }
+.columns.one { grid-template-columns: minmax(0, 1fr); }
+.done-box { margin-top: 16px; }
+/* ordinateur : la liste se range sur deux colonnes (chantiers et tâches côte à côte), les titres et les tâches sans chantier prennent toute la largeur */
+@media (min-width: 900px) {
+  .columns.one .col, .done-list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
+  .columns.one .col > .col-head, .columns.one .col > .ep-loose-label, .columns.one .col > .ep-loose, .columns.one .col > .col-empty, .done-list > .ep-loose-label, .done-list > .ep-loose { grid-column: 1 / -1; }
+  .columns.one .ep-loose, .done-list .ep-loose { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; } /* les tâches sans chantier aussi sur deux colonnes */
+}
 .done-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 4px; background: none; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
 .done-head:hover { color: var(--ink); background: var(--surface-2); }
 .done-list { display: grid; gap: 8px; margin-top: 10px; }
