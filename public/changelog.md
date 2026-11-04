@@ -3,8 +3,8 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
+- Grille des post-it sur ordinateur : on peut attraper un post-it à la souris et le jeter dans la corbeille.
 - Quand on enlève un post-it de la grille, les autres glissent pour se recaler.
-- Écran de chargement : une machine à écrire dont les touches bougent, avec « Chargement... » écrit sur son bout de papier.
 - Nouveau look « bureau » (papier, chemises, classeur, post-it, badges), avec un vrai mode sombre.
 - Les tâches s'affichent dans un seul Tableau, en liste ou par chantier (le statut « En cours » disparaît ; « Fait » devient « Terminé » et se range dans une section repliée « Terminées ») : glisse-les où tu veux (sur téléphone, appui long puis dépose).
 - Animations : les tâches glissent à leur place ; supprimer part à la corbeille (tâche, post-it) ou à la déchiqueteuse (chantier, projet). Pour un chantier, tu choisis de garder ou non ses tâches. Sur téléphone, une tâche cochée ou déplacée sort de l'écran sur le côté de sa nouvelle colonne et les suivantes remontent en glissant. Les pages glissent quand tu changes d'onglet ou ouvres un projet, les fenêtres se posent et se retirent, les badges d'équipe se balancent, les petits messages (« Projet mis à jour »…) sont tamponnés sur l'écran les nouveautés arrivent par fax et « Chargement... » s'écrit à la machine à écrire.

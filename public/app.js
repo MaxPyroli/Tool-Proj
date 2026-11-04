@@ -92,7 +92,6 @@ const BOARD_W = 3000, BOARD_H = 2400;
 const APP_VERSION = '0.22.0';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 /** Chargement : « Chargement... » s'écrit à la machine à écrire (voir .tw dans styles.css). */
-const TYPEWRITER = '<svg class="tm" viewBox="0 0 220 175" role="status" aria-label="Chargement"><!-- bout de papier qui sort --><rect x="62" y="38" width="96" height="50" fill="var(--paper)" stroke="var(--line)"/><text x="70" y="62" font-family="ui-monospace,Menlo,Consolas,monospace" font-weight="700" font-size="10.5" fill="var(--typed)">Chargement...</text><rect class="caret" x="148" y="51" width="1.6" height="14" fill="var(--teal)"/><!-- barre de maintien --><rect x="58" y="72" width="104" height="2.4" fill="var(--bail)"/><!-- rouleau + molettes --><rect x="52" y="80" width="116" height="13" rx="6.5" fill="var(--roll)" stroke="var(--edge)"/><rect x="52" y="83" width="116" height="2" fill="#fff" opacity=".12"/><g fill="var(--kraft)" stroke="var(--kraftD)" stroke-width="1.5"><circle cx="46" cy="86.5" r="7"/><circle cx="174" cy="86.5" r="7"/></g><g fill="var(--kraftD)"><circle cx="46" cy="86.5" r="2.5"/><circle cx="174" cy="86.5" r="2.5"/></g><!-- corps --><path d="M32 175 L44 108 Q46 96 58 96 L162 96 Q174 96 176 108 L188 175 Z" fill="var(--teal)" stroke="var(--edge)" stroke-width="1.5"/><path d="M44 108 Q46 96 58 96 L162 96 Q174 96 176 108 L178 122 L42 122 Z" fill="var(--tealD)"/><rect x="82" y="104" width="56" height="7" fill="var(--kraft)"/><g fill="var(--kraftD)"><circle cx="64" cy="109" r="5"/><circle cx="156" cy="109" r="5"/></g><g fill="var(--paper)"><circle cx="64" cy="109" r="1.6"/><circle cx="156" cy="109" r="1.6"/></g><!-- touches --><g fill="var(--key)" stroke="var(--keyD)" stroke-width="1.5"><g><circle class="k" style="animation-duration:1.13s;animation-delay:0.2s" cx="70" cy="136" r="7.5"/><circle class="k" style="animation-duration:1.71s;animation-delay:1.1s" cx="90" cy="136" r="7.5"/><circle class="k" style="animation-duration:0.97s;animation-delay:0.6s" cx="110" cy="136" r="7.5"/><circle class="k" style="animation-duration:2.3s;animation-delay:0.05s" cx="130" cy="136" r="7.5"/><circle class="k" style="animation-duration:1.49s;animation-delay:1.7s" cx="150" cy="136" r="7.5"/></g><g><circle class="k" style="animation-duration:1.87s;animation-delay:0.9s" cx="60" cy="155" r="7.5"/><circle class="k" style="animation-duration:0.83s;animation-delay:1.3s" cx="80" cy="155" r="7.5"/><circle class="k" style="animation-duration:2.05s;animation-delay:0.4s" cx="100" cy="155" r="7.5"/><circle class="k" style="animation-duration:1.31s;animation-delay:1.9s" cx="120" cy="155" r="7.5"/><circle class="k" style="animation-duration:1.63s;animation-delay:0.75s" cx="140" cy="155" r="7.5"/><circle class="k" style="animation-duration:2.6s;animation-delay:1.45s" cx="160" cy="155" r="7.5"/></g></g><rect x="82" y="168" width="56" height="5" rx="2.5" fill="var(--key)" stroke="var(--keyD)" stroke-width="1.2"/></svg>';
 const LOADING = '<span class="tw" role="status"><span>Chargement...</span><i></i></span>';
 document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
@@ -383,7 +382,7 @@ async function render() {
     state.tab = ['apercu', 'taches', 'idees', 'equipe'].includes(r.tab) ? r.tab : 'apercu';
     if (state.pid !== r.id || !state.data) {
       state.pid = r.id; state.data = null;
-      $app.innerHTML = `<div class="loading">${TYPEWRITER}</div>`;
+      $app.innerHTML = `<div class="loading">${LOADING}</div>`;
       try { state.data = await db.getProject(r.id, state.me.id); subscribe(r.id); }
       catch (e) { toast(e.message, true); location.hash = '#/'; return; }
     }
@@ -1403,15 +1402,18 @@ function bindTaskDnD() {
     } else { ghost.remove(); getBin().classList.remove('armed', 'over'); }
   };
   document.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' || !e.isPrimary || state.tab !== 'idees') return;
+    const mouse = e.pointerType === 'mouse';
+    if (!e.isPrimary || state.tab !== 'idees' || (mouse && e.button !== 0)) return;
     const el = e.target.closest?.('.note-grid .note');
     if (!el || e.target.closest('.vote') || !$app.contains(el)) return;
     end(false);
-    g = { id: Number(el.dataset.note), el, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, active: false, timer: setTimeout(() => g && begin(), 380) };
+    // doigt : appui long (380 ms) ; souris : on attrape dès qu'on tire de quelques pixels (pas de défilement à protéger)
+    g = { id: Number(el.dataset.note), el, mouse, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, active: false, timer: mouse ? 0 : setTimeout(() => g && begin(), 380) };
   });
   document.addEventListener('pointermove', (e) => {
     if (!g || !e.isPrimary) return;
     g.x = e.clientX; g.y = e.clientY;
+    if (!g.active && g.mouse) { if (Math.hypot(g.x - g.sx, g.y - g.sy) > 6) { getSelection()?.removeAllRanges(); begin(); } return; }
     if (!g.active && Math.hypot(g.x - g.sx, g.y - g.sy) > 10) { clearTimeout(g.timer); g = null; } // c'est un défilement
   });
   document.addEventListener('pointerup', (e) => { if (g && e.isPrimary) end(true); });
@@ -2542,7 +2544,7 @@ function signedIn() {
       (ou dans les variables du dépôt GitHub), puis recharge la page. Tout est expliqué dans le README.</p></div></main>`;
     return;
   }
-  $app.innerHTML = `<div class="loading">${TYPEWRITER}</div>`;
+  $app.innerHTML = `<div class="loading">${LOADING}</div>`;
   // Signing in from another tab (email link) or signing out elsewhere updates this tab too.
   db.onAuth(run(async (event) => {
     if (event === 'SIGNED_OUT' && state.me) { state.me = null; subscribe(null); render(); }
