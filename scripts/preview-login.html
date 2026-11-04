@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connexion de test</title>
+<body style="font:16px system-ui;padding:24px"><p>Connexion au compte de démonstration…</p>
+<script src="config.js"></script>
+<script type="module">
+import { createClient } from './vendor/supabase-js.js';
+const c = window.TOOL_PROJ_CONFIG;
+const sb = createClient(c.supabaseUrl, c.supabaseKey, { auth: { flowType: 'implicit' } });
+const { error } = await sb.auth.signInWithPassword({ email: 'demo@tool.proj', password: 'demo-apercu-2026' });
+if (error) document.body.insertAdjacentHTML('beforeend', '<p>Erreur : ' + error.message + '</p>'); else location.replace('./');
+</script>

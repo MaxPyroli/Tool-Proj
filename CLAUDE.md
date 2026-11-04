@@ -69,6 +69,13 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 4. Après le push : attendre que le site serve la nouvelle version (`curl` sur `app.js`), puis dire à l'utilisateur de rouvrir l'app. Les mises à jour se récupèrent seules (le service worker ne fait pas confiance au cache de 10 min de GitHub Pages) ; la première fois après un changement du mécanisme, il faut fermer/rouvrir.
 5. Ne **jamais** créer de pull request sans demande. Messages de commit en français, avec les lignes d'attribution demandées par la session.
 
+## Version de test AVANT de publier (règle de l'utilisateur)
+
+L'utilisateur veut **voir une version de test avant toute publication**. Donc : faire les changements, lancer les tests, **montrer l'aperçu**, et **ne pousser (`git push`) qu'après son feu vert** (sauf correctif qu'il vient de demander explicitement de mettre en ligne). Les commits locaux sont autorisés.
+- Aperçu : le site de test (`/var/tmp/sbweb/Tool-Proj/`, servi sur le port **8088**) avec un Supabase **local** et un compte de démonstration. Signaler le port avec `report_preview_port` (nom « app de test »). Adresse de connexion automatique : `/Tool-Proj/preview-login.html` (compte `demo@tool.proj`, mot de passe de démonstration local, **jamais utilisé sur la vraie base**).
+- Mise en place : lancer Docker + Supabase local (voir plus bas), copier `public/` dans `/var/tmp/sbweb/Tool-Proj/` **sans écraser `config.js`** (le garder avec l'URL/clé locales), copier `scripts/preview-login.html` à côté, créer les données avec `node scripts/preview-demo.cjs <clé-secrète-locale>`.
+- Ça s'arrête quand l'environnement redémarre (Docker) : le relancer avant de montrer l'aperçu.
+
 ## Tester en local (bac à sable)
 
 - Docker doit être lancé à la main (`dockerd &`) et s'arrête quand l'environnement redémarre.
