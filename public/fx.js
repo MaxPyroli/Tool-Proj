@@ -219,7 +219,9 @@ const TAB_ORDER = ['apercu', 'taches', 'idees', 'equipe'];
 // (l'écran est redessiné en entier, donc aucune transition CSS ne peut jouer : on mesure avant, on mesure après, et on anime la différence)
 const TAB_PROPS = ['marginTop', 'marginBottom', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'height', 'backgroundColor', 'color', 'fontWeight', 'boxShadow', 'borderTopColor'];
 const tabKey = (el) => (el.matches('.tab') ? `tab:${el.dataset.k}` : el.matches('.tab-band') ? 'band' : 'tabs');
-const tabStyle = (el, pseudo) => { const cs = getComputedStyle(el, pseudo); return Object.fromEntries(TAB_PROPS.map((p) => [p, cs[p]])); };
+// la hauteur ne s'anime que sur téléphone (barre du bas, hauteurs fixées par le CSS) ; sur ordinateur elle vient du contenu et des marges, l'animer coupait le texte
+const barFixed = () => { const b = document.querySelector('.tabs'); return !!b && getComputedStyle(b).position === 'fixed'; };
+const tabStyle = (el, pseudo) => { const cs = getComputedStyle(el, pseudo), props = barFixed() ? TAB_PROPS : TAB_PROPS.filter((p) => p !== 'height'); return Object.fromEntries(props.map((p) => [p, cs[p]])); };
 /** À prendre juste avant de redessiner la barre d'onglets. */
 export function tabSnapshot() {
   const m = new Map();
@@ -232,7 +234,7 @@ function tabMorph(prev) {
   const opts = { duration: 420, easing: 'cubic-bezier(.25, .8, .3, 1)' };
   const run = (el, from, pseudo) => {
     if (!from) return;
-    const to = tabStyle(el, pseudo), keys = TAB_PROPS.filter((p) => from[p] !== to[p]);
+    const to = tabStyle(el, pseudo), keys = Object.keys(to).filter((p) => from[p] !== undefined && from[p] !== to[p]);
     if (!keys.length) return;
     const pick = (o) => Object.fromEntries(keys.map((p) => [p, o[p]]));
     try { el.animate([pick(from), pick(to)], pseudo ? { ...opts, pseudoElement: pseudo } : opts); } catch { /* navigateur sans animation de pseudo-élément : on saute */ }
@@ -277,7 +279,6 @@ export function view(prevKey, key, tabs = null, snap = null) {
     ghostPage(snap, dir);
     page.animate([{ transform: `translateX(${dir * 36}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 420, easing: 'cubic-bezier(.22, .8, .3, 1)' });
     tabMorph(tabs);
-    document.querySelector('.tab[aria-current]')?.animate([{ clipPath: 'inset(18px -16px -16px -16px)' }, { clipPath: 'inset(-16px -16px -16px -16px)' }], { ...o, duration: 380, easing: 'cubic-bezier(.2, .9, .3, 1.2)' });
   } else if (b && !a) {
     page.animate([{ transform: 'translateY(26px) scale(.985)', opacity: 0 }, { transform: 'none', opacity: 1 }], { ...o, duration: 340, easing: 'cubic-bezier(.2, .9, .3, 1)' });
   } else if (a && !b) {
