@@ -229,8 +229,8 @@ export function sway(list, max = 8) {
   [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg', easing: 'ease-out' }, { rotate: '3deg', offset: .2, easing: 'ease-in-out' }, { rotate: '-2deg', offset: .55, easing: 'ease-in-out' }, { rotate: '0deg' }], { delay: i * 30, duration: 750, easing: 'linear' }));
 }
 
-/** Coup de vent sur les post-it (mur ou grille) : un coin du bas s'enroule vers nous (pliure arrondie, ombre sur le mur) puis retombe.
- *  Le coin enroulé est dessiné par-dessus le post-it et le recouvre entièrement : rien n'apparaît derrière.
+/** Coup de vent sur les post-it (mur ou grille) : un coin du bas se décolle et se retourne sur le post-it (pliure arrondie, dos du papier
+ *  visible, ombre portée) puis retombe. Le coin retourné est le miroir de la part retirée : le papier ne dépasse jamais du post-it.
  *  dir = 1 : on arrive d'un onglet de droite (coin droit, la vague part de la droite) ; -1 : de gauche (coin gauche). */
 let curlId = 0;
 export function gust(wrap, dir = 1) {
@@ -243,21 +243,21 @@ export function gust(wrap, dir = 1) {
     const r = el.getBoundingClientRect();
     if (r.right < L || r.left > R || r.bottom < T || r.top > B) return; // hors de l'écran : rien
     const rx = Math.min(1, Math.max(0, (r.left - L) / (R - L))), ry = Math.min(1, Math.max(0, (r.top - T) / (B - T)));
-    const S = Math.round(Math.min(el.offsetWidth, el.offsetHeight) * rnd(.3, .36)), id = `fxc${++curlId}`;
-    // dessin dans un carré 100 × 100, coin du post-it en bas à gauche (0, 100) ; la pliure est une courbe, le bout dépasse un peu (il vient vers nous)
+    const W = el.offsetWidth, H = el.offsetHeight, S = Math.round(Math.min(W, H) * rnd(.3, .36)), m = 40, id = `fxc${++curlId}`;
+    const fx = (x) => (right ? W - x : x); // on dessine pour le coin gauche, puis on miroite pour le coin droit
+    // trou laissé par le coin décollé (coin du post-it en (0, H) ; pliure arrondie de (0, H-k·S) à (k·S, H))
+    const hole = (k) => { const d = k * S, q = d * .3; return `M${-m} ${-m}H${W + m}V${H + m}H${-m}Z M${fx(0)} ${H - d}Q${fx(q)} ${H - q} ${fx(d)} ${H}L${fx(d + 14)} ${H + 14}L${fx(-14)} ${H - d - 14}Z`; };
     const curl = document.createElement('span'); curl.className = `fx-curl ${right ? 'r' : 'l'}`; curl.setAttribute('aria-hidden', 'true');
     curl.style.setProperty('--s', `${S}px`);
-    curl.innerHTML = `<svg viewBox="0 0 100 100" overflow="visible"><defs><linearGradient id="${id}" x1="62" y1="38" x2="0" y2="104" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="var(--note)" style="stop-color: color-mix(in srgb, var(--note) 74%, #000)"/>
-      <stop offset=".35" stop-color="var(--note)" style="stop-color: color-mix(in srgb, var(--note) 88%, #000)"/>
-      <stop offset=".75" stop-color="var(--note)" style="stop-color: color-mix(in srgb, var(--note) 80%, #fff)"/>
-      <stop offset="1" stop-color="var(--note)"/></linearGradient></defs>
-      <path d="M0 0Q34 66 100 100Q46 108 -7 107Q-8 46 0 0Z" fill="url(#${id})"/>
-      <path d="M0 0Q34 66 100 100" fill="none" stroke="rgb(0 0 0 / .14)" stroke-width="1.2"/></svg>`;
+    // dos du papier : le miroir du coin retiré (angle droit arrondi vers l'intérieur du post-it), éclairé près de la pliure
+    curl.innerHTML = `<svg viewBox="0 0 100 100"><defs><linearGradient id="${id}" x1="0" y1="100" x2="100" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" style="stop-color: color-mix(in srgb, var(--note) 80%, #fff)"/><stop offset=".55" style="stop-color: color-mix(in srgb, var(--note) 90%, #000)"/><stop offset="1" style="stop-color: color-mix(in srgb, var(--note) 78%, #000)"/></linearGradient></defs>
+      <path d="M0 0Q30 70 100 100Q104 64 98 22Q60 -3 0 0Z" fill="url(#${id})"/></svg>`;
     el.append(curl);
-    const steps = [0, 1, .45, .68, 0], offs = [0, .26, .5, .68, 1], ease = 'ease-in-out';
-    curl.animate(steps.map((k, i) => ({ transform: `scale(${k})`, offset: offs[i], easing: ease })),
-      { delay: (right ? 1 - rx : rx) * 160 + ry * 90, duration: 1000, easing: 'linear', fill: 'backwards' })
+    const steps = [0, 1, .5, .72, 0], offs = [0, .26, .5, .68, 1], ease = 'ease-in-out';
+    const opts = { delay: (right ? 1 - rx : rx) * 160 + ry * 90, duration: 1000, easing: 'linear' };
+    el.animate(steps.map((k, i) => ({ clipPath: `path(evenodd, "${hole(k)}")`, offset: offs[i], easing: ease })), opts);
+    curl.animate(steps.map((k, i) => ({ transform: `scale(${k})`, offset: offs[i], easing: ease })), { ...opts, fill: 'backwards' })
       .finished.then(() => curl.remove(), () => curl.remove());
   });
 }
