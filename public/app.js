@@ -652,7 +652,7 @@ function renderProject() {
   // coup de vent sur les post-it à chaque arrivée sur l'onglet (mur ou grille ; une fois par arrivée, pas à chaque redessin)
   if (state.tab === 'idees') {
     const gk = `${p.id}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`;
-    if (state.gustKey !== gk) { state.gustKey = gk; const box = wallEl || $app.querySelector('.note-grid'); const dir = state.gustFrom === 'equipe' ? -1 : 1; if (box) fx.gust(box, dir); }
+    if (state.gustKey !== gk) { state.gustKey = gk; const box = wallEl || $app.querySelector('.note-grid'); const dir = state.gustFrom === 'equipe' ? 1 : -1; /* d'un onglet de gauche : coin gauche, et inversement */ if (box) fx.gust(box, dir); }
   } else state.gustKey = null;
   state.gustFrom = state.tab; // l'onglet d'où l'on vient : le vent souffle du côté où l'on va
   if (state.tab === 'taches') bindTaskDnD();
