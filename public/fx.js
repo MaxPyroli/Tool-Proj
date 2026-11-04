@@ -229,41 +229,36 @@ export function sway(list, max = 8) {
   [...list].slice(0, max).forEach((el, i) => el.animate([{ rotate: '0deg', easing: 'ease-out' }, { rotate: '3deg', offset: .2, easing: 'ease-in-out' }, { rotate: '-2deg', offset: .55, easing: 'ease-in-out' }, { rotate: '0deg' }], { delay: i * 30, duration: 750, easing: 'linear' }));
 }
 
-/** Coup de vent sur les post-it (mur ou grille) : un coin du bas se soulève vers nous (le haut reste collé), on voit le mur
- *  dessous et l'ombre du coin, puis il retombe. dir = 1 : on arrive d'un onglet de droite (coin droit, la vague part de la droite) ; -1 : de gauche. */
+/** Coup de vent sur les post-it (mur ou grille) : un coin du bas s'enroule vers nous (pliure arrondie, ombre sur le mur) puis retombe.
+ *  Le coin enroulé est dessiné par-dessus le post-it et le recouvre entièrement : rien n'apparaît derrière.
+ *  dir = 1 : on arrive d'un onglet de droite (coin droit, la vague part de la droite) ; -1 : de gauche (coin gauche). */
+let curlId = 0;
 export function gust(wrap, dir = 1) {
   if (reduced() || !wrap) return;
   const wr = wrap.getBoundingClientRect();
   const L = Math.max(wr.left, 0), T = Math.max(wr.top, 0), R = Math.min(wr.right, innerWidth), B = Math.min(wr.bottom, innerHeight);
   if (R - L < 10 || B - T < 10) return;
   const right = dir >= 0;
-  [...wrap.querySelectorAll('.note')].forEach((el) => {
+  [...wrap.querySelectorAll('.note:not(.fx-copy)')].forEach((el) => {
     const r = el.getBoundingClientRect();
     if (r.right < L || r.left > R || r.bottom < T || r.top > B) return; // hors de l'écran : rien
     const rx = Math.min(1, Math.max(0, (r.left - L) / (R - L))), ry = Math.min(1, Math.max(0, (r.top - T) / (B - T)));
-    const W = el.offsetWidth, H = el.offsetHeight, S = Math.min(W, H) * rnd(.26, .32), m = 40, A = rnd(50, 62);
-    const cs = getComputedStyle(el);
-    // 1. le post-it a un trou à la place du coin (règle evenodd : seul le triangle est retiré, l'ombre ne change pas)
-    const out = `${-m}px ${-m}px, ${W + m}px ${-m}px, ${W + m}px ${H + m}px, ${-m}px ${H + m}px, ${-m}px ${-m}px`;
-    const hole = right
-      ? `polygon(evenodd, ${out}, ${W}px ${H - S}px, ${W}px ${H}px, ${W - S}px ${H}px, ${W}px ${H - S}px)`
-      : `polygon(evenodd, ${out}, 0px ${H - S}px, ${S}px ${H}px, 0px ${H}px, 0px ${H - S}px)`;
-    // 2. le vrai coin (copie du post-it, contenu compris) tourne vers nous autour de la pliure, posé exactement au même endroit
-    const box = document.createElement('div'); box.className = 'fx-lift'; box.setAttribute('aria-hidden', 'true');
-    Object.assign(box.style, { left: `${el.offsetLeft}px`, top: `${el.offsetTop}px`, width: `${W}px`, height: `${H}px`, zIndex: String((parseInt(cs.zIndex, 10) || 0) + 1), transform: cs.transform === 'none' ? '' : cs.transform });
-    const c = el.cloneNode(true); c.classList.add('fx-copy'); // copie de passage : ignorée partout (`.note:not(.fx-copy)`)
-    ['data-note', 'data-action', 'data-id', 'tabindex', 'aria-label', 'id'].forEach((k) => c.removeAttribute(k));
-    Object.assign(c.style, { position: 'absolute', left: '0', top: '0', width: `${W}px`, height: `${H}px`, minHeight: '0', margin: '0', transform: 'none', rotate: 'none', translate: 'none', boxShadow: 'none', transition: 'none', zIndex: 'auto', fontSize: cs.fontSize, padding: cs.padding, lineHeight: cs.lineHeight, boxSizing: cs.boxSizing,
-      transformOrigin: right ? `${W - S / 2}px ${H - S / 2}px` : `${S / 2}px ${H - S / 2}px`,
-      clipPath: right ? `polygon(${W + 1}px ${H - S - .8}px, ${W + 1}px ${H + 1}px, ${W - S - .8}px ${H + 1}px)` : `polygon(-1px ${H - S - .8}px, ${S + .8}px ${H + 1}px, -1px ${H + 1}px)` });
-    box.append(c); el.after(box);
-    const axis = right ? '1, -1, 0' : '1, 1, 0';
-    const steps = [0, 1, .4, .6, 0], offs = [0, .26, .5, .68, 1], ease = 'ease-in-out';
-    const opts = { delay: (right ? 1 - rx : rx) * 160 + ry * 90, duration: 1000, easing: 'linear' };
-    el.animate([{ clipPath: hole }, { clipPath: hole }], opts);
-    c.animate(steps.map((k, i) => ({ transform: `perspective(420px) rotate3d(${axis}, ${(right ? -1 : 1) * k * A}deg)`, filter: `brightness(${1 + .03 * k})`, offset: offs[i], easing: ease })), opts);
-    box.animate(steps.map((k, i) => ({ filter: `drop-shadow(${(right ? -1 : 1) * 2 * k}px ${5 * k}px ${5 * k}px rgb(0 0 0 / ${(.32 * k).toFixed(2)}))`, offset: offs[i], easing: ease })), opts)
-      .finished.then(() => box.remove(), () => box.remove());
+    const S = Math.round(Math.min(el.offsetWidth, el.offsetHeight) * rnd(.3, .36)), id = `fxc${++curlId}`;
+    // dessin dans un carré 100 × 100, coin du post-it en bas à gauche (0, 100) ; la pliure est une courbe, le bout dépasse un peu (il vient vers nous)
+    const curl = document.createElement('span'); curl.className = `fx-curl ${right ? 'r' : 'l'}`; curl.setAttribute('aria-hidden', 'true');
+    curl.style.setProperty('--s', `${S}px`);
+    curl.innerHTML = `<svg viewBox="0 0 100 100" overflow="visible"><defs><linearGradient id="${id}" x1="62" y1="38" x2="0" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="var(--note)" style="stop-color: color-mix(in srgb, var(--note) 74%, #000)"/>
+      <stop offset=".35" stop-color="var(--note)" style="stop-color: color-mix(in srgb, var(--note) 88%, #000)"/>
+      <stop offset=".75" stop-color="var(--note)" style="stop-color: color-mix(in srgb, var(--note) 80%, #fff)"/>
+      <stop offset="1" stop-color="var(--note)"/></linearGradient></defs>
+      <path d="M0 0Q34 66 100 100Q46 108 -7 107Q-8 46 0 0Z" fill="url(#${id})"/>
+      <path d="M0 0Q34 66 100 100" fill="none" stroke="rgb(0 0 0 / .14)" stroke-width="1.2"/></svg>`;
+    el.append(curl);
+    const steps = [0, 1, .45, .68, 0], offs = [0, .26, .5, .68, 1], ease = 'ease-in-out';
+    curl.animate(steps.map((k, i) => ({ transform: `scale(${k})`, offset: offs[i], easing: ease })),
+      { delay: (right ? 1 - rx : rx) * 160 + ry * 90, duration: 1000, easing: 'linear', fill: 'backwards' })
+      .finished.then(() => curl.remove(), () => curl.remove());
   });
 }
 
