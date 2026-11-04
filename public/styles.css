@@ -692,9 +692,10 @@ dialog#sheet { overscroll-behavior: contain; }
 .done-box { margin-top: 16px; }
 /* ordinateur : la liste se range sur deux colonnes (chantiers et tâches côte à côte), les titres et les tâches sans chantier prennent toute la largeur */
 @media (min-width: 900px) {
-  .columns.one .col, .done-list { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 6px; grid-auto-flow: row dense; align-items: start; row-gap: 0; column-gap: 14px; } /* cases de 6 px : voir packLists() dans app.js */
-  .columns.one .col > *, .done-list > * { margin-top: 0 !important; }
-  .columns.one .col > .col-head, .columns.one .col > .ep-loose-label, .columns.one .col > .ep-loose, .columns.one .col > .col-empty, .done-list > .ep-loose-label, .done-list > .ep-loose { grid-column: 1 / -1; }
+  .columns.one .col, .done-box > .done-list { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 6px; grid-auto-flow: row dense; align-items: start; row-gap: 0; column-gap: 14px; } /* cases de 6 px : voir packLists() dans app.js */
+  .columns.one .col > *, .done-box > .done-list > * { margin-top: 0 !important; }
+  .done-box > .done-list { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; } /* « Terminées » dépliée : même panneau que « À faire », mêmes colonnes alignées */
+  .columns.one .col > .col-head, .columns.one .col > .ep-loose-label, .columns.one .col > .ep-loose, .columns.one .col > .col-empty { grid-column: 1 / -1; }
 }
 .done-head { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 4px; background: none; color: var(--muted); font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
 .done-head:hover { color: var(--ink); background: var(--surface-2); }
