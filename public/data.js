@@ -174,8 +174,9 @@ function summary(p, me) {
 const PROJECT_SELECT = '*, memberships(role, user_id, profiles(*)), tasks(status), notes(count)';
 
 export async function listProjects(me) {
-  const rows = ok(await sb.from('projects').select(PROJECT_SELECT).order('updated_at', { ascending: false }));
-  return rows.map((p) => summary(p, me));
+  const rows = ok(await sb.from('projects').select(PROJECT_SELECT));
+  // ordre alphabétique fixe (accents et majuscules ignorés) : un projet ne change jamais de place quand on le modifie
+  return rows.map((p) => summary(p, me)).sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base', numeric: true }) || a.id - b.id);
 }
 
 const taskDto = (t, images = []) => ({
