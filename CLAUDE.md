@@ -69,9 +69,11 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 4. Après le push : attendre que le site serve la nouvelle version (`curl` sur `app.js`), puis dire à l'utilisateur de rouvrir l'app. Les mises à jour se récupèrent seules (le service worker ne fait pas confiance au cache de 10 min de GitHub Pages) ; la première fois après un changement du mécanisme, il faut fermer/rouvrir.
 5. Ne **jamais** créer de pull request sans demande. Messages de commit en français, avec les lignes d'attribution demandées par la session.
 
-## Publication : directe, sans attendre (règle de l'utilisateur)
+## Publication : bêta en direct, stable sur demande (règle de l'utilisateur)
 
-Maintenant que la version bêta existe, l'utilisateur **ne veut plus qu'on attende son « publie »** : après les tests, on commit et on **pousse tout de suite**, puis on le dit (et on vérifie que le site sert la nouvelle version). Ce qui n'est pas prêt à être vu de tous se cache derrière `isBeta()`. Plus de fichier de test à envoyer sauf demande (`npm run build:test` existe toujours : fichier HTML autonome avec fausse base, `scripts/mock-supabase.js`).
+- **Je pousse tout de suite, sans demander**, ce qui est nouveau **caché derrière `isBeta()`** : ça n'apparaît que dans la bêta (`/beta/`). Je l'ajoute aussi à `public/beta.json` et je vérifie que le site sert la nouvelle version.
+- **Passer une nouveauté en stable** (enlever la condition `isBeta()`, la retirer de `beta.json`, l'ajouter au `changelog.md`) : **je demande d'abord à l'utilisateur**, et j'attends son accord.
+- Les corrections de bugs évidentes peuvent partir directement pour tous. Plus de fichier de test à envoyer sauf demande (`npm run build:test` existe toujours : fichier HTML autonome avec fausse base, `scripts/mock-supabase.js`).
 
 ## Version bêta (copie cachée dans `/beta/`)
 
