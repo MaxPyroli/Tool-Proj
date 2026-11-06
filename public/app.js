@@ -269,10 +269,24 @@ const betaSwitch = (toBeta) => {
 function drawBetaTab() {
   document.querySelector('.beta-tab')?.remove();
   if (!isBeta()) return;
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'beta-tab'; b.textContent = 'BÊTA'; b.title = 'Revenir à l’app normale';
-  b.addEventListener('click', () => betaSwitch(false)); document.body.append(b);
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'beta-tab'; b.textContent = 'BÊTA'; b.title = 'Ce qu’il y a dans la bêta';
+  b.addEventListener('click', betaMenu); document.body.append(b);
 }
 document.body.classList.toggle('beta', isBeta()); drawBetaTab();
+// Petit menu de la bêta : ce qu'elle a de plus que l'app normale (public/beta.json, à tenir à jour à la main : une entrée {title, text} par nouveauté cachée derrière `isBeta()`, retirée quand elle devient officielle).
+async function betaMenu() {
+  let list = [];
+  try { const r = await fetch('beta.json', { cache: 'no-cache' }); if (r.ok) list = await r.json(); } catch { /* hors ligne : liste vide */ }
+  list = Array.isArray(list) ? list.filter((x) => x && x.title) : [];
+  openSheet(`
+    <div class="stack">
+      <div class="sheet-head"><h2 id="sheet-title">Version bêta</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+      <p class="small muted">Ce qu’il y a ici en plus de l’app normale :</p>
+      ${list.length ? `<ul class="beta-list">${list.map((x) => `<li><strong>${esc(x.title)}</strong>${x.text ? `<span class="small muted">${esc(x.text)}</span>` : ''}</li>`).join('')}</ul>`
+        : '<p class="muted">Rien de plus pour l’instant : la bêta est identique à l’app normale.</p>'}
+      <button type="button" class="btn" data-action="beta-stable">Revenir à l’app normale</button>
+    </div>`);
+}
 let verTaps = 0, verTapAt = 0;
 
 function toast(msg, err = false, action = null) {

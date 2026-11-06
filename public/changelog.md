@@ -3,7 +3,6 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
-- Version bêta cachée pour les essais : touche 7 fois le numéro de version dans Mon compte, puis un bouton passe de l'app normale à la bêta (et inversement).
 - Les projets sont toujours rangés par ordre alphabétique (plus de changement de place quand on en modifie un).
 - Grille des post-it sur ordinateur : on peut attraper un post-it à la souris et le jeter dans la corbeille.
 - Quand on enlève un post-it de la grille, les autres glissent pour se recaler.

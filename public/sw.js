@@ -3,7 +3,7 @@
 const VERSION = '0.22.0';
 const BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 const CACHE = `tool-proj-${VERSION}-${BUILD}`;
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'data.js', 'fx.js', 'config.js', 'manifest.webmanifest', 'changelog.md', 'nouveautes.json', 'icons/icon.svg', 'icons/icon-192.png', 'vendor/supabase-js.js', 'fonts/bricolage-latin-opsz.woff2', 'fonts/figtree-latin-wght.woff2', 'fonts/kalam-latin-400.woff2', 'fonts/kalam-latin-700.woff2'];
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'data.js', 'fx.js', 'config.js', 'manifest.webmanifest', 'changelog.md', 'nouveautes.json', 'beta.json', 'icons/icon.svg', 'icons/icon-192.png', 'vendor/supabase-js.js', 'fonts/bricolage-latin-opsz.woff2', 'fonts/figtree-latin-wght.woff2', 'fonts/kalam-latin-400.woff2', 'fonts/kalam-latin-700.woff2'];
 const CACHEABLE_HOSTS = []; // aucune ressource externe : polices et bibliothèques sont dans l'app
 
 self.addEventListener('install', (e) => {
