@@ -1198,5 +1198,5 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 @keyframes tw-ding { 0%, 62% { transform: translateX(0); } 64% { transform: translateX(6px); } 68%, 100% { transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .tw, .tw > span, .tw > i { animation: none; } .tw > span { width: auto; } .tw > i { display: none; } }
 
-/* Mode bêta : petite languette en haut de l'écran, pour ne pas l'oublier */
-body.beta::after { content: "BÊTA"; position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 100000; padding: 1px 9px 2px; background: var(--accent, #2f8f8a); color: var(--accent-ink, #fff); font: 800 .62rem/1.2 system-ui, sans-serif; letter-spacing: .16em; pointer-events: none; }
+/* Mode bêta : languette en haut de l'écran (touche-la pour revenir à l'app normale) */
+.beta-tab { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 100000; margin: 0; padding: 1px 10px 2px; border: 0; border-radius: 0; background: var(--accent, #2f8f8a); color: var(--accent-ink, #fff); font: 800 .62rem/1.2 system-ui, sans-serif; letter-spacing: .16em; cursor: pointer; }

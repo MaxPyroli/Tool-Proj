@@ -43,9 +43,24 @@ jobs:
           grep -q "APP_BUILD = '${{ github.run_number }}'" public/app.js
           grep -q "BUILD = '${{ github.run_number }}'" public/sw.js
 
+      - name: Assembler le site (app normale + copie bêta dans /beta/)
+        run: |
+          mkdir -p _site/beta
+          cp -r public/. _site/
+          cp -r public/. _site/beta/
+          node -e '
+            const fs = require("fs");
+            const m = JSON.parse(fs.readFileSync("_site/beta/manifest.webmanifest", "utf8"));
+            m.name = "Tool Proj Bêta"; m.short_name = "Tool Proj β"; m.theme_color = "#b45309";
+            fs.writeFileSync("_site/beta/manifest.webmanifest", JSON.stringify(m, null, 2));
+            const h = fs.readFileSync("_site/beta/index.html", "utf8").replace(/<title>[^<]*<\/title>/, "<title>Tool Proj Bêta</title>");
+            fs.writeFileSync("_site/beta/index.html", h);
+          '
+          test -f _site/beta/app.js && test -f _site/app.js
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: public
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

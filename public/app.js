@@ -251,11 +251,28 @@ const icon = {
   gear: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
 };
 
-// ---------- mode bêta : caché, on l'allume en touchant 7 fois le numéro de version (Mon compte) ----------
-// Une nouveauté pas encore officielle s'écrit `if (isBeta()) { … }` : elle n'apparaît que sur les appareils où le mode est allumé.
-const isBeta = () => { try { return localStorage.getItem('tp-beta') === '1'; } catch { return false; } };
-const setBeta = (on) => { try { on ? localStorage.setItem('tp-beta', '1') : localStorage.removeItem('tp-beta'); } catch { /* stockage bloqué */ } document.body.classList.toggle('beta', isBeta()); };
-document.body.classList.toggle('beta', isBeta());
+// ---------- mode bêta : une 2ᵉ copie de l'app (adresse …/beta/, installable à part), cachée ----------
+// Hors de vue : on la débloque en touchant 7 fois « version x.y.z » dans Mon compte. Ensuite un bouton passe de l'une à l'autre
+// (Mon compte dans l'app normale ; la languette « BÊTA » ou Mon compte dans la bêta). Même compte, mêmes données.
+// Une nouveauté pas encore officielle s'écrit `if (isBeta()) { … }` : visible seulement dans la copie bêta.
+// (Hors http, par exemple le fichier de test ouvert en double-clic, il n'y a pas d'adresse /beta/ : un réglage local fait office de bêta.)
+const onWeb = /^https?:$/.test(location.protocol);
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* stockage bloqué */ } };
+const isBeta = () => (onWeb ? /\/beta\//.test(location.pathname) : lsGet('tp-beta') === '1');
+const betaUnlocked = () => lsGet('tp-beta-ok') === '1';
+if (onWeb && isBeta() && !betaUnlocked()) location.replace('../'); // le dossier /beta/ ne s'ouvre que si l'interrupteur a été débloqué sur cet appareil
+const betaSwitch = (toBeta) => {
+  if (onWeb) { location.href = toBeta ? 'beta/' : '../'; return; }
+  lsSet('tp-beta', toBeta ? '1' : null); document.body.classList.toggle('beta', toBeta); drawBetaTab(); accountSheet();
+};
+function drawBetaTab() {
+  document.querySelector('.beta-tab')?.remove();
+  if (!isBeta()) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'beta-tab'; b.textContent = 'BÊTA'; b.title = 'Revenir à l’app normale';
+  b.addEventListener('click', () => betaSwitch(false)); document.body.append(b);
+}
+document.body.classList.toggle('beta', isBeta()); drawBetaTab();
 let verTaps = 0, verTapAt = 0;
 
 function toast(msg, err = false, action = null) {
@@ -2073,7 +2090,7 @@ function accountSheet() {
       <button class="btn" data-action="claude-new">Créer un accès</button>
     </section>
     <button class="btn danger" data-action="logout">Se déconnecter</button>
-    <p class="small muted" style="text-align:center">Tool Proj · <span data-action="ver-tap">version ${APP_VERSION}</span> <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span>${isBeta() ? '<br><button type="button" class="link-btn" data-action="beta-off">Mode bêta allumé · Quitter</button>' : ''}<br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { sheet.classList.add('badge-sheet'); /* tout le menu est une carte d'accès */ renderPushBox(); renderClaudeBox(); if (db.passkeysSupported()) loadPasskeys(); });
+    <p class="small muted" style="text-align:center">Tool Proj · <span data-action="ver-tap">version ${APP_VERSION}</span> <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span>${isBeta() ? '<br><button type="button" class="btn sm" data-action="beta-stable">Revenir à l’app normale</button>' : betaUnlocked() ? '<br><button type="button" class="btn sm" data-action="beta-go">Ouvrir la version bêta</button>' : ''}<br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { sheet.classList.add('badge-sheet'); /* tout le menu est une carte d'accès */ renderPushBox(); renderClaudeBox(); if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {
@@ -2099,10 +2116,13 @@ const actions = {
   'ver-tap': () => {
     const now = Date.now(); verTaps = now - verTapAt < 2500 ? verTaps + 1 : 1; verTapAt = now;
     if (verTaps < 7) return;
-    verTaps = 0; setBeta(!isBeta());
-    toast(isBeta() ? 'Mode bêta allumé' : 'Mode bêta éteint'); accountSheet();
+    verTaps = 0;
+    if (isBeta()) { lsSet('tp-beta-ok', null); betaSwitch(false); return; }
+    lsSet('tp-beta-ok', betaUnlocked() ? null : '1');
+    toast(betaUnlocked() ? 'Version bêta débloquée' : 'Version bêta masquée'); accountSheet();
   },
-  'beta-off': () => { setBeta(false); toast('Mode bêta éteint'); accountSheet(); },
+  'beta-go': () => betaSwitch(true),
+  'beta-stable': () => betaSwitch(false),
   'auth-back': () => { state.authStep = 'email'; state.authError = ''; state.authInfo = ''; renderAuth(); },
   'auth-resend': async () => {
     try { await db.sendEmailLink(state.authEmail); state.authError = ''; state.authInfo = 'Nouvel email envoyé.'; }
