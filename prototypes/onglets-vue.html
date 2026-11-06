@@ -1,0 +1,47 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prototype : choix d'affichage</title>
+<style>
+:root{--bg:#eef0f4;--ink:#1d2430;--muted:#6b7482;--paper:#fffdf6;--line:#c9cfda;--teal:#2f8f8a;--tealInk:#fff;--kraft:#d9b678;--kraftD:#a98649;--hl:#f6d75b}
+@media(prefers-color-scheme:dark){:root{--bg:#161a20;--ink:#e8ecf2;--muted:#9aa3b2;--paper:#262a31;--line:#3d4552;--teal:#3cc2b4;--tealInk:#062b27;--kraft:#8f7347;--kraftD:#c9a56b;--hl:#8a7a2a}}
+body{margin:0;padding:20px 16px 40px;background:var(--bg);color:var(--ink);font:16px system-ui;display:grid;gap:26px;max-width:460px;margin:auto}
+h1{font-size:1.15rem;margin:0}h2{font-size:.9rem;margin:0 0 8px;color:var(--muted);font-weight:700}
+svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button{font:inherit;color:inherit;cursor:pointer}
+/* A : étiquette kraft qui glisse */
+.a{position:relative;display:flex;background:var(--paper);border:1px solid var(--line);padding:3px}
+.a .bar{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);background:var(--kraft);box-shadow:0 1px 0 rgb(0 0 0/.18);transition:transform .35s cubic-bezier(.3,.9,.35,1)}
+.a button{position:relative;flex:1;min-height:42px;border:0;background:none;display:flex;gap:8px;align-items:center;justify-content:center;font-weight:700;color:var(--muted);transition:color .2s}
+.a button[aria-pressed=true]{color:#2b2110}
+.a[data-i="1"] .bar{transform:translateX(calc(100% + 0px))}
+/* B : intercalaires de classeur */
+.b{display:flex;gap:3px;align-items:flex-end;border-bottom:3px solid var(--teal);padding-left:6px}
+.b button{display:flex;gap:7px;align-items:center;padding:7px 14px 6px;margin-top:5px;border:0;background:color-mix(in srgb,var(--teal) 22%,var(--paper));color:var(--muted);font-weight:700;box-shadow:inset 0 3px 0 color-mix(in srgb,var(--teal) 55%,transparent);transition:all .25s}
+.b button[aria-pressed=true]{margin-top:0;padding:10px 18px 7px;background:var(--teal);color:var(--tealInk);box-shadow:inset 0 3px 0 rgb(255 255 255/.4)}
+/* C : surligneur */
+.c{display:flex;gap:6px;padding:4px 0;position:relative;border-bottom:1px dashed var(--line)}
+.c button{position:relative;border:0;background:none;padding:8px 12px;font-weight:700;color:var(--muted);display:flex;gap:7px;align-items:center;z-index:1}
+.c button[aria-pressed=true]{color:var(--ink)}
+.c .hl{position:absolute;bottom:6px;left:0;height:46%;background:var(--hl);opacity:.8;z-index:0;transition:transform .35s cubic-bezier(.3,.9,.35,1),width .35s cubic-bezier(.3,.9,.35,1)}
+.demo{background:var(--paper);border:1px solid var(--line);padding:14px;min-height:60px;margin-top:10px;font-size:.9rem;color:var(--muted)}
+</style>
+<h1>Choix d'affichage : 3 idées</h1><p style="margin:0;color:var(--muted);font-size:.9rem">Touche les boutons pour essayer. Les coins sont carrés, comme le reste de l'app.</p>
+
+<section><h2>A · Étiquette kraft qui glisse</h2>
+<div class="a" id="a" data-i="0"><span class="bar"></span>
+ <button aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Liste</button>
+ <button aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="11"/></svg>Par chantier</button></div></section>
+
+<section><h2>B · Petits intercalaires de classeur</h2>
+<div class="b" id="b"><button aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Liste</button>
+ <button aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="11"/></svg>Par chantier</button></div></section>
+
+<section><h2>C · Surligneur qui glisse (sur Mur / Grille)</h2>
+<div class="c" id="c"><span class="hl"></span>
+ <button aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 12h18M12 5v14"/></svg>Mur</button>
+ <button aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Grille</button></div></section>
+<script>
+const a=document.getElementById('a');a.querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{a.dataset.i=i;a.querySelectorAll('button').forEach((x,j)=>x.setAttribute('aria-pressed',i===j))});
+const b=document.getElementById('b');b.querySelectorAll('button').forEach(x=>x.onclick=()=>b.querySelectorAll('button').forEach(y=>y.setAttribute('aria-pressed',x===y)));
+const c=document.getElementById('c'),hl=c.querySelector('.hl'),cb=[...c.querySelectorAll('button')];
+const mv=()=>{const t=cb.find(x=>x.getAttribute('aria-pressed')==='true');hl.style.width=t.offsetWidth+'px';hl.style.transform=`translateX(${t.offsetLeft}px)`};
+cb.forEach(x=>x.onclick=()=>{cb.forEach(y=>y.setAttribute('aria-pressed',x===y));mv()});mv();addEventListener('load',mv);
+</script></html>
