@@ -1009,9 +1009,9 @@ function viewTasks(d) {
     ['mine', 'À moi', open.filter((t) => t.assigneeId === state.me.id).length]];
   return `
   <div class="task-tools">
-    <div class="seg views" role="tablist" aria-label="Affichage">
+    ${isBeta() ? '<span class="grow"></span>' : `<div class="seg views" role="tablist" aria-label="Affichage">
       ${[['status', 'Liste'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}
-    </div>
+    </div>`}
     <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
   </div>
   ${`<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ty-${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>`}
@@ -1024,6 +1024,17 @@ function doneLine(key, doneItems, byId, draggable) {
   const open = state.epicDone.has(key), n = doneItems.length;
   return `<button class="ep-done" data-action="epic-done" data-id="${key}" aria-expanded="${open}">${ico('check', 13)} ${n} terminé${n > 1 ? 's' : ''} <span class="ep-chev" aria-hidden="true">${open ? '▴' : '▾'}</span></button>
     ${open ? `<div class="ep-stack ep-stack-done">${doneItems.map((t) => taskRow(t, byId, { draggable })).join('')}</div>` : ''}`;
+}
+
+/** BÊTA : un chantier « Plus tard » en vrai carnet fermé : couverture colorée, reliure à spirale, étiquette avec le titre, tranche de pages. */
+const BOOK_COVERS = ['--pi-purple', '--pi-blue', '--pi-green', '--pi-pink', '--pi-yellow', '--pi-orange'];
+function epicBook(e, openCount, doneCount, draggable) {
+  const cv = BOOK_COVERS[e.id % BOOK_COVERS.length];
+  return `<button class="ep-book" style="--cv:var(${cv})" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false" aria-label="Ouvrir le carnet ${esc(e.title)}">
+    <span class="ep-spiral" aria-hidden="true"></span>
+    <span class="ep-book-label"><span class="ep-book-title">${esc(e.title)}</span><span class="ep-book-count">${openCount ? `${openCount} à faire` : doneCount ? 'tout fait' : 'vide'}</span></span>
+    <span class="ep-chev" aria-hidden="true">▾</span>
+  </button>`;
 }
 
 /** A « Plus tard » chantier folded as a closed notepad: spiral + title only, tap to open it. */
@@ -1065,7 +1076,7 @@ function boardGroups(d, list) {
 function viewBoard(d) {
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const draggable = matchMedia('(pointer: fine)').matches;
-  const byEpic = state.boardGroup === 'epic';
+  const byEpic = !isBeta() && state.boardGroup === 'epic';
   const group = (list) => boardGroups(d, list).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
     : items.map((t) => taskRow(t, byId, { draggable })).join(''))).join(''); // tâches sans chantier : directement dans la liste, à côté des chantiers (pas de séparation)
   if (byEpic) {
@@ -1103,7 +1114,12 @@ function viewBoard(d) {
   const colOf = (t) => (t.id === state.justDone ? 'todo' : t.id === state.justUndone ? 'done' : t.status);
   const laterIds = new Set(d.epics.filter((e) => e.horizon === 'later').map((e) => e.id));
   const parked = d.tasks.filter((t) => laterIds.has(t.epicId) && matchesFilter(t));
-  const visible = (t) => state.showLater || !laterIds.has(t.epicId);
+  const beta = isBeta(); // BÊTA : les chantiers « Plus tard » sont des carnets fermés dans la liste (plus de lien « Afficher les tâches rangées »)
+  const visible = (t) => (beta ? !laterIds.has(t.epicId) : state.showLater || !laterIds.has(t.epicId));
+  const books = beta ? d.epics.filter((e) => e.horizon === 'later').sort(sortEpics)
+    .map((e) => [e, d.tasks.filter((t) => t.epicId === e.id && t.status !== 'done' && matchesFilter(t)).sort(sortItems), d.tasks.filter((t) => t.epicId === e.id && t.status === 'done' && matchesFilter(t)).sort(sortItems)])
+    .filter(([, l, f]) => state.taskFilter === 'all' || l.length || f.length)
+    .map(([e, l, f]) => (state.epicOpen.has(e.id) ? epicNote(d, e, l, byId, draggable, false, f, true) : epicBook(e, l.length, f.length, draggable))).join('') : '';
   const pick = (s) => d.tasks.filter((t) => colOf(t) === s && matchesFilter(t) && visible(t)).sort(sortItems);
   const todoList = pick('todo'), doneList = pick('done');
   return `
@@ -1111,14 +1127,14 @@ function viewBoard(d) {
   <div class="columns one">
     <section class="col shown" aria-label="${TASK.todo}">
       <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR.todo}"></span>${TASK.todo}</h3><span class="muted num small">${todoList.length}</span></div>
-      ${group(todoList) || '<p class="col-empty">Rien à faire pour le moment.</p>'}
+      ${group(todoList) || (books ? '' : '<p class="col-empty">Rien à faire pour le moment.</p>')}${books}
     </section>
   </div>
   ${doneList.length ? `<section class="done-box">
     <button class="done-head" data-action="toggle-done" aria-expanded="${state.showDone}"><span>${TASK.done}es · ${doneList.length}</span><span class="chev" aria-hidden="true">${state.showDone ? '▴' : '▾'}</span></button>
     ${state.showDone ? `<div class="done-list">${group(doneList)}</div>` : ''}
   </section>` : ''}
-  ${parked.length ? `<button class="link-btn" data-action="toggle-later">${state.showLater ? 'Masquer' : 'Afficher'} les ${parked.length} tâche${parked.length > 1 ? 's' : ''} rangée${parked.length > 1 ? 's' : ''} dans des chantiers « Plus tard »</button>` : ''}`;
+  ${parked.length && !beta ? `<button class="link-btn" data-action="toggle-later">${state.showLater ? 'Masquer' : 'Afficher'} les ${parked.length} tâche${parked.length > 1 ? 's' : ''} rangée${parked.length > 1 ? 's' : ''} dans des chantiers « Plus tard »</button>` : ''}`;
 }
 
 const segField = (name, options, value, label, cls = '') => `
