@@ -251,6 +251,13 @@ const icon = {
   gear: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
 };
 
+// ---------- mode bêta : caché, on l'allume en touchant 7 fois le numéro de version (Mon compte) ----------
+// Une nouveauté pas encore officielle s'écrit `if (isBeta()) { … }` : elle n'apparaît que sur les appareils où le mode est allumé.
+const isBeta = () => { try { return localStorage.getItem('tp-beta') === '1'; } catch { return false; } };
+const setBeta = (on) => { try { on ? localStorage.setItem('tp-beta', '1') : localStorage.removeItem('tp-beta'); } catch { /* stockage bloqué */ } document.body.classList.toggle('beta', isBeta()); };
+document.body.classList.toggle('beta', isBeta());
+let verTaps = 0, verTapAt = 0;
+
 function toast(msg, err = false, action = null) {
   const box = document.getElementById('toasts');
   if (!err && !action) { // message tout simple : un tampon encreur le pose sur l'écran
@@ -2066,7 +2073,7 @@ function accountSheet() {
       <button class="btn" data-action="claude-new">Créer un accès</button>
     </section>
     <button class="btn danger" data-action="logout">Se déconnecter</button>
-    <p class="small muted" style="text-align:center">Tool Proj · version ${APP_VERSION} <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span><br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { sheet.classList.add('badge-sheet'); /* tout le menu est une carte d'accès */ renderPushBox(); renderClaudeBox(); if (db.passkeysSupported()) loadPasskeys(); });
+    <p class="small muted" style="text-align:center">Tool Proj · <span data-action="ver-tap">version ${APP_VERSION}</span> <span title="Numéro de mise en ligne">(build ${APP_BUILD})</span>${isBeta() ? '<br><button type="button" class="link-btn" data-action="beta-off">Mode bêta allumé · Quitter</button>' : ''}<br>© 2026 Paname Dev · Codé par Claude<br><a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a> · <a href="mailto:contact@panamedev.fr">contact@panamedev.fr</a></p>`, () => { sheet.classList.add('badge-sheet'); /* tout le menu est une carte d'accès */ renderPushBox(); renderClaudeBox(); if (db.passkeysSupported()) loadPasskeys(); });
 }
 
 async function loadPasskeys() {
@@ -2089,6 +2096,13 @@ async function loadPasskeys() {
 const formData = (form) => Object.fromEntries(new FormData(form));
 
 const actions = {
+  'ver-tap': () => {
+    const now = Date.now(); verTaps = now - verTapAt < 2500 ? verTaps + 1 : 1; verTapAt = now;
+    if (verTaps < 7) return;
+    verTaps = 0; setBeta(!isBeta());
+    toast(isBeta() ? 'Mode bêta allumé' : 'Mode bêta éteint'); accountSheet();
+  },
+  'beta-off': () => { setBeta(false); toast('Mode bêta éteint'); accountSheet(); },
   'auth-back': () => { state.authStep = 'email'; state.authError = ''; state.authInfo = ''; renderAuth(); },
   'auth-resend': async () => {
     try { await db.sendEmailLink(state.authEmail); state.authError = ''; state.authInfo = 'Nouvel email envoyé.'; }

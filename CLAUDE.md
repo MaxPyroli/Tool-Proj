@@ -73,7 +73,13 @@ L'utilisateur parle français et lit surtout sur téléphone : réponses courtes
 
 L'utilisateur a **arrêté la règle « version de test avant de publier »** (ça le lassait) : ne plus envoyer de fichier de test sauf s'il le redemande ; après les tests on commit et on publie quand il le dit (le système peut refuser un `git push` non demandé : dans ce cas le lui dire). L'outil existe toujours : `npm run build:test` fabrique `dist/Tool-Proj-test.html` (un seul fichier, fausse base dans le navigateur via `scripts/mock-supabase.js` ; si `data.js` utilise une nouvelle table ou relation, l'ajouter au mock), envoyé avec `SendUserFile` ; `build-single.cjs` sans `--demo` le branche sur une vraie base.
 
-## Version sur le PC de l'utilisateur (Windows)
+## Mode bêta (caché)
+
+À la place d'un 2ᵉ site : un **mode bêta par appareil** (`localStorage` `tp-beta`, classe `beta` sur `<body>` = languette « BÊTA » en haut). On l'allume en **touchant 7 fois « version x.y.z »** dans *Mon compte* (`ver-tap`), on le coupe de la même façon ou avec « Mode bêta allumé · Quitter » (`beta-off`). Une nouveauté pas encore officielle s'écrit `if (isBeta()) { … }` dans `app.js` : publiée sur le vrai site mais invisible pour les autres. Pour la rendre officielle, on enlève la condition. Les changements de base touchent tout le monde : prévoir une maintenance, l'utilisateur est d'accord.
+
+## Version sur le PC de l'utilisateur (Windows) — abandonnée
+
+L'utilisateur a trouvé ça trop compliqué : les fichiers existent (voir plus bas) mais ne servent plus.
 
 `windows/mettre-a-jour.bat` + `mettre-a-jour.ps1` : à poser dans `C:\Users\maxim\Documents\Tool Proj`. Double-clic = télécharge la dernière version **publiée** sur GitHub (zip de la branche, dossier `public`), la range dans `site\`, la sert sur `http://localhost:8088/` (petit serveur PowerShell) et ouvre le navigateur. Non testé sous Windows depuis le bac à sable. L'adresse `http://localhost:8088/**` doit être dans les URL de redirection autorisées de Supabase (connexion par lien) ; les clés d'accès ne marchent pas là (liées au domaine). L'accès direct au dossier du PC n'a pas marché (dossiers « not_available » pour les sessions cloud).
 
