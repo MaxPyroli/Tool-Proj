@@ -1216,3 +1216,9 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .ep-book .ep-chev { position: relative; z-index: 1; margin-right: 12px; color: var(--pi-ink); opacity: .85; }
 .ep-book:hover { filter: brightness(1.04); }
 .ep-book.dragging { opacity: .4; }
+
+.ep-book-tag { position: absolute; top: 5px; right: 34px; padding: 1px 7px 2px; background: rgb(0 0 0 / .55); color: #fff; font-size: .6rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
+.ep-book { transition: transform .22s cubic-bezier(.3, .9, .35, 1), box-shadow .22s, filter .2s; }
+.ep-book:hover { transform: translateY(-3px); }
+.ep-book:active { transform: translateY(1px); transition-duration: .06s; }
+@media (prefers-reduced-motion: reduce) { .ep-book { transition: none; } .ep-book:hover, .ep-book:active { transform: none; } }

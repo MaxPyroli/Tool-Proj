@@ -1030,8 +1030,9 @@ function doneLine(key, doneItems, byId, draggable) {
 const BOOK_COVERS = ['--pi-purple', '--pi-blue', '--pi-green', '--pi-pink', '--pi-yellow', '--pi-orange'];
 function epicBook(e, openCount, doneCount, draggable) {
   const cv = BOOK_COVERS[e.id % BOOK_COVERS.length];
-  return `<button class="ep-book" style="--cv:var(${cv})" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false" aria-label="Ouvrir le carnet ${esc(e.title)}">
+  return `<button class="ep-book" data-fx="book:${e.id}" style="--cv:var(${cv})" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false" aria-label="Ouvrir le carnet ${esc(e.title)}">
     <span class="ep-spiral" aria-hidden="true"></span>
+    <span class="ep-book-tag">Plus tard</span>
     <span class="ep-book-label"><span class="ep-book-title">${esc(e.title)}</span><span class="ep-book-count">${openCount ? `${openCount} à faire` : doneCount ? 'tout fait' : 'vide'}</span></span>
     <span class="ep-chev" aria-hidden="true">▾</span>
   </button>`;
@@ -1051,7 +1052,7 @@ function epicClosed(e, openCount, doneCount, draggable) {
 function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = [], foldable = false) {
   const pr = epicProgress(d, e.id);
   const doneOpen = state.epicDone.has(e.id);
-  return `<article class="ep-sheet hz-${e.horizon}" ${state.boardGroup === 'epic' ? `data-drop-epic="${e.id}"` : ''} data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
+  return `<article class="ep-sheet hz-${e.horizon}" ${isBeta() && e.horizon === 'later' ? `data-fx="book:${e.id}"` : ''} ${state.boardGroup === 'epic' ? `data-drop-epic="${e.id}"` : ''} data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
     <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
@@ -2196,7 +2197,13 @@ const actions = {
   'goto-roadmap': () => { state.boardGroup = 'epic'; store.set('boardGroup', 'epic'); location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
   'toggle-done': () => { state.showDone = !state.showDone; renderProject(); },
-  'epic-toggle': (el) => { const k = Number(el.dataset.id); state.epicOpen.has(k) ? state.epicOpen.delete(k) : state.epicOpen.add(k); renderProject(); },
+  'epic-toggle': (el) => {
+    const k = Number(el.dataset.id), opening = !state.epicOpen.has(k);
+    opening ? state.epicOpen.add(k) : state.epicOpen.delete(k);
+    if (isBeta()) fx.focus([...$app.querySelectorAll('[data-fx]')].map((e) => e.dataset.fx).filter((x) => x !== `book:${k}`)); // les autres carnets et tâches glissent à leur nouvelle place
+    renderProject();
+    if (isBeta()) (opening ? fx.bookOpen : fx.bookClose)($app.querySelector(opening ? `.ep-sheet[data-id="${k}"]` : `.ep-book[data-id="${k}"]`));
+  },
   'toggle-later': () => { state.showLater = !state.showLater; renderProject(); },
   'epic-done': (el) => { const k = Number(el.dataset.id); state.epicDone.has(k) ? state.epicDone.delete(k) : state.epicDone.add(k); renderProject(); },
   'quick-type': (el) => {

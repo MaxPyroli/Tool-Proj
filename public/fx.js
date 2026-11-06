@@ -446,3 +446,29 @@ export async function shred(el, html) {
   await done(machine.animate(out, outOpts));
   pile.remove(); machine.remove(); temp?.remove();
 }
+
+// ---------- carnets de chantier (bêta) : ouverture et fermeture ----------
+
+/** Un carnet qu'on vient d'ouvrir : la feuille se déplie vers le bas depuis la spirale. */
+export function bookOpen(el) {
+  if (!el || reduced()) return;
+  el.style.transformOrigin = 'top center';
+  el.animate([
+    { transform: 'perspective(800px) rotateX(-62deg) scaleY(.45)', opacity: 0 },
+    { opacity: 1, offset: .35 },
+    { transform: 'perspective(800px) rotateX(6deg) scaleY(1.02)', offset: .8 },
+    { transform: 'none', opacity: 1 },
+  ], { duration: 520, easing: 'cubic-bezier(.25, .8, .3, 1)' });
+}
+
+/** Un carnet qu'on vient de refermer : la couverture se rabat et se pose, avec un petit rebond. */
+export function bookClose(el) {
+  if (!el || reduced()) return;
+  el.style.transformOrigin = 'top center';
+  el.animate([
+    { transform: 'perspective(800px) rotateX(48deg) scaleY(1.7)', opacity: 0 },
+    { opacity: 1, offset: .3 },
+    { transform: 'perspective(800px) rotateX(-4deg) scaleY(.97)', offset: .75 },
+    { transform: 'none', opacity: 1 },
+  ], { duration: 440, easing: 'cubic-bezier(.25, .8, .3, 1)' });
+}
