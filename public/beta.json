@@ -2,5 +2,13 @@
   {
     "title": "Carnets fermés dans la liste",
     "text": "Les chantiers « Plus tard » sont de vrais carnets fermés avec couverture et tampon « Plus tard », qui s'ouvrent et se referment en s'animant. La vue « Par chantier » a disparu."
+  },
+  {
+    "title": "Moins de tampons",
+    "text": "Un tampon seulement pour une action ponctuelle (ajouter, envoyer, copier). Plus pour les suppressions, les modifications et le curseur d'avancement."
+  },
+  {
+    "title": "Un seul ajout de tâche",
+    "text": "La ligne rapide se déploie quand on la touche : type, titre, détails, chantier et priorité. Le bouton « + Ajouter » y mène directement."
   }
 ]

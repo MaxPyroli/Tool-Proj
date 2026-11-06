@@ -1222,3 +1222,18 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .ep-book:hover { transform: translateY(-3px); }
 .ep-book:active { transform: translateY(1px); transition-duration: .06s; }
 @media (prefers-reduced-motion: reduce) { .ep-book { transition: none; } .ep-book:hover, .ep-book:active { transform: none; } }
+
+/* BÊTA · ajout de tâche : la ligne rapide se déploie (type, titre, détails, chantier, priorité) */
+.composer { display: grid; gap: 0; }
+.composer .qa-row { display: flex; gap: 8px; }
+.composer .qa-row .input { flex: 1; min-width: 0; }
+.qa-more { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .32s cubic-bezier(.3, .9, .35, 1), opacity .25s; }
+.composer:focus-within .qa-more, .composer.has-draft .qa-more { grid-template-rows: 1fr; opacity: 1; }
+.qa-more-in { min-height: 0; overflow: hidden; display: grid; gap: 8px; padding: 0 2px; }
+.composer:focus-within .qa-more-in, .composer.has-draft .qa-more-in { padding-top: 8px; padding-bottom: 2px; }
+.qa-more textarea { resize: vertical; min-height: 76px; }
+.qa-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.qa-opts .field { margin: 0; }
+.qa-more .link-btn { justify-self: start; }
+@media (max-width: 430px) { .composer .qa-row { flex-wrap: wrap; } .composer .qa-type { flex: 1 1 100%; } .composer .qa-row .input { flex: 1 1 0; } }
+@media (prefers-reduced-motion: reduce) { .qa-more { transition: none; } }

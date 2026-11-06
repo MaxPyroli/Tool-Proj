@@ -289,6 +289,8 @@ async function betaMenu() {
 }
 let verTaps = 0, verTapAt = 0;
 
+// BÊTA : un tampon seulement pour une action ponctuelle (valider, envoyer, copier). Suppressions (déjà animées), modifications et curseurs : plus de tampon.
+const quiet = (msg) => { if (!isBeta()) toast(msg); };
 function toast(msg, err = false, action = null) {
   const box = document.getElementById('toasts');
   if (!err && !action) { // message tout simple : un tampon encreur le pose sur l'écran
@@ -942,7 +944,31 @@ const TYPE_LIST = Object.keys(TYPES);
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
 const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span></button>`; };
 const draftKey = () => `draft:${state.pid}`;
-const quickAdd = (placeholder) => `
+// BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
+const composer = (placeholder) => {
+  const d = state.data, k = draftKey();
+  const desc = store.get(`${k}:desc`, ''), epic = store.get(`${k}:epic`, ''), prio = store.get(`${k}:prio`, 'normal');
+  const has = !!(store.get(k, '') || desc);
+  const epics = [...d.epics].filter((e) => e.horizon !== 'done').sort(sortEpics);
+  return `
+  <form class="quick-add composer${has ? ' has-draft' : ''}" data-form="add-task">
+    <div class="qa-row">
+      ${quickTypeBtn()}
+      <input class="input" id="task-new" name="title" maxlength="200" placeholder="${placeholder}" value="${esc(store.get(k, ''))}" autocomplete="off" enterkeyhint="done">
+      <button class="btn primary" type="submit">Ajouter</button>
+    </div>
+    <div class="qa-more"><div class="qa-more-in">
+      <textarea class="input" id="task-desc" name="description" maxlength="5000" rows="3" aria-label="Détails" placeholder="Détails, étapes, liens… (facultatif)">${esc(desc)}</textarea>
+      <div class="qa-opts">
+        <label class="field"><span>Chantier</span><select class="input" id="task-epic" name="epicId"><option value="">Hors chantier</option>${epics.map((e) => `<option value="${e.id}" ${String(e.id) === String(epic) ? 'selected' : ''}>${esc(e.title)}${e.horizon === 'later' ? ' (plus tard)' : ''}</option>`).join('')}</select></label>
+        <label class="field"><span>Priorité</span><select class="input" id="task-prio" name="priority">${Object.entries(PRIORITY).map(([v, l]) => `<option value="${v}" ${v === prio ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      </div>
+      <button type="button" class="link-btn" data-action="new-epic">+ Nouveau chantier</button>
+    </div></div>
+  </form>`;
+};
+
+const quickAdd = (placeholder) => isBeta() ? composer(placeholder) : `
   <form class="quick-add" data-form="add-task">
     ${quickTypeBtn()}
     <input class="input" id="task-new" name="title" maxlength="200" placeholder="${placeholder}" value="${esc(store.get(draftKey(), ''))}" autocomplete="off" enterkeyhint="done">
@@ -2171,7 +2197,7 @@ const actions = {
   },
   'passkey-delete': async (el) => {
     await db.deletePasskey(el.dataset.id);
-    toast('Clé supprimée'); loadPasskeys();
+    quiet('Clé supprimée'); loadPasskeys();
   },
   close: () => (faxEl ? closeFax() : closeSheet()),
   account: accountSheet,
@@ -2190,7 +2216,7 @@ const actions = {
     closeSheet();
     const chemise = projectCard({ id: p.id, name: p.name, emoji: p.emoji, color: p.color, status: p.status, role: 'admin', progress: 0, description: '', tasks: { total: 0, done: 0 }, noteCount: 0, updatedAt: new Date().toISOString(), members: [] });
     await removeWith('shred', null, () => db.deleteProject(p.id), chemise);
-    toast('Projet supprimé');
+    quiet('Projet supprimé');
     state.data = null; location.hash = '#/';
   },
   'board-group': (el) => { state.boardGroup = el.dataset.v; store.set('boardGroup', el.dataset.v); renderProject(); },
@@ -2212,6 +2238,10 @@ const actions = {
     $app.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
   },
   'new-item': (el) => {
+    if (isBeta() && state.tab === 'taches' && !sheet.open && $app.querySelector('.composer')) { // BÊTA : on ajoute depuis la ligne qui se déploie
+      if (el.dataset.epic) { store.set(`${draftKey()}:epic`, el.dataset.epic); const s = $app.querySelector('#task-epic'); if (s) s.value = el.dataset.epic; }
+      const box = $app.querySelector('.composer'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); $app.querySelector('#task-new').focus({ preventScroll: true }); return;
+    }
     if (el.dataset.epic) return taskSheet({ epicId: Number(el.dataset.epic) });
     chooserSheet();
   },
@@ -2220,7 +2250,7 @@ const actions = {
   'edit-link': (el) => linksSheet(Number(el.dataset.id)),
   'delete-link': async (el) => {
     await db.deleteLink(Number(el.dataset.id));
-    toast('Lien supprimé'); await reloadProject(); linksSheet();
+    quiet('Lien supprimé'); await reloadProject(); linksSheet();
   },
   'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: 'todo' })),
   'open-epic': (el) => epicSheet(state.data.epics.find((e) => e.id === Number(el.dataset.id))),
@@ -2232,7 +2262,7 @@ const actions = {
     closeSheet();
     const ids = choice.withTasks ? mine.map((t) => t.id) : [];
     await removeWith('shred', $app.querySelector(`.ep-sheet[data-id="${e.id}"], .ep-closed[data-id="${e.id}"]`), () => db.deleteEpic(e.id, ids));
-    toast(ids.length ? `Chantier et ${ids.length} tâche${ids.length > 1 ? 's' : ''} supprimés` : 'Chantier supprimé'); await reloadProject();
+    quiet(ids.length ? `Chantier et ${ids.length} tâche${ids.length > 1 ? 's' : ''} supprimés` : 'Chantier supprimé'); await reloadProject();
   },
   'pick-avatar-emoji': (el) => {
     const form = el.closest('form');
@@ -2293,7 +2323,7 @@ const actions = {
     const id = Number(el.dataset.id);
     closeSheet();
     await removeWith('trash', $app.querySelector(`.task[data-id="${id}"]`), () => db.deleteTask(id));
-    toast('Supprimé'); await reloadProject();
+    quiet('Supprimé'); await reloadProject();
   },
   'board-view': (el) => {
     state.boardView = el.dataset.v; store.set('boardView', el.dataset.v);
@@ -2332,7 +2362,7 @@ const actions = {
     const id = Number(el.dataset.id);
     closeSheet();
     await removeWith('trash', $app.querySelector(`.note[data-note="${id}"]`), () => db.deleteNote(id));
-    toast('Post-it décollé'); fx.focus(noteKeys()); await reloadProject();
+    quiet('Post-it décollé'); fx.focus(noteKeys()); await reloadProject();
   },
   'remove-member': async (el) => {
     const id = el.dataset.id;
@@ -2365,7 +2395,7 @@ const actions = {
     const id = Number(el.dataset.id);
     if (!(await confirmSheet('Révoquer cet accès ? Claude ne pourra plus lire ni modifier tes projets avec cette adresse.', 'Révoquer'))) return accountSheet();
     await db.revokeClaudeAccess(id);
-    toast('Accès révoqué'); accountSheet();
+    quiet('Accès révoqué'); accountSheet();
   },
   'push-on': async () => {
     const perm = await Notification.requestPermission();
@@ -2430,13 +2460,14 @@ const forms = {
     const same = JSON.stringify(Object.entries(body.typeColors).sort()) === JSON.stringify(Object.entries(cur.typeColors || {}).sort());
     if (same) delete body.typeColors; // saving other settings never depends on the colour column
     await db.updateProject(state.pid, body);
-    closeSheet(); toast('Projet mis à jour'); await reloadProject();
+    closeSheet(); quiet('Projet mis à jour'); await reloadProject();
   },
   async 'add-task'(f) {
     const title = f.elements.title.value.trim();
     if (!title) return;
-    await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: 'todo' }, state.data.tasks);
-    store.set(draftKey(), '');
+    const extra = isBeta() ? { description: f.elements.description?.value || '', priority: f.elements.priority?.value || 'normal', epicId: f.elements.epicId?.value || null } : {};
+    await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: 'todo', ...extra }, state.data.tasks);
+    store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal');
     fx.focus([], { enter: true });
     await reloadProject();
     $app.querySelector('#task-new')?.focus();
@@ -2460,7 +2491,7 @@ const forms = {
     const b = formData(f);
     if (f.dataset.id) await db.updateLink(Number(f.dataset.id), b);
     else await db.addLink(state.pid, b, state.data.links);
-    toast(f.dataset.id ? 'Lien modifié' : 'Lien ajouté'); await reloadProject(); linksSheet();
+    (f.dataset.id ? quiet : toast)(f.dataset.id ? 'Lien modifié' : 'Lien ajouté'); await reloadProject(); linksSheet();
   },
   async 'new-epic'(f) {
     await db.addEpic(state.pid, formData(f), state.data.epics);
@@ -2519,17 +2550,23 @@ function bindActions(root) {
 $app.addEventListener('change', run(async (e) => {
   if (e.target.dataset.change === 'progress') {
     await db.updateProject(state.pid, { manualProgress: e.target.value });
-    toast(`Avancement : ${e.target.value} %`); await reloadProject();
+    quiet(`Avancement : ${e.target.value} %`); await reloadProject();
     return;
   }
   const el = e.target.closest('[data-change="role"]');
   if (!el) return;
-  try { await db.setRole(state.pid, el.dataset.id, el.value); toast('Rôle mis à jour'); }
+  try { await db.setRole(state.pid, el.dataset.id, el.value); quiet('Rôle mis à jour'); }
   finally { await reloadProject(); }
 }));
 
 // Keep what is typed in the quick-add bar.
-$app.addEventListener('input', (e) => { if (e.target.id === 'task-new') store.set(draftKey(), e.target.value); });
+$app.addEventListener('input', (e) => {
+  if (['task-new', 'task-desc'].includes(e.target.id)) { const f = e.target.closest('.composer'); if (f) f.classList.toggle('has-draft', !!(f.elements.title.value || f.elements.description.value)); }
+  if (e.target.id === 'task-new') store.set(draftKey(), e.target.value);
+  else if (e.target.id === 'task-desc') store.set(`${draftKey()}:desc`, e.target.value);
+  else if (e.target.id === 'task-epic') store.set(`${draftKey()}:epic`, e.target.value);
+  else if (e.target.id === 'task-prio') store.set(`${draftKey()}:prio`, e.target.value);
+});
 
 // Move the ring while the admin drags the progress slider.
 $app.addEventListener('input', (e) => {
