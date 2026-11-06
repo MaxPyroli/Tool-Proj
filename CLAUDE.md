@@ -79,9 +79,7 @@ Le workflow `pages.yml` publie **deux copies** de `public/` : l'app normale à l
 
 ## Version sur le PC de l'utilisateur (Windows) — abandonnée
 
-L'utilisateur a trouvé ça trop compliqué : les fichiers existent (voir plus bas) mais ne servent plus.
-
-`windows/mettre-a-jour.bat` + `mettre-a-jour.ps1` : à poser dans `C:\Users\maxim\Documents\Tool Proj`. Double-clic = télécharge la dernière version **publiée** sur GitHub (zip de la branche, dossier `public`), la range dans `site\`, la sert sur `http://localhost:8088/` (petit serveur PowerShell) et ouvre le navigateur. Non testé sous Windows depuis le bac à sable. L'adresse `http://localhost:8088/**` doit être dans les URL de redirection autorisées de Supabase (connexion par lien) ; les clés d'accès ne marchent pas là (liées au domaine). L'accès direct au dossier du PC n'a pas marché (dossiers « not_available » pour les sessions cloud).
+Des fichiers `.bat`/`.ps1` avaient été écrits puis **retirés** (trop compliqué pour l'utilisateur). L'accès direct au dossier du PC n'a pas marché non plus (dossiers « not_available » pour les sessions cloud). La version bêta cachée (`/beta/`) les remplace.
 
 ## Tester en local (bac à sable)
 
