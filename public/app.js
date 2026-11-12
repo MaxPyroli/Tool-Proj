@@ -979,6 +979,11 @@ function composerMeasure(f) {
   composerVars = { '--ry0': `${Math.round(row.getBoundingClientRect().top)}px`, '--b0': `${Math.round(parseFloat(getComputedStyle(f).bottom) || 0)}px` };
   for (const [k, v] of Object.entries(composerVars)) f.style.setProperty(k, v);
 }
+function refreshRy0(f) { // où la barre se range quand elle est fermée, MAINTENANT (le clavier, lui, bouge)
+  const s = f?.querySelector('.qa-slot'); if (!s || getComputedStyle(s).display === 'none') return;
+  f.style.setProperty('--ry0', `${Math.round(s.getBoundingClientRect().top)}px`);
+}
+window.visualViewport?.addEventListener('resize', () => { const f = document.querySelector('.composer.closing'); if (f) refreshRy0(f); });
 function setComposerOpen(on, { focus = false, keepFocus = false, measure = true } = {}) {
   state.composerOpen = !!on;
   const f = document.querySelector('.composer'); if (!f) return;
@@ -986,6 +991,10 @@ function setComposerOpen(on, { focus = false, keepFocus = false, measure = true 
   clearTimeout(composerCloseT);
   if (!state.composerOpen) { f.classList.add('closing'); composerCloseT = setTimeout(() => f.classList.remove('closing'), 520); } else f.classList.remove('closing');
   f.classList.toggle('open', state.composerOpen);
+  if (!state.composerOpen) { // la barre revient à sa place DU MOMENT (le clavier et la barre d'onglets bougent pendant ce temps) : on la suit à chaque image
+    const t0 = performance.now(), tick = () => { refreshRy0(f); if (f.isConnected && f.classList.contains('closing') && performance.now() - t0 < 560) requestAnimationFrame(tick); };
+    tick();
+  }
   document.documentElement.classList.toggle('qa-open', state.composerOpen && isMobile());
   f.querySelector('.qa-handle')?.setAttribute('aria-expanded', String(state.composerOpen));
   const title = f.querySelector('#task-new');
@@ -1035,6 +1044,7 @@ const composer = (placeholder, extra = false) => {
   const epics = [...d.epics].filter((e) => e.horizon !== 'done').sort(sortEpics);
   return `
   <form class="quick-add composer${extra ? ' composer-x' : ''}${state.composerOpen ? ' open' : ''}" data-form="add-task" style="${Object.entries(composerVars).map(([k, v]) => `${k}:${v}`).join(';')}">
+    <div class="qa-slot" aria-hidden="true"></div>
     <div class="qa-row">
       ${quickTypeBtn()}
       <input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche…" value="${esc(store.get(k, ''))}" autocomplete="off" enterkeyhint="done">
@@ -2723,7 +2733,11 @@ document.addEventListener('visibilitychange', run(async () => { if (!document.hi
 // The bottom bar and the round button jump above the keyboard on phones: hide them while typing.
 const TYPING = 'input:not([type=range]):not([type=color]):not([type=checkbox]):not([type=radio]), textarea, select';
 // Elle ne se cache que si le clavier est vraiment ouvert : sur Android, fermer le clavier (retour) laisse le champ actif, et la barre restait cachée.
-const kbdOpen = () => { const vv = window.visualViewport; return !vv || window.innerHeight - vv.height > 120; };
+// Hauteur de référence (sans clavier) : la page peut se redimensionner avec le clavier (innerHeight rétrécit aussi), on compare donc à la plus grande hauteur vue hors saisie.
+let baseH = Math.max(window.innerHeight, window.visualViewport?.height || 0);
+const noteBaseH = () => { if (!document.activeElement?.matches?.('input, textarea, select')) baseH = Math.max(window.innerHeight, window.visualViewport?.height || 0); };
+window.addEventListener('resize', noteBaseH); window.addEventListener('orientationchange', () => setTimeout(noteBaseH, 300));
+const kbdOpen = () => { const vv = window.visualViewport; return !vv || baseH - vv.height > 120; };
 const syncKbd = () => document.body.classList.toggle('kbd', !!document.activeElement?.matches?.(TYPING) && !document.activeElement.closest('dialog') && kbdOpen());
 document.addEventListener('focusin', () => setTimeout(syncKbd, 60)); // le temps que le clavier s'ouvre
 document.addEventListener('focusout', () => setTimeout(syncKbd, 80));
