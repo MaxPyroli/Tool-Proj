@@ -1147,12 +1147,12 @@ function viewTasks(d) {
     ['improvement', 'Améliorations', open.filter((t) => t.type === 'improvement').length], ['task', 'Tâches', open.filter((t) => t.type === 'task').length],
     ['mine', 'À moi', open.filter((t) => t.assigneeId === state.me.id).length]];
   return `
-  <div class="task-tools">
-    ${isBeta() ? '<span class="grow"></span>' : `<div class="seg views" role="tablist" aria-label="Affichage">
+  ${isBeta() ? '' : `<div class="task-tools"> <!-- BÊTA : plus de ligne d'outils (la ligne d'ajout suffit, et la vue « Par chantier » n'existe plus) -->
+    <div class="seg views" role="tablist" aria-label="Affichage">
       ${[['status', 'Liste'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}
-    </div>`}
+    </div>
     <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
-  </div>
+  </div>`}
   ${`<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ty-${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>`}
   ${viewBoard(d)}`;
 }
