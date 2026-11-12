@@ -994,6 +994,7 @@ window.visualViewport?.addEventListener('resize', () => { const f = document.que
 function setComposerOpen(on, { focus = false, keepFocus = false, measure = true } = {}) {
   state.composerOpen = !!on;
   const f = document.querySelector('.composer'); if (!f) return;
+  const wasOpen = f.classList.contains('open');
   if (on && measure) composerMeasure(f);
   clearTimeout(composerCloseT);
   if (!state.composerOpen) { f.classList.add('closing'); composerCloseT = setTimeout(() => f.classList.remove('closing'), 520); } else f.classList.remove('closing');
@@ -1006,14 +1007,14 @@ function setComposerOpen(on, { focus = false, keepFocus = false, measure = true 
   f.querySelector('.qa-handle')?.setAttribute('aria-expanded', String(state.composerOpen));
   const title = f.querySelector('#task-new');
   if (on && focus) setTimeout(() => title?.focus({ preventScroll: true }), 80);
-  if (!on && !keepFocus && f.contains(document.activeElement) && isMobile()) document.activeElement.blur();
+  if (!on && wasOpen && !keepFocus && f.contains(document.activeElement) && isMobile()) document.activeElement.blur(); // on ne ferme le clavier qu'en refermant un menu ouvert
 }
 let hdrag = null, swallowH = 0;
 document.addEventListener('pointerdown', (e) => {
   const h = e.target.closest?.('.composer .qa-handle');
   if (!h || !e.isPrimary || !isMobile()) return;
   const f = h.closest('.composer');
-  hdrag = { f, h, id: e.pointerId, y: e.clientY, on: false, p: state.composerOpen ? 1 : 0, start: state.composerOpen ? 1 : 0, range: 400 };
+  hdrag = { f, h, id: e.pointerId, y: e.clientY, ly: e.clientY, on: false, p: state.composerOpen ? 1 : 0, start: state.composerOpen ? 1 : 0, range: 400 };
   try { h.setPointerCapture(e.pointerId); } catch { /* pas grave */ }
 });
 document.addEventListener('pointermove', (e) => {
@@ -1024,6 +1025,7 @@ document.addEventListener('pointermove', (e) => {
     hdrag.on = true; composerMeasure(hdrag.f); hdrag.f.classList.add('dragging');
     hdrag.range = Math.max(160, (parseFloat(hdrag.f.style.getPropertyValue('--ry0')) || 500) - TOP_FIELD); // distance que parcourt le champ
   }
+  hdrag.dir = e.clientY < hdrag.ly ? 'up' : e.clientY > hdrag.ly ? 'down' : hdrag.dir; hdrag.ly = e.clientY; // sens du dernier mouvement
   hdrag.p = Math.max(0, Math.min(1, hdrag.start - dy / hdrag.range));
   hdrag.f.style.setProperty('--p', hdrag.p.toFixed(3));
 });
@@ -1033,7 +1035,9 @@ const endHDrag = () => {
   swallowH = Date.now() + 400;
   if (!d.on) { setComposerOpen(!state.composerOpen); return; } // simple toucher
   d.f.classList.remove('dragging'); d.f.style.removeProperty('--p');
-  setComposerOpen(d.p > (d.start ? 0.6 : 0.3), { measure: false }); // mesuré au début du glissé
+  // Un petit geste suffit : on regarde surtout le SENS dans lequel le doigt allait quand il s'est levé, et le menu finit le trajet tout seul.
+  const open = d.start ? !(d.dir === 'down' ? d.p < 0.95 : d.p < 0.5) : (d.dir === 'up' ? d.p > 0.025 : d.p > 0.5);
+  setComposerOpen(open, { measure: false }); // mesuré au début du glissé
 };
 document.addEventListener('pointerup', endHDrag);
 document.addEventListener('pointercancel', endHDrag);
