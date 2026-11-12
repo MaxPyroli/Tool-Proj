@@ -1242,15 +1242,16 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   border-radius: calc(12px + (1 - var(--p)) * 87px); border: 1px solid color-mix(in srgb, var(--line) calc((1 - var(--p)) * 100%), var(--f-line)); background: color-mix(in srgb, var(--surface-2) calc((1 - var(--p)) * 100%), var(--f-bg));
   box-shadow: 0 2px 8px rgb(0 0 0 / calc(.16 * (1 - var(--p)))); }
 .composer .qa-row .input:focus { border-color: color-mix(in srgb, var(--accent) 70%, var(--f-line)); }
-.composer .qa-send { flex: none; width: max(0px, calc(50px * (1 - var(--p) * 1.15))); min-width: 0; height: 50px; min-height: 50px; padding: 0; margin-left: calc(8px * (1 - var(--p))); overflow: hidden; white-space: nowrap; font-size: 1.7rem; font-weight: 500; line-height: 1; opacity: max(0, calc(1 - var(--p) * 2)); transition: transform .12s, filter .12s; }
+.composer .qa-send { flex: none; width: max(0px, calc(var(--sw, 50px) * (1 - var(--p) * 1.15))); min-width: 0; height: 50px; min-height: 50px; padding: 0; margin-left: calc(8px * (1 - var(--p))); overflow: hidden; white-space: nowrap; font-size: 1.7rem; font-weight: 500; line-height: 1; opacity: max(0, calc(1 - var(--p) * 2)); transition: transform .12s, filter .12s; }
 .composer.open .qa-send { pointer-events: none; visibility: hidden; }
 .composer .qa-long { display: none; }
 .composer .btn.primary:active, .composer .qa-type:active { transform: scale(.94); }
 
 /* la pastille du type : un mini bloc-note comme ceux des chantiers (pages unies, bandeau de la couleur du type, spirale) */
-.composer .qa-type { position: relative; flex: none; display: block; width: max(0px, calc(50px * (1 - var(--p) * 1.15))); height: 50px; min-width: 0; min-height: 50px; padding: 0; margin-right: calc(8px * (1 - var(--p))); opacity: max(0, calc(1 - var(--p) * 2)); border: 0; border-radius: 3px; background: none; color: var(--np-ink); perspective: 240px; overflow: visible;
+.composer .qa-type { position: relative; flex: none; display: block; width: max(0px, calc(var(--tw, 50px) * (1 - var(--p) * 1.15))); height: 50px; min-width: 0; min-height: 50px; padding: 0; margin-right: calc(8px * (1 - var(--p))); opacity: max(0, calc(1 - var(--p) * 2)); border: 0; border-radius: 3px; background: none; color: var(--np-ink); perspective: 240px; overflow: visible;
   box-shadow: 0 3px 0 -1px color-mix(in srgb, var(--tc) 55%, var(--np-paper)), 0 6px 0 -2px color-mix(in srgb, var(--tc) 35%, var(--np-paper)), 0 5px 9px -2px rgb(0 0 0 / .3); }
 .composer .qa-d { display: none; }
+.composer .qa-pgname { display: none; }
 .composer .qa-pg { display: grid; place-items: center; position: absolute; inset: 0; z-index: 1; border-radius: 3px; border-top: 8px solid color-mix(in srgb, var(--tc) 80%, #000 12%); padding-top: 2px; transform-origin: top center; backface-visibility: hidden;
   background-color: color-mix(in srgb, var(--tc) var(--np-mix, 32%), var(--np-paper, #fffdf6)); color: var(--np-ink); }
 .composer .qa-flip { display: grid; z-index: 3; pointer-events: none; }
@@ -1329,7 +1330,14 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 /* ordinateur : la ligne reste en haut de l'onglet ; la feuille s'ouvre au centre, par-dessus l'app assombrie, et le champ s'y range */
 @media (min-width: 720px) {
   .composer { --st: 48px; --shW: min(560px, calc(100vw - 24px)); --rxF: calc((100vw - var(--shW)) / 2 + 24px); --rwF: calc(var(--shW) - 44px); display: block; margin: 14px 0 12px; }
-  .composer .qa-short { display: inline; }
+  /* version large : le bloc-note avec le nom du type, et le bouton « Ajouter » en entier */
+  .composer { --tw: 150px; --sw: 112px; }
+  .composer .qa-long { display: inline; }
+  .composer .qa-short { display: none; }
+  .composer .qa-send { font-size: 1rem; font-weight: 700; padding: 0 18px; }
+  .composer .qa-pg { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 2px 14px 0; font-size: .98rem; white-space: nowrap; overflow: hidden; }
+  .composer .qa-pgname { display: inline; font-weight: 800; }
+  .qa-type-tip { display: none; }
   .composer .qa-row { margin: 0; }
   .composer.open .qa-row, .composer.dragging .qa-row, .composer.closing .qa-row { position: fixed; top: var(--ry0); left: calc(var(--rx0) + var(--p) * (var(--rxF) - var(--rx0))); width: calc(var(--rw0) + var(--p) * (var(--rwF) - var(--rw0))); transform: translateY(calc(var(--p) * (112px - var(--ry0)))); will-change: transform; }
   .qa-handle { margin-top: 2px; }
