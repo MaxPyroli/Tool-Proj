@@ -9,6 +9,6 @@
   },
   {
     "title": "Un seul ajout de tâche",
-    "text": "Une seule barre pour ajouter : mini bloc-note du type, champ de texte, « + ». Téléphone : barre en bas, tire la petite barre vers le haut. Ordinateur : la ligne reste en haut, « Plus de détails » (ou « + » avec un champ vide) ouvre une feuille de papier au centre, au-dessus de l'app assombrie, où le champ vient se ranger (Échap pour fermer)."
+    "text": "Une seule barre flottante pour ajouter, en bas de l'écran : mini bloc-note du type, champ de texte, bouton Ajouter. Téléphone : tire la petite barre vers le haut pour le menu complet. Ordinateur : « Plus de détails » (ou « + » avec un champ vide) ouvre la feuille sur le côté droit, la page se pousse à gauche et le champ vient se ranger dedans (Échap pour fermer)."
   }
 ]

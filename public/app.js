@@ -101,7 +101,7 @@ let lastViewKey = null;
 let composerHost = null, composerFor = null;
 function mountComposer() {
   const inline = $app.querySelector('.composer');
-  if (!isBeta() || !inline || !matchMedia('(max-width: 719px)').matches) { composerHost?.remove(); composerHost = null; composerFor = null; document.body.classList.remove('has-composer'); return; }
+  if (!isBeta() || !inline) { composerHost?.remove(); composerHost = null; composerFor = null; document.body.classList.remove('has-composer'); document.documentElement.classList.remove('qa-side'); return; }
   document.body.classList.add('has-composer');
   if (!composerHost) { composerHost = document.createElement('div'); composerHost.id = 'composer-host'; document.body.append(composerHost); bindActions(composerHost); }
   const active = document.activeElement;
@@ -979,7 +979,7 @@ if (isBeta()) { // la page se redimensionne avec le clavier : une barre « fixé
   const m = document.querySelector('meta[name="viewport"]');
   if (m && !/interactive-widget/.test(m.content)) m.content += ', interactive-widget=resizes-content';
 }
-const TOP_FIELD = 104; // où le champ se range, en haut du menu ouvert (px)
+const topField = () => (isMobile() ? 104 : 80); // où le champ se range, en haut du menu ouvert (px)
 let composerCloseT = 0;
 let composerVars = {}; // mesures de la barre fermée, gardées quand la page se redessine
 function composerMeasure(f) {
@@ -1008,6 +1008,7 @@ function setComposerOpen(on, { focus = false, keepFocus = false, measure = true 
     tick();
   }
   document.documentElement.classList.toggle('qa-open', state.composerOpen && isMobile());
+  document.documentElement.classList.toggle('qa-side', state.composerOpen && !isMobile()); // ordinateur : la page se serre pour laisser la place à la feuille sur le côté
   f.querySelector('.qa-handle')?.setAttribute('aria-expanded', String(state.composerOpen));
   const title = f.querySelector('#task-new');
   if (on && focus) setTimeout(() => title?.focus({ preventScroll: true }), 80);
@@ -1016,7 +1017,7 @@ function setComposerOpen(on, { focus = false, keepFocus = false, measure = true 
 let hdrag = null, swallowH = 0;
 document.addEventListener('pointerdown', (e) => {
   const h = e.target.closest?.('.composer .qa-handle');
-  if (!h || !e.isPrimary || !isMobile()) return;
+  if (!h || !e.isPrimary || !isMobile()) return; // sur ordinateur, la poignée se clique (pas de glisser)
   const f = h.closest('.composer');
   hdrag = { f, h, id: e.pointerId, y: e.clientY, ly: e.clientY, on: false, p: state.composerOpen ? 1 : 0, start: state.composerOpen ? 1 : 0, range: 400 };
   try { h.setPointerCapture(e.pointerId); } catch { /* pas grave */ }
@@ -1027,7 +1028,7 @@ document.addEventListener('pointermove', (e) => {
   if (!hdrag.on) {
     if (Math.abs(dy) < 6) return;
     hdrag.on = true; composerMeasure(hdrag.f); hdrag.f.classList.add('dragging');
-    hdrag.range = Math.max(160, (parseFloat(hdrag.f.style.getPropertyValue('--ry0')) || 500) - TOP_FIELD); // distance que parcourt le champ
+    hdrag.range = Math.max(160, (parseFloat(hdrag.f.style.getPropertyValue('--ry0')) || 500) - topField()); // distance que parcourt le champ
   }
   hdrag.dir = e.clientY < hdrag.ly ? 'up' : e.clientY > hdrag.ly ? 'down' : hdrag.dir; hdrag.ly = e.clientY; // sens du dernier mouvement
   hdrag.p = Math.max(0, Math.min(1, hdrag.start - dy / hdrag.range));
@@ -2375,7 +2376,7 @@ const actions = {
       row.append(t); t.addEventListener('animationend', () => t.remove(), { once: true });
     });
     const nb = document.querySelector(wide ? '.composer .qa-book' : '.composer .qa-type');
-    if (nb && oldClone && isMobile() && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // l'ancienne page passe par-dessus le haut du bloc-note et laisse voir la suivante
+    if (nb && oldClone && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // l'ancienne page passe par-dessus le haut du bloc-note et laisse voir la suivante
       oldClone.classList.add('qa-flip'); oldClone.style.setProperty('--tc', oldTc); nb.append(oldClone);
       oldClone.animate([{ transform: 'rotateX(0deg)', filter: 'brightness(1)', opacity: 1 }, { transform: 'rotateX(62deg) scale(1.06)', filter: 'brightness(1.05)', opacity: 1, offset: .55 }, { transform: 'rotateX(118deg) scale(1.1)', filter: 'brightness(.9)', opacity: 0 }], { duration: 520, easing: 'cubic-bezier(.45, .05, .35, 1)' }).finished.then(() => oldClone.remove(), () => oldClone.remove());
     } else nb?.classList.add('pop');

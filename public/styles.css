@@ -1231,8 +1231,6 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .composer { --f-bg: #312e27; --f-line: #4a4538; } }
 .composer.open { --p: 1; }
 .composer.dragging { transition: none; }
-.composer-x { display: none; }
-@media (max-width: 719px) { .composer-x { display: flex; } }
 .qa-slot, .qa-flip { display: none; }
 .composer.open .qa-slot, .composer.dragging .qa-slot, .composer.closing .qa-slot { display: block; height: 70px; visibility: hidden; pointer-events: none; }
 
@@ -1327,22 +1325,37 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   body.has-composer .fab { bottom: calc(var(--tabbar-h) + 14px + 72px + env(safe-area-inset-bottom, 0px)); }
 }
 
-/* ordinateur : la ligne reste en haut de l'onglet ; la feuille s'ouvre au centre, par-dessus l'app assombrie, et le champ s'y range */
+/* ordinateur : la même barre flottante qu'en bas du téléphone (centrée, 920 px au plus) ; en l'ouvrant, la feuille de papier arrive au centre de l'écran et le champ s'y range */
 @media (min-width: 720px) {
-  .composer { --st: 48px; --shW: min(560px, calc(100vw - 24px)); --rxF: calc((100vw - var(--shW)) / 2 + 24px); --rwF: calc(var(--shW) - 44px); display: block; margin: 14px 0 12px; }
+  .composer { --st: 16px; --shW: min(440px, calc(100vw - 32px)); --rxF: calc(100vw - 16px - var(--shW) + 24px); --rwF: calc(var(--shW) - 44px); --bw: min(920px, calc(100vw - 48px)); --tw: 150px; --sw: 112px;
+    position: fixed; left: calc((100vw - var(--bw)) / 2); width: var(--bw); bottom: 18px; margin: 0; display: flex; flex-direction: column-reverse; gap: 0; background: none; pointer-events: none; }
+  .composer > * { pointer-events: auto; }
+  .composer > .qa-sheet { pointer-events: none; }
+  .composer.open > .qa-sheet, .composer.dragging > .qa-sheet { pointer-events: auto; }
+  body.has-composer .page { padding-bottom: 130px; }
+  body.has-composer .chips { margin-bottom: 18px; }
+  body:has(.board-wrap.fs) #composer-host { display: none; }
+  .composer .qa-slot, .composer .qa-row { order: 1; }
   /* version large : le bloc-note avec le nom du type, et le bouton « Ajouter » en entier */
-  .composer { --tw: 150px; --sw: 112px; }
   .composer .qa-long { display: inline; }
   .composer .qa-short { display: none; }
   .composer .qa-send { font-size: 1rem; font-weight: 700; padding: 0 18px; }
   .composer .qa-pg { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 2px 14px 0; font-size: .98rem; white-space: nowrap; overflow: hidden; }
   .composer .qa-pgname { display: inline; font-weight: 800; }
   .qa-type-tip { display: none; }
-  .composer .qa-row { margin: 0; }
-  .composer.open .qa-row, .composer.dragging .qa-row, .composer.closing .qa-row { position: fixed; top: var(--ry0); left: calc(var(--rx0) + var(--p) * (var(--rxF) - var(--rx0))); width: calc(var(--rw0) + var(--p) * (var(--rwF) - var(--rw0))); transform: translateY(calc(var(--p) * (112px - var(--ry0)))); will-change: transform; }
-  .qa-handle { margin-top: 2px; }
-  .composer.open .qa-handle { visibility: hidden; }
-  .qa-sheet { display: block; left: 50%; top: 0; width: var(--shW); height: min(calc(100vh - 96px), 720px); transform: translate(-50%, calc(var(--ry0) * (1 - var(--p)) + 48px * var(--p))); }
+  .composer.open .qa-row, .composer.dragging .qa-row, .composer.closing .qa-row { position: fixed; top: var(--ry0); left: calc(var(--rx0) + var(--p) * (var(--rxF) - var(--rx0))); width: calc(var(--rw0) + var(--p) * (var(--rwF) - var(--rw0))); transform: translateY(calc(var(--p) * (80px - var(--ry0)))); will-change: transform; }
+  .composer::before { display: none; } /* pas de fond sombre : la feuille est posée à côté de la page, qui se serre */
+  html.qa-side body { padding-right: calc(var(--shw-body, 440px) + 32px); }
+  body.has-composer { transition: padding-right .42s cubic-bezier(.25, .9, .3, 1); }
+  /* la petite barre à tirer (à la souris ou d'un clic), visible quand on est dans le champ */
+  .qa-handle { order: 2; display: flex; align-items: center; justify-content: center; height: 30px; width: 100%; margin: 0 0 -16px; padding: 0; opacity: 0; pointer-events: none; transition: opacity .2s; cursor: grab; }
+  .composer:focus-within .qa-handle, .composer.open .qa-handle, .composer.dragging .qa-handle { opacity: 1; pointer-events: auto; }
+  .qa-handle-bar { display: block; width: 46px; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 40%, transparent); box-shadow: 0 1px 3px rgb(0 0 0 / .25); }
+  .composer.open .qa-handle-bar, .composer.dragging .qa-handle-bar { background: color-mix(in srgb, var(--ink) 30%, transparent); box-shadow: none; }
+  .qa-handle-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .qa-handle-txt::after { content: none; }
+  .composer.open .qa-handle, .composer.closing .qa-handle { opacity: 0; pointer-events: none; }
+  .qa-sheet { display: block; left: auto; right: 16px; top: 16px; width: var(--shW); height: calc(100vh - 32px); transform: translateX(calc((1 - var(--p)) * (var(--shW) + 48px))); opacity: min(1, calc(var(--p) * 3)); }
 }
 @media (prefers-reduced-motion: reduce) { .composer { transition: none !important; } .qa-type.pop { animation: none; } .qa-type-tip { animation-duration: .01s; } }
 
@@ -1352,6 +1365,4 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 @media (prefers-reduced-motion: reduce) { .quick-add.sending .btn.primary { animation: none; opacity: .6; } }
 
 /* BÊTA · espacements : sans ligne d'outils au-dessus, les filtres ont besoin de leur propre marge */
-.chips + .composer { margin-top: 14px; }
-@media (min-width: 720px) { .qa-handle { margin-top: 6px; } }
 @media (max-width: 719px) { body.has-composer .chips { margin-bottom: 28px; } } /* la barre d'ajout est dans <body> : sans ça les filtres touchent la spirale du premier bloc-note */
