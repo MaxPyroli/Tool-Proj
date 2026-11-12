@@ -9,6 +9,6 @@
   },
   {
     "title": "Un seul ajout de tâche",
-    "text": "Une seule barre pour ajouter, dans tous les onglets du projet : pilule ronde du type, barre de texte, « + ». Tire la barre de texte vers le haut : le menu complet (détails, images, chantier, priorité) monte derrière elle en suivant ton doigt. Sur ordinateur : une ligne en haut avec « Plus de détails »."
+    "text": "Une barre pour ajouter dans tous les onglets du projet : mini bloc-note du type (la page se tourne), champ de texte, « + ». Tire la petite barre vers le haut : le champ monte tout en haut et le menu de tâche complet se déploie (détails, images, chantier, priorité). Le « + » avec un champ vide l'ouvre aussi."
   }
 ]
