@@ -1248,25 +1248,36 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 @keyframes qa-flip { 0% { transform: rotateY(90deg) scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .qa-more, .composer .btn.primary { transition: none; } .qa-type.pop, .qa-type.pop svg { animation: none; } }
 
-/* téléphone : trois éléments séparés flottant en bas (pilule du type, barre de texte, sticker « Ajouter »), au-dessus des onglets */
+/* bouton « Ajouter » : version courte (« + ») sur téléphone */
+.qa-short { display: none; }
+@media (min-width: 720px) { .composer-x { display: none; } }
+
+/* petit texte léger qui dit quel type on vient de choisir, puis s'efface */
+.qa-type-tip { display: none; }
+
+/* téléphone : trois éléments séparés flottant en bas (pastille ronde du type, barre de texte, sticker « + »), au-dessus des onglets */
 @media (max-width: 719px) {
-  .composer { position: fixed; left: 0; right: 0; z-index: 40; margin: 0; display: flex; flex-direction: column-reverse; gap: 0; background: none; pointer-events: none;
+  .composer { --p: 0; position: fixed; left: 0; right: 0; z-index: 40; margin: 0; display: flex; flex-direction: column-reverse; gap: 0; background: none; pointer-events: none;
     bottom: max(var(--kb, 0px), calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom, 0px))); }
+  .composer.open { --p: 1; }
   .composer > * { pointer-events: auto; }
-  .composer .qa-row { order: 1; position: relative; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 10px 12px; background: none; }
-  .composer .qa-type { flex: none; min-width: 50px; min-height: 46px; padding: 0 14px; border-radius: 99px; justify-content: center; box-shadow: 0 2px 8px rgb(0 0 0 / .18); }
-  .composer .qa-row .input { flex: 1 1 0; min-height: 46px; border-radius: 99px; padding-left: 16px; box-shadow: 0 2px 8px rgb(0 0 0 / .14); }
-  .composer .qa-row .btn { min-height: 46px; }
-  .qa-handle { order: 3; justify-self: stretch; justify-content: center; width: 100%; margin: 0; padding: 6px 0 2px; background: none; }
-  .qa-handle-bar { display: block; width: 44px; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 35%, transparent); }
-  .qa-handle-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .composer.open .qa-handle { background: var(--surface); padding: 10px 0 4px; }
-  .qa-more { order: 2; background: var(--surface); }
-  .qa-more-in { padding: 0 14px; }
-  .composer.open .qa-more-in { padding: 6px 14px 12px; }
-  .qa-more-in { max-height: calc(var(--vvh, 100dvh) - 170px); overflow-y: auto; }
+  body:has(.board-wrap.fs) #composer-host { display: none; }
+  .composer .qa-row { order: 1; position: relative; z-index: 2; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 10px 12px; background: none; }
+  .composer .qa-type { flex: none; width: 50px; height: 50px; min-width: 50px; min-height: 50px; padding: 0; border-radius: 50%; justify-content: center; box-shadow: 0 2px 8px rgb(0 0 0 / .2); }
   .composer .qa-lbl { display: none; }
-  @media (min-width: 400px) { .composer .qa-lbl { display: inline-grid; } .composer .qa-type { padding: 0 16px; } }
-  .composer::before { content: ""; position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: -1; opacity: 0; pointer-events: none; transition: opacity .25s; }
-  .composer.open::before { opacity: 1; pointer-events: auto; }
+  .composer .qa-row .input { flex: 1 1 0; height: 50px; min-height: 50px; border-radius: 99px; padding-left: 18px; box-shadow: 0 2px 8px rgb(0 0 0 / .16); touch-action: pan-x; }
+  .composer .qa-send { flex: none; width: 50px; min-width: 50px; height: 50px; min-height: 50px; padding: 0; font-size: 1.7rem; font-weight: 500; line-height: 1; }
+  .composer .qa-long { display: none; }
+  .composer .qa-short { display: inline; }
+  .qa-type-tip { display: block; position: absolute; left: 12px; bottom: calc(100% - 6px); padding: 3px 11px; background: var(--surface); color: var(--ink); font-size: .78rem; font-weight: 700; border-radius: 99px; box-shadow: 0 2px 8px rgb(0 0 0 / .18); opacity: 0; pointer-events: none; animation: qa-tip 1.1s ease forwards; }
+  @keyframes qa-tip { 0% { opacity: 0; transform: translateY(6px); } 14% { opacity: .96; transform: none; } 65% { opacity: .96; } 100% { opacity: 0; transform: translateY(-3px); } }
+  .qa-handle { display: none; }
+  /* le menu complet : monte derrière la barre de texte, suit le doigt (--p de 0 à 1) */
+  .composer .qa-more { order: 2; display: block; grid-template-rows: none; height: calc(var(--p) * var(--ph, 330px)); margin-bottom: calc(var(--p) * -38px); opacity: var(--p); overflow: hidden; background: var(--surface); box-shadow: 0 -6px 18px -8px rgb(0 0 0 / .35); transition: height .36s cubic-bezier(.25, .9, .3, 1), margin-bottom .36s cubic-bezier(.25, .9, .3, 1), opacity .25s; }
+  .composer.dragging .qa-more, .composer.dragging::before { transition: none; }
+  .composer .qa-more-in { max-height: none; height: 100%; overflow-y: auto; padding: 14px 14px 52px; }
+  .composer.open .qa-more-in { padding: 14px 14px 52px; }
+  .composer::before { content: ""; position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: -1; opacity: var(--p); pointer-events: none; transition: opacity .25s; }
+  .composer.open::before, .composer.dragging::before { pointer-events: auto; }
+  body.has-composer .fab { bottom: calc(var(--tabbar-h) + 14px + 72px + env(safe-area-inset-bottom, 0px)); }
 }

@@ -9,6 +9,6 @@
   },
   {
     "title": "Un seul ajout de tâche",
-    "text": "Une seule ligne pour ajouter : type, titre, « Ajouter ». Le menu complet (détails, images, chantier, priorité) s'ouvre avec la poignée : touche-la ou tire-la vers le haut. Sur téléphone : trois éléments qui flottent en bas."
+    "text": "Une seule barre pour ajouter, dans tous les onglets du projet : pilule ronde du type, barre de texte, « + ». Tire la barre de texte vers le haut : le menu complet (détails, images, chantier, priorité) monte derrière elle en suivant ton doigt. Sur ordinateur : une ligne en haut avec « Plus de détails »."
   }
 ]
