@@ -965,6 +965,7 @@ const TYPE_ICON_NAME = { task: 'check', bug: 'bug', idea: 'bulb', improvement: '
 const typeIcon = (k, size = 15) => ico(TYPE_ICON_NAME[k], size);
 const TYPE_LIST = Object.keys(TYPES);
 // Quick-add bar: the type button cycles through the types; what is typed is kept (per project) when you change tab.
+let addingTask = false; // un ajout rapide est en cours d'envoi
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
 const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${isBeta() ? `<span class="qa-pg" aria-hidden="true">${typeIcon(k, 22)}</span><span class="qa-rings" aria-hidden="true"></span><span class="qa-d">` : ''}${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span>${isBeta() ? '</span>' : ''}</button>`; };
 // BÊTA : le même mini bloc-note, en large et avec le nom du type, dans la feuille complète (un toucher = page suivante)
@@ -2608,21 +2609,27 @@ const forms = {
     closeSheet(); quiet('Projet mis à jour'); await reloadProject();
   },
   async 'add-task'(f) {
+    if (addingTask) return; // un seul ajout à la fois : on peut retoucher le bouton pendant que ça s'envoie, ça n'ajoute pas de doublon
     const title = f.elements.title.value.trim();
     if (!title) { if (isBeta()) setComposerOpen(true, { focus: true }); return; } // champ vide : le « + » ouvre le menu complet
-    if (isBeta()) await compImg.queue; // images encore en cours de réduction
-    const pending = isBeta() ? compImg.items.filter((i) => i.blobs) : [];
-    const extra = isBeta() ? { description: f.elements.description?.value || '', priority: f.elements.priority?.value || 'normal', epicId: f.elements.epicId?.value || null } : {};
-    const newId = await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: 'todo', ...extra }, state.data.tasks);
-    if (pending.length) {
-      toast('Envoi des images…');
-      for (const it of pending) { try { await db.addTaskImage(state.pid, newId, it.blobs); } catch (e) { toast(e.message, true); } }
-    }
-    for (const i of compImg.items) { if (i.blobs) { URL.revokeObjectURL(i.thumb); URL.revokeObjectURL(i.full); } } compImg.items = [];
-    store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal'); setComposerOpen(false, { keepFocus: true });
-    fx.focus([], { enter: true });
-    await reloadProject();
-    document.querySelector('#task-new')?.focus();
+    addingTask = true; f.classList.add('sending');
+    try {
+      if (isBeta()) await compImg.queue; // images encore en cours de réduction
+      const pending = isBeta() ? compImg.items.filter((i) => i.blobs) : [];
+      const extra = isBeta() ? { description: f.elements.description?.value || '', priority: f.elements.priority?.value || 'normal', epicId: f.elements.epicId?.value || null } : {};
+      const newId = await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: 'todo', ...extra }, state.data.tasks);
+      // la tâche est enregistrée : on vide tout de suite le champ (le reste, images et rechargement, se fait derrière)
+      f.elements.title.value = ''; store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal');
+      if (pending.length) {
+        toast('Envoi des images…');
+        for (const it of pending) { try { await db.addTaskImage(state.pid, newId, it.blobs); } catch (e) { toast(e.message, true); } }
+      }
+      for (const i of compImg.items) { if (i.blobs) { URL.revokeObjectURL(i.thumb); URL.revokeObjectURL(i.full); } } compImg.items = [];
+      setComposerOpen(false, { keepFocus: true });
+      fx.focus([], { enter: true });
+      await reloadProject();
+      document.querySelector('#task-new')?.focus();
+    } finally { addingTask = false; f.classList.remove('sending'); document.querySelector('.composer.sending, .quick-add.sending')?.classList.remove('sending'); }
   },
   async 'new-task'(f) {
     await imgState.queue; // pictures still being shrunk
