@@ -1250,7 +1250,7 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 
 /* BÊTA · ajout de tâche : parties réservées au téléphone, cachées sur ordinateur */
 @property --p { syntax: '<number>'; inherits: true; initial-value: 0; }
-.qa-short, .qa-rings, .qa-pg, .qa-flip, .qa-sheet-head, .qa-sheet-actions, .qa-slot { display: none; }
+.qa-short, .qa-rings, .qa-pg, .qa-flip, .qa-sheet-head, .qa-sheet-actions, .qa-slot, .qa-type-field { display: none; }
 .qa-sheet, .qa-sheet-body, .qa-d { display: contents; }
 @media (min-width: 720px) { .composer-x { display: none; } }
 .qa-type-tip { display: none; }
@@ -1319,6 +1319,18 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   .composer .qa-flip { z-index: 3; pointer-events: none; }
   .composer .qa-rings { display: block; position: absolute; z-index: 4; left: 3px; right: 3px; top: -8px; height: 14px; pointer-events: none;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='18'%3E%3Crect x='7' y='1' width='6' height='16' rx='3' fill='%23868b96'/%3E%3Crect x='8' y='2' width='2' height='14' rx='1' fill='%23c9ced8'/%3E%3C/svg%3E") repeat-x left center / 12px 14px; }
+  /* le même bloc-note, en large, dans la feuille : l'icône, le nom du type, et des points pour les 4 pages */
+  .composer .qa-type-field { display: grid; }
+  .composer .qa-book { position: relative; display: block; width: 100%; height: 58px; padding: 0; border: 0; border-radius: 3px; background: none; text-align: left; cursor: pointer; perspective: 320px; overflow: visible; margin-top: 8px;
+    box-shadow: 0 3px 0 -1px color-mix(in srgb, var(--tc) 55%, var(--np-paper)), 0 6px 0 -2px color-mix(in srgb, var(--tc) 35%, var(--np-paper)), 0 5px 9px -2px rgb(0 0 0 / .3); }
+  .composer .qa-book .qa-pg { display: flex; align-items: center; gap: 12px; justify-content: flex-start; padding: 2px 18px 0 18px; font-size: 1.05rem; }
+  .composer .qa-book .qa-pg b { font-weight: 800; }
+  .composer .qa-dots { display: flex; gap: 6px; margin-left: auto; }
+  .composer .qa-dots i { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--np-ink) 22%, transparent); }
+  .composer .qa-dots i.on { background: var(--np-ink); }
+  .composer .qa-book .qa-rings { left: 8px; right: 8px; }
+  .composer .qa-book:active { filter: brightness(.96); }
+  .composer .qa-book { --tc: var(--c-task); } .composer .qa-book.ty-bug { --tc: var(--c-bug); } .composer .qa-book.ty-idea { --tc: var(--c-idea); } .composer .qa-book.ty-improvement { --tc: var(--c-improvement); }
   .qa-type-tip { display: block; position: absolute; left: 12px; bottom: calc(100% - 2px); padding: 3px 11px; background: var(--surface); color: var(--ink); font-size: .78rem; font-weight: 700; border-radius: 99px; box-shadow: 0 2px 8px rgb(0 0 0 / .18); opacity: 0; pointer-events: none; animation: qa-tip 1.1s ease forwards; }
   @keyframes qa-tip { 0% { opacity: 0; transform: translateY(6px); } 14% { opacity: .96; transform: none; } 65% { opacity: .96; } 100% { opacity: 0; transform: translateY(-3px); } }
   body.has-composer .fab { bottom: calc(var(--tabbar-h) + 14px + 72px + env(safe-area-inset-bottom, 0px)); }

@@ -967,6 +967,8 @@ const TYPE_LIST = Object.keys(TYPES);
 // Quick-add bar: the type button cycles through the types; what is typed is kept (per project) when you change tab.
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
 const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${isBeta() ? `<span class="qa-pg" aria-hidden="true">${typeIcon(k, 22)}</span><span class="qa-rings" aria-hidden="true"></span><span class="qa-d">` : ''}${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span>${isBeta() ? '</span>' : ''}</button>`; };
+// BÊTA : le même mini bloc-note, en large et avec le nom du type, dans la feuille complète (un toucher = page suivante)
+const typeBook = () => { const k = quickType(); return `<button type="button" class="qa-book ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour passer au suivant)"><span class="qa-pg" aria-hidden="true">${typeIcon(k, 24)}<b>${TYPES[k]}</b><i class="qa-dots">${TYPE_LIST.map((t) => `<i${t === k ? ' class="on"' : ''}></i>`).join('')}</i></span><span class="qa-rings" aria-hidden="true"></span></button>`; };
 const draftKey = () => `draft:${state.pid}`;
 // ---------- menu complet de la ligne d'ajout ----------
 // Téléphone (comme Reminder de Samsung) : on tire la petite barre vers le haut, le champ de texte monte avec le doigt jusqu'en haut de l'écran
@@ -1044,7 +1046,7 @@ document.addEventListener('pointercancel', endHDrag);
 document.addEventListener('click', (e) => { if (Date.now() < swallowH && e.target.closest?.('.composer .qa-handle')) { e.stopPropagation(); e.preventDefault(); } }, true);
 // toucher la pastille du type ou la poignée ne doit JAMAIS fermer le clavier : on empêche le champ de perdre le focus
 document.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond assombri referme
-document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-handle, .composer .qa-send')) e.preventDefault(); });
+document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-book, .composer .qa-handle, .composer .qa-send')) e.preventDefault(); });
 
 // BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
 const composer = (placeholder, extra = false) => {
@@ -1065,7 +1067,7 @@ const composer = (placeholder, extra = false) => {
     <div class="qa-sheet"><div class="qa-sheet-body">
       <div class="sheet-head qa-sheet-head"><h2>Nouvelle tâche</h2><button type="button" class="btn ghost icon qa-x" data-action="composer-close" aria-label="Fermer">${ico('x')}</button></div>
       <div class="qa-more"><div class="qa-more-in">
-        ${segField('type', Object.fromEntries(TYPE_LIST.map((k) => [k, typeLabel(k)])), quickType(), 'Type', 'type-opt')}
+        <div class="field qa-type-field"><span>Type</span>${typeBook()}</div>
         <div class="field"><span>Détails <small class="muted">(facultatif)</small></span>
           <div class="desc-box"><textarea class="input" id="task-desc" name="description" maxlength="5000" rows="3" aria-label="Détails" placeholder="Comment le reproduire, détails, liens…">${esc(desc)}</textarea>
             <div class="img-strip composer-imgs" id="task-images">${imgGridHtml(compImg)}</div></div></div>
@@ -2356,19 +2358,20 @@ const actions = {
   'quick-type': (el) => {
     const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];
     store.set('quickType', state.quickType);
+    const wide = !!el.classList?.contains('qa-book');
     const input = document.querySelector('#task-new'), had = document.activeElement === input;
     const oldPg = el.querySelector?.('.qa-pg'), oldTc = oldPg ? getComputedStyle(oldPg).getPropertyValue('--tc') : '';
     const oldClone = oldPg?.cloneNode(true);
     document.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
-    document.querySelectorAll('.composer [data-seg="type"]').forEach((seg) => { seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === state.quickType)); const h = seg.parentElement.querySelector('input[name="type"]'); if (h) h.value = state.quickType; });
+    document.querySelectorAll('.qa-book').forEach((b) => { b.outerHTML = typeBook(); });
     if (had) input.focus({ preventScroll: true }); // le clavier reste ouvert
     if (!isBeta()) return;
-    document.querySelectorAll('.composer .qa-row').forEach((row) => { // petit texte léger qui indique le type choisi, puis disparaît
+    if (!wide) document.querySelectorAll('.composer .qa-row').forEach((row) => { // petit texte léger qui indique le type choisi, puis disparaît
       row.querySelector('.qa-type-tip')?.remove();
       const t = document.createElement('span'); t.className = 'qa-type-tip'; t.textContent = TYPES[state.quickType]; t.setAttribute('aria-hidden', 'true');
       row.append(t); t.addEventListener('animationend', () => t.remove(), { once: true });
     });
-    const nb = document.querySelector('.composer .qa-type');
+    const nb = document.querySelector(wide ? '.composer .qa-book' : '.composer .qa-type');
     if (nb && oldClone && isMobile() && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // l'ancienne page passe par-dessus le haut du bloc-note et laisse voir la suivante
       oldClone.classList.add('qa-flip'); oldClone.style.setProperty('--tc', oldTc); nb.append(oldClone);
       oldClone.animate([{ transform: 'rotateX(0deg)', filter: 'brightness(1)', opacity: 1 }, { transform: 'rotateX(62deg) scale(1.06)', filter: 'brightness(1.05)', opacity: 1, offset: .55 }, { transform: 'rotateX(118deg) scale(1.1)', filter: 'brightness(.9)', opacity: 0 }], { duration: 520, easing: 'cubic-bezier(.45, .05, .35, 1)' }).finished.then(() => oldClone.remove(), () => oldClone.remove());
