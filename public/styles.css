@@ -1341,3 +1341,8 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .quick-add.sending .btn.primary { pointer-events: none; animation: qa-wait .8s ease-in-out infinite; }
 @keyframes qa-wait { 50% { opacity: .5; } }
 @media (prefers-reduced-motion: reduce) { .quick-add.sending .btn.primary { animation: none; opacity: .6; } }
+
+/* BÊTA · espacements : sans ligne d'outils au-dessus, les filtres ont besoin de leur propre marge */
+.chips + .composer { margin-top: 14px; }
+@media (min-width: 720px) { .qa-handle { margin-top: 6px; } }
+@media (max-width: 719px) { body.has-composer .chips { margin-bottom: 28px; } } /* la barre d'ajout est dans <body> : sans ça les filtres touchent la spirale du premier bloc-note */
