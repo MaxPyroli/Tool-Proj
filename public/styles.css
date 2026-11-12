@@ -1270,12 +1270,18 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   .composer.open::before, .composer.dragging::before { pointer-events: auto; }
   /* le champ et la poignée montent avec --p (positions absolues : le clavier ne les décale pas) */
   .composer.open .qa-slot, .composer.dragging .qa-slot, .composer.closing .qa-slot { display: block; order: 1; height: 70px; visibility: hidden; pointer-events: none; }
-  .composer.open .qa-row, .composer.dragging .qa-row, .composer.closing .qa-row { position: fixed; left: 0; right: 0; top: calc(var(--ry0) - var(--p) * (var(--ry0) - 104px - var(--vvt, 0px))); }
-  .composer.open .qa-handle, .composer.dragging .qa-handle, .composer.closing .qa-handle { position: fixed; left: 0; right: 0; top: calc((var(--ry0) - 14px) - var(--p) * (var(--ry0) - 14px - 44px - var(--vvt, 0px))); }
-  .composer .qa-row { order: 1; position: relative; z-index: 3; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 10px calc(12px + 16px * var(--p)); background: none; }
-  .composer .qa-row .input { flex: 1 1 0; height: 50px; min-height: 50px; border-radius: 99px; padding-left: 18px; box-shadow: 0 2px 8px rgb(0 0 0 / .16); transition: border-color .2s; }
-  .composer .qa-row .input:focus, .composer .qa-row .input:focus-visible { box-shadow: 0 2px 8px rgb(0 0 0 / .16); outline: none; }
-  .composer .qa-send { flex: none; width: 50px; min-width: 50px; height: 50px; min-height: 50px; padding: 0; font-size: 1.7rem; font-weight: 500; line-height: 1; opacity: max(0, calc(1 - var(--p) * 1.3)); transform: scale(calc(1 - var(--p) * .25)); }
+  .composer.open .qa-row, .composer.dragging .qa-row, .composer.closing .qa-row { position: fixed; left: 0; right: 0; top: var(--ry0); transform: translateY(calc(var(--p) * (104px + var(--vvt, 0px) - var(--ry0)))); will-change: transform; }
+  .composer.open .qa-handle, .composer.dragging .qa-handle, .composer.closing .qa-handle { position: fixed; left: 0; right: 0; top: calc(var(--ry0) - 14px); transform: translateY(calc(var(--p) * (58px + var(--vvt, 0px) - var(--ry0)))); will-change: transform; }
+  .composer .qa-row { order: 1; position: relative; z-index: 3; flex-wrap: nowrap; align-items: center; gap: 0; padding: 10px calc(12px + 18px * var(--p)) 10px calc(12px + 22px * var(--p)); background: none; }
+  .composer { --f-bg: #f6f1e1; --f-line: #e3dcc3; }
+  :root[data-theme="dark"] .composer { --f-bg: #312e27; --f-line: #4a4538; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .composer { --f-bg: #312e27; --f-line: #4a4538; } }
+  .composer .qa-row { contain: layout; }
+  .composer .qa-row .input, .composer .qa-row .input:focus, .composer .qa-row .input:focus-visible { flex: 1 1 0; min-width: 0; height: 50px; min-height: 50px; padding-left: calc(18px - 4px * var(--p)); outline: none;
+    border-radius: calc(12px + (1 - var(--p)) * 87px); border: 1px solid color-mix(in srgb, var(--line) calc((1 - var(--p)) * 100%), var(--f-line)); background: color-mix(in srgb, var(--surface-2) calc((1 - var(--p)) * 100%), var(--f-bg));
+    box-shadow: 0 2px 8px rgb(0 0 0 / calc(.16 * (1 - var(--p)))); }
+  .composer .qa-row .input:focus { border-color: color-mix(in srgb, var(--accent) 70%, var(--f-line)); }
+  .composer .qa-send { flex: none; width: max(0px, calc(50px * (1 - var(--p) * 1.15))); min-width: 0; height: 50px; min-height: 50px; padding: 0; margin-left: calc(8px * (1 - var(--p))); overflow: hidden; white-space: nowrap; font-size: 1.7rem; font-weight: 500; line-height: 1; opacity: max(0, calc(1 - var(--p) * 2)); }
   .composer.open .qa-send { pointer-events: none; visibility: hidden; }
   .composer .qa-long { display: none; }
   .composer .qa-short { display: inline; }
@@ -1293,10 +1299,11 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   :root[data-theme="dark"] .qa-sheet { --paper: #26241f; --bg: #26241f; --surface: #26241f; --surface-2: #312e27; --line: #4a4538; --rule: rgb(255 255 255 / .035); --margin: rgb(224 110 110 / .34); --margin2: rgb(224 110 110 / .2); }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .qa-sheet { --paper: #26241f; --bg: #26241f; --surface: #26241f; --surface-2: #312e27; --line: #4a4538; --rule: rgb(255 255 255 / .035); --margin: rgb(224 110 110 / .34); --margin2: rgb(224 110 110 / .2); } }
   .composer.open .qa-sheet, .composer.dragging .qa-sheet { pointer-events: auto; }
+  .composer.open .qa-sheet, .composer.dragging .qa-sheet, .composer.closing .qa-sheet { will-change: transform, opacity; }
   .qa-sheet-body { display: flex; flex-direction: column; height: 100%; padding-top: 26px; background-color: var(--paper); background-image: linear-gradient(90deg, transparent 10px, var(--margin) 10px 11px, transparent 11px 14px, var(--margin2) 14px 15px, transparent 15px), repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px);
     -webkit-mask: radial-gradient(circle 4.5px at 8px 0, #0000 97%, #000) 0 0 / 16px 9px repeat-x, linear-gradient(#000 0 0) 0 9px / 100% 100% no-repeat;
     mask: radial-gradient(circle 4.5px at 8px 0, #0000 97%, #000) 0 0 / 16px 9px repeat-x, linear-gradient(#000 0 0) 0 9px / 100% 100% no-repeat; }
-  .qa-sheet-head { display: flex; flex: none; align-items: center; justify-content: space-between; height: 34px; padding: 0 12px 0 24px; margin-top: 4px; }
+  .qa-sheet-head { display: flex; flex: none; align-items: center; justify-content: space-between; height: 34px; padding: 0 12px 0 24px; margin-top: 4px; opacity: max(0, calc((var(--p) - .45) * 2)); }
   .composer .qa-more { display: block; grid-template-rows: none; flex: 1; min-height: 0; margin: 78px 0 0; height: auto; opacity: 1; overflow-y: auto; background: none; transition: none; box-shadow: none; }
   .composer .qa-more-in { overflow: visible; max-height: none; height: auto; display: grid; gap: 16px; padding: 4px 20px 20px 24px; }
   .composer .qa-more textarea { min-height: 110px; }
@@ -1304,7 +1311,7 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
   .qa-sheet-actions .btn { min-height: 46px; min-width: 110px; }
 
   /* la pastille du type : un mini bloc-note comme ceux des chantiers (papier ligné, bandeau de la couleur du type, spirale) */
-  .composer .qa-type { position: relative; flex: none; display: block; width: 50px; height: 50px; min-width: 50px; min-height: 50px; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--np-ink); perspective: 240px; overflow: visible;
+  .composer .qa-type { position: relative; flex: none; display: block; width: max(0px, calc(50px * (1 - var(--p) * 1.15))); height: 50px; min-width: 0; min-height: 50px; padding: 0; margin-right: calc(8px * (1 - var(--p))); opacity: max(0, calc(1 - var(--p) * 2)); border: 0; border-radius: 3px; background: none; color: var(--np-ink); perspective: 240px; overflow: visible;
     box-shadow: 0 3px 0 -1px color-mix(in srgb, var(--tc) 55%, var(--np-paper)), 0 6px 0 -2px color-mix(in srgb, var(--tc) 35%, var(--np-paper)), 0 5px 9px -2px rgb(0 0 0 / .3); }
   .composer .qa-d { display: none; }
   .composer .qa-pg { display: grid; place-items: center; position: absolute; inset: 0; z-index: 1; border-radius: 3px; border-top: 8px solid color-mix(in srgb, var(--tc) 80%, #000 12%); padding-top: 2px; transform-origin: top center; backface-visibility: hidden;

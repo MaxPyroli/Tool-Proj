@@ -981,7 +981,8 @@ function composerMeasure(f) {
 }
 function refreshRy0(f) { // où la barre se range quand elle est fermée, MAINTENANT (le clavier, lui, bouge)
   const s = f?.querySelector('.qa-slot'); if (!s || getComputedStyle(s).display === 'none') return;
-  f.style.setProperty('--ry0', `${Math.round(s.getBoundingClientRect().top)}px`);
+  const v = `${Math.round(s.getBoundingClientRect().top)}px`;
+  if (f.style.getPropertyValue('--ry0') !== v) f.style.setProperty('--ry0', v);
 }
 window.visualViewport?.addEventListener('resize', () => { const f = document.querySelector('.composer.closing'); if (f) refreshRy0(f); });
 function setComposerOpen(on, { focus = false, keepFocus = false, measure = true } = {}) {
@@ -1054,6 +1055,7 @@ const composer = (placeholder, extra = false) => {
     <div class="qa-sheet"><div class="qa-sheet-body">
       <div class="sheet-head qa-sheet-head"><h2>Nouvelle tâche</h2><button type="button" class="btn ghost icon qa-x" data-action="composer-close" aria-label="Fermer">${ico('x')}</button></div>
       <div class="qa-more"><div class="qa-more-in">
+        ${segField('type', Object.fromEntries(TYPE_LIST.map((k) => [k, typeLabel(k)])), quickType(), 'Type', 'type-opt')}
         <div class="field"><span>Détails <small class="muted">(facultatif)</small></span>
           <div class="desc-box"><textarea class="input" id="task-desc" name="description" maxlength="5000" rows="3" aria-label="Détails" placeholder="Comment le reproduire, détails, liens…">${esc(desc)}</textarea>
             <div class="img-strip composer-imgs" id="task-images">${imgGridHtml(compImg)}</div></div></div>
@@ -2348,6 +2350,7 @@ const actions = {
     const oldPg = el.querySelector?.('.qa-pg'), oldTc = oldPg ? getComputedStyle(oldPg).getPropertyValue('--tc') : '';
     const oldClone = oldPg?.cloneNode(true);
     document.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
+    document.querySelectorAll('.composer [data-seg="type"]').forEach((seg) => { seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === state.quickType)); const h = seg.parentElement.querySelector('input[name="type"]'); if (h) h.value = state.quickType; });
     if (had) input.focus({ preventScroll: true }); // le clavier reste ouvert
     if (!isBeta()) return;
     document.querySelectorAll('.composer .qa-row').forEach((row) => { // petit texte léger qui indique le type choisi, puis disparaît
@@ -2418,6 +2421,7 @@ const actions = {
     el.closest('form').elements[seg.dataset.seg].value = el.dataset.v;
     seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === el));
     if (el.closest('.composer') && seg.dataset.seg === 'priority') store.set(`${draftKey()}:prio`, el.dataset.v);
+    if (el.closest('.composer') && seg.dataset.seg === 'type') { state.quickType = el.dataset.v; store.set('quickType', state.quickType); document.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); }); }
   },
   'note-convert': (el) => chooserSheet({ title: 'Transformer le post-it en…', action: 'note-convert-to', noteId: el.dataset.id }),
   'note-convert-to': async (el) => {
