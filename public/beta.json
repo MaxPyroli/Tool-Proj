@@ -9,6 +9,6 @@
   },
   {
     "title": "Un seul ajout de tâche",
-    "text": "Une barre pour ajouter dans tous les onglets du projet : mini bloc-note du type (la page se tourne), champ de texte, « + ». Tire la petite barre vers le haut : le champ monte tout en haut et le menu de tâche complet se déploie (détails, images, chantier, priorité). Le « + » avec un champ vide l'ouvre aussi."
+    "text": "Une barre pour ajouter dans tous les onglets du projet : mini bloc-note du type (la page passe par-dessus quand tu changes de type), champ de texte, « + ». Dans le champ, une petite barre apparaît : tire-la vers le haut, le champ monte et une feuille de papier se déploie au-dessus de l'app assombrie (détails, images, priorité, chantier). Le « + » avec un champ vide l'ouvre aussi."
   }
 ]

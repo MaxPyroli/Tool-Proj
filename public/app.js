@@ -960,16 +960,21 @@ const typeIcon = (k, size = 15) => ico(TYPE_ICON_NAME[k], size);
 const TYPE_LIST = Object.keys(TYPES);
 // Quick-add bar: the type button cycles through the types; what is typed is kept (per project) when you change tab.
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
-const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${isBeta() ? `<span class="qa-rings" aria-hidden="true"></span><span class="qa-pg" aria-hidden="true">${typeIcon(k, 24)}</span><span class="qa-d">` : ''}${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span>${isBeta() ? '</span>' : ''}</button>`; };
+const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${isBeta() ? `<span class="qa-pg" aria-hidden="true">${typeIcon(k, 22)}</span><span class="qa-rings" aria-hidden="true"></span><span class="qa-d">` : ''}${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span>${isBeta() ? '</span>' : ''}</button>`; };
 const draftKey = () => `draft:${state.pid}`;
 // ---------- menu complet de la ligne d'ajout ----------
 // Téléphone (comme Reminder de Samsung) : on tire la petite barre vers le haut, le champ de texte monte avec le doigt jusqu'en haut de l'écran
 // et un menu de tâche complet se déploie derrière lui. --p va de 0 (barre en bas) à 1 (menu ouvert). Ordinateur : « Plus de détails ».
 const isMobile = () => matchMedia('(max-width: 719px)').matches;
-const TOP_FIELD = 64; // où le champ se range, en haut du menu ouvert (px)
+if (isBeta()) { // la page se redimensionne avec le clavier : une barre « fixée en bas » le suit toute seule, sans attendre un événement
+  const m = document.querySelector('meta[name="viewport"]');
+  if (m && !/interactive-widget/.test(m.content)) m.content += ', interactive-widget=resizes-content';
+}
+const TOP_FIELD = 104; // où le champ se range, en haut du menu ouvert (px)
+let composerCloseT = 0;
 let composerVars = {}; // mesures de la barre fermée, gardées quand la page se redessine
 function composerMeasure(f) {
-  if (f.classList.contains('open') || f.classList.contains('dragging')) return;
+  if (f.classList.contains('open') || f.classList.contains('dragging') || f.classList.contains('closing')) return;
   const row = f.querySelector('.qa-row');
   composerVars = { '--ry0': `${Math.round(row.getBoundingClientRect().top)}px`, '--b0': `${Math.round(parseFloat(getComputedStyle(f).bottom) || 0)}px` };
   for (const [k, v] of Object.entries(composerVars)) f.style.setProperty(k, v);
@@ -978,6 +983,8 @@ function setComposerOpen(on, { focus = false, keepFocus = false, measure = true 
   state.composerOpen = !!on;
   const f = document.querySelector('.composer'); if (!f) return;
   if (on && measure) composerMeasure(f);
+  clearTimeout(composerCloseT);
+  if (!state.composerOpen) { f.classList.add('closing'); composerCloseT = setTimeout(() => f.classList.remove('closing'), 520); } else f.classList.remove('closing');
   f.classList.toggle('open', state.composerOpen);
   document.documentElement.classList.toggle('qa-open', state.composerOpen && isMobile());
   f.querySelector('.qa-handle')?.setAttribute('aria-expanded', String(state.composerOpen));
@@ -1016,6 +1023,7 @@ document.addEventListener('pointerup', endHDrag);
 document.addEventListener('pointercancel', endHDrag);
 document.addEventListener('click', (e) => { if (Date.now() < swallowH && e.target.closest?.('.composer .qa-handle')) { e.stopPropagation(); e.preventDefault(); } }, true);
 // toucher la pastille du type ou la poignée ne doit JAMAIS fermer le clavier : on empêche le champ de perdre le focus
+document.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond assombri referme
 document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-handle, .composer .qa-send')) e.preventDefault(); });
 
 // BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
@@ -1033,19 +1041,18 @@ const composer = (placeholder, extra = false) => {
       <button class="btn primary qa-send" type="submit" aria-label="Ajouter"><span class="qa-long">Ajouter</span><span class="qa-short" aria-hidden="true">+</span></button>
     </div>
     <button type="button" class="qa-handle" data-action="composer-more" aria-expanded="${!!state.composerOpen}" aria-label="Plus de détails"><span class="qa-handle-bar" aria-hidden="true"></span><span class="qa-handle-txt">Plus de détails</span></button>
-    <div class="qa-sheet">
-      <div class="qa-sheet-head"><b>Nouvelle tâche</b><button type="button" class="btn ghost icon qa-x" data-action="composer-close" aria-label="Fermer">${ico('x')}</button></div>
+    <div class="qa-sheet"><div class="qa-sheet-body">
+      <div class="sheet-head qa-sheet-head"><h2>Nouvelle tâche</h2><button type="button" class="btn ghost icon qa-x" data-action="composer-close" aria-label="Fermer">${ico('x')}</button></div>
       <div class="qa-more"><div class="qa-more-in">
-        <textarea class="input" id="task-desc" name="description" maxlength="5000" rows="3" aria-label="Détails" placeholder="Détails, étapes, liens… (facultatif)">${esc(desc)}</textarea>
-        <div class="img-strip composer-imgs" id="task-images">${imgGridHtml(compImg)}</div>
-        <div class="qa-opts">
-          <label class="field"><span>Chantier</span><select class="input" id="task-epic" name="epicId"><option value="">Hors chantier</option>${epics.map((e) => `<option value="${e.id}" ${String(e.id) === String(epic) ? 'selected' : ''}>${esc(e.title)}${e.horizon === 'later' ? ' (plus tard)' : ''}</option>`).join('')}</select></label>
-          <label class="field"><span>Priorité</span><select class="input" id="task-prio" name="priority">${Object.entries(PRIORITY).map(([v, l]) => `<option value="${v}" ${v === prio ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-        </div>
+        <div class="field"><span>Détails <small class="muted">(facultatif)</small></span>
+          <div class="desc-box"><textarea class="input" id="task-desc" name="description" maxlength="5000" rows="3" aria-label="Détails" placeholder="Comment le reproduire, détails, liens…">${esc(desc)}</textarea>
+            <div class="img-strip composer-imgs" id="task-images">${imgGridHtml(compImg)}</div></div></div>
+        ${segField('priority', PRIORITY, prio, 'Priorité')}
+        <label class="field"><span>Chantier</span><select class="input" id="task-epic" name="epicId"><option value="">Hors chantier</option>${epics.map((e) => `<option value="${e.id}" ${String(e.id) === String(epic) ? 'selected' : ''}>${esc(e.title)}${e.horizon === 'later' ? ' (plus tard)' : ''}</option>`).join('')}</select></label>
         <button type="button" class="link-btn" data-action="new-epic">+ Nouveau chantier</button>
       </div></div>
       <div class="qa-sheet-actions"><button type="button" class="btn" data-action="composer-close">Annuler</button><button type="submit" class="btn primary">Ajouter</button></div>
-    </div>
+    </div></div>
   </form>`;
 };
 
@@ -2328,7 +2335,8 @@ const actions = {
     const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];
     store.set('quickType', state.quickType);
     const input = document.querySelector('#task-new'), had = document.activeElement === input;
-    const oldPg = el.querySelector?.('.qa-pg'), flipHtml = oldPg?.innerHTML, flipBg = oldPg ? getComputedStyle(oldPg).backgroundColor : '';
+    const oldPg = el.querySelector?.('.qa-pg'), oldTc = oldPg ? getComputedStyle(oldPg).getPropertyValue('--tc') : '';
+    const oldClone = oldPg?.cloneNode(true);
     document.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
     if (had) input.focus({ preventScroll: true }); // le clavier reste ouvert
     if (!isBeta()) return;
@@ -2338,9 +2346,9 @@ const actions = {
       row.append(t); t.addEventListener('animationend', () => t.remove(), { once: true });
     });
     const nb = document.querySelector('.composer .qa-type');
-    if (nb && flipHtml && isMobile() && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // la page du bloc-note se tourne
-      const fl = document.createElement('span'); fl.className = 'qa-flip'; fl.innerHTML = flipHtml; fl.style.background = flipBg; nb.append(fl);
-      fl.animate([{ transform: 'rotateX(0deg)', opacity: 1, filter: 'brightness(1)' }, { transform: 'rotateX(-84deg)', opacity: 1, filter: 'brightness(.8)', offset: .7 }, { transform: 'rotateX(-100deg)', opacity: 0 }], { duration: 440, easing: 'cubic-bezier(.4, .1, .3, 1)' }).finished.then(() => fl.remove(), () => fl.remove());
+    if (nb && oldClone && isMobile() && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // l'ancienne page passe par-dessus le haut du bloc-note et laisse voir la suivante
+      oldClone.classList.add('qa-flip'); oldClone.style.setProperty('--tc', oldTc); nb.append(oldClone);
+      oldClone.animate([{ transform: 'rotateX(0deg)', filter: 'brightness(1)', opacity: 1 }, { transform: 'rotateX(62deg) scale(1.06)', filter: 'brightness(1.05)', opacity: 1, offset: .55 }, { transform: 'rotateX(118deg) scale(1.1)', filter: 'brightness(.9)', opacity: 0 }], { duration: 520, easing: 'cubic-bezier(.45, .05, .35, 1)' }).finished.then(() => oldClone.remove(), () => oldClone.remove());
     } else nb?.classList.add('pop');
   },
   'composer-more': () => { if (!isMobile()) setComposerOpen(!state.composerOpen); }, // sur téléphone, la poignée est gérée au doigt (toucher / tirer)
@@ -2399,6 +2407,7 @@ const actions = {
     const seg = el.closest('[data-seg]');
     el.closest('form').elements[seg.dataset.seg].value = el.dataset.v;
     seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === el));
+    if (el.closest('.composer') && seg.dataset.seg === 'priority') store.set(`${draftKey()}:prio`, el.dataset.v);
   },
   'note-convert': (el) => chooserSheet({ title: 'Transformer le post-it en…', action: 'note-convert-to', noteId: el.dataset.id }),
   'note-convert-to': async (el) => {
@@ -2730,6 +2739,7 @@ if (window.visualViewport) {
   };
   window.visualViewport.addEventListener('resize', sync);
   window.visualViewport.addEventListener('scroll', sync);
+  window.addEventListener('scroll', sync, { passive: true });
   sync();
 }
 
