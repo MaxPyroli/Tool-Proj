@@ -97,6 +97,21 @@ document.documentElement.dataset.appv = `${APP_VERSION}+${APP_BUILD}`;
 
 // Redrawing replaces the page content: remember where the reader was so the screen doesn't jump to the top.
 let lastViewKey = null;
+// BÊTA téléphone : la barre d'ajout vit dans <body>, pas dans la page : les animations de page ne la déplacent plus, et elle suit le clavier toute seule.
+let composerHost = null, composerFor = null;
+function mountComposer() {
+  const inline = $app.querySelector('.composer');
+  if (!isBeta() || !inline || !matchMedia('(max-width: 719px)').matches) { composerHost?.remove(); composerHost = null; composerFor = null; return; }
+  if (!composerHost) { composerHost = document.createElement('div'); composerHost.id = 'composer-host'; document.body.append(composerHost); bindActions(composerHost); }
+  const active = document.activeElement;
+  if (composerHost.firstElementChild && composerHost.contains(active) && active.matches('input, textarea, select')) inline.remove(); // on tape : on garde la barre en place (pas de perte du clavier)
+  else composerHost.replaceChildren(inline);
+  if (composerFor !== state.pid) { // arrivée dans un projet : la barre monte doucement (une seule fois)
+    composerFor = state.pid;
+    const bar = composerHost.firstElementChild;
+    if (bar && !matchMedia('(prefers-reduced-motion: reduce)').matches) bar.animate([{ transform: 'translateY(30px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 380, delay: 120, easing: 'cubic-bezier(.25, .9, .3, 1)', fill: 'backwards' });
+  }
+}
 function redraw(key, draw) {
   const same = key === lastViewKey, prevKey = lastViewKey;
   const y = window.scrollY;
@@ -105,6 +120,7 @@ function redraw(key, draw) {
   const tabs = same ? null : fx.tabSnapshot(); // la barre d'onglets : ancien état, pour le fondre dans le nouveau
   const snap = same ? null : fx.pageSnap(); // l'ancienne page, pour un fondu enchaîné (pas d'écran vide au clic)
   draw();
+  mountComposer();
   packLists(); // listes sur plusieurs colonnes : on répartit les blocs avant d'animer (les positions mesurées doivent être les bonnes)
   lastViewKey = key;
   window.scrollTo(0, same ? y : 0);
@@ -947,7 +963,7 @@ const draftKey = () => `draft:${state.pid}`;
 // ouvrir / fermer le menu complet de la ligne d'ajout (poignée : toucher, ou tirer vers le haut / le bas)
 function setComposerOpen(on) {
   state.composerOpen = !!on;
-  const f = $app.querySelector('.composer'); if (!f) return;
+  const f = document.querySelector('.composer'); if (!f) return;
   f.classList.toggle('open', state.composerOpen);
   f.querySelector('.qa-handle')?.setAttribute('aria-expanded', String(state.composerOpen));
 }
@@ -957,7 +973,7 @@ document.addEventListener('pointermove', (e) => { if (handleDrag && e.pointerId 
 document.addEventListener('pointerup', () => { if (handleDrag?.moved) swallowHandleClick = Date.now() + 400; handleDrag = null; });
 let swallowHandleClick = 0;
 document.addEventListener('click', (e) => { if (Date.now() < swallowHandleClick && e.target.closest?.('.qa-handle')) { e.stopPropagation(); e.preventDefault(); } }, true);
-$app.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond sombre (téléphone) ferme
+document.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond sombre (téléphone) ferme
 
 // BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
 const composer = (placeholder) => {
@@ -1212,7 +1228,7 @@ async function prepareImage(file) {
 }
 
 function renderImageGrid() {
-  const box = imgState === compImg ? $app.querySelector('#task-images') : sheet.querySelector('#tf-images');
+  const box = imgState === compImg ? document.querySelector('#task-images') : sheet.querySelector('#tf-images');
   if (!box) return;
   box.innerHTML = imgGridHtml(imgState);
 }
@@ -1288,9 +1304,9 @@ sheet.addEventListener('dragover', (e) => { if (sheet.querySelector('#tf-images'
 sheet.addEventListener('drop', (e) => { if (!sheet.querySelector('#tf-images') || !e.dataTransfer?.files?.length) return; e.preventDefault(); addImageFiles(e.dataTransfer.files); });
 sheet.addEventListener('change', (e) => { if (e.target.matches('[data-img-input]')) { imgState = sheetImg; addImageFiles(e.target.files); e.target.value = ''; } });
 // BÊTA : mêmes gestes (image choisie, glissée, collée) dans la ligne d'ajout
-$app.addEventListener('change', (e) => { if (e.target.matches?.('[data-img-input]') && e.target.closest('.composer')) { imgState = compImg; addImageFiles(e.target.files); e.target.value = ''; } });
-$app.addEventListener('dragover', (e) => { if (e.target.closest?.('.composer') && [...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
-$app.addEventListener('drop', (e) => { if (!e.target.closest?.('.composer') || !e.dataTransfer?.files?.length) return; e.preventDefault(); imgState = compImg; addImageFiles(e.dataTransfer.files); });
+document.addEventListener('change', (e) => { if (e.target.matches?.('[data-img-input]') && e.target.closest('.composer')) { imgState = compImg; addImageFiles(e.target.files); e.target.value = ''; } });
+document.addEventListener('dragover', (e) => { if (e.target.closest?.('.composer') && [...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', (e) => { if (!e.target.closest?.('.composer') || !e.dataTransfer?.files?.length) return; e.preventDefault(); imgState = compImg; addImageFiles(e.dataTransfer.files); });
 
 function taskSheet(t) {
   const d = state.data;
@@ -2264,14 +2280,14 @@ const actions = {
   'quick-type': (el) => {
     const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];
     store.set('quickType', state.quickType);
-    $app.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
-    if (isBeta()) $app.querySelectorAll('.qa-type').forEach((b) => { b.classList.add('pop'); b.addEventListener('animationend', () => b.classList.remove('pop'), { once: true }); b.focus({ preventScroll: true }); }); // petit rebond du bouton (et on garde le clavier)
+    document.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
+    if (isBeta()) document.querySelectorAll('.qa-type').forEach((b) => { b.classList.add('pop'); b.addEventListener('animationend', () => b.classList.remove('pop'), { once: true }); b.focus({ preventScroll: true }); }); // petit rebond du bouton (et on garde le clavier)
   },
   'composer-more': () => setComposerOpen(!state.composerOpen),
   'new-item': (el) => {
-    if (isBeta() && state.tab === 'taches' && !sheet.open && $app.querySelector('.composer')) { // BÊTA : on ajoute depuis la ligne qui se déploie
-      if (el.dataset.epic) { store.set(`${draftKey()}:epic`, el.dataset.epic); const s = $app.querySelector('#task-epic'); if (s) s.value = el.dataset.epic; setComposerOpen(true); }
-      const box = $app.querySelector('.composer'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); $app.querySelector('#task-new').focus({ preventScroll: true }); return;
+    if (isBeta() && state.tab === 'taches' && !sheet.open && document.querySelector('.composer')) { // BÊTA : on ajoute depuis la ligne qui se déploie
+      if (el.dataset.epic) { store.set(`${draftKey()}:epic`, el.dataset.epic); const s = document.querySelector('#task-epic'); if (s) s.value = el.dataset.epic; setComposerOpen(true); }
+      const box = document.querySelector('.composer'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); document.querySelector('#task-new').focus({ preventScroll: true }); return;
     }
     if (el.dataset.epic) return taskSheet({ epicId: Number(el.dataset.epic) });
     chooserSheet();
@@ -2509,7 +2525,7 @@ const forms = {
     store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal'); state.composerOpen = false;
     fx.focus([], { enter: true });
     await reloadProject();
-    $app.querySelector('#task-new')?.focus();
+    document.querySelector('#task-new')?.focus();
   },
   async 'new-task'(f) {
     await imgState.queue; // pictures still being shrunk
@@ -2599,7 +2615,7 @@ $app.addEventListener('change', run(async (e) => {
 }));
 
 // Keep what is typed in the quick-add bar.
-$app.addEventListener('input', (e) => {
+document.addEventListener('input', (e) => {
   if (['task-new', 'task-desc'].includes(e.target.id)) { const f = e.target.closest('.composer'); if (f) f.classList.toggle('has-draft', !!(f.elements.title.value || f.elements.description.value)); }
   if (e.target.id === 'task-new') store.set(draftKey(), e.target.value);
   else if (e.target.id === 'task-desc') store.set(`${draftKey()}:desc`, e.target.value);
