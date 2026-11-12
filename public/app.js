@@ -944,6 +944,21 @@ const TYPE_LIST = Object.keys(TYPES);
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
 const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span></button>`; };
 const draftKey = () => `draft:${state.pid}`;
+// ouvrir / fermer le menu complet de la ligne d'ajout (poignée : toucher, ou tirer vers le haut / le bas)
+function setComposerOpen(on) {
+  state.composerOpen = !!on;
+  const f = $app.querySelector('.composer'); if (!f) return;
+  f.classList.toggle('open', state.composerOpen);
+  f.querySelector('.qa-handle')?.setAttribute('aria-expanded', String(state.composerOpen));
+}
+let handleDrag = null;
+document.addEventListener('pointerdown', (e) => { const h = e.target.closest?.('.qa-handle'); if (h && e.isPrimary) handleDrag = { y: e.clientY, moved: false, id: e.pointerId }; });
+document.addEventListener('pointermove', (e) => { if (handleDrag && e.pointerId === handleDrag.id && Math.abs(e.clientY - handleDrag.y) > 18 && !handleDrag.moved) { handleDrag.moved = true; setComposerOpen(e.clientY < handleDrag.y); } });
+document.addEventListener('pointerup', () => { if (handleDrag?.moved) swallowHandleClick = Date.now() + 400; handleDrag = null; });
+let swallowHandleClick = 0;
+document.addEventListener('click', (e) => { if (Date.now() < swallowHandleClick && e.target.closest?.('.qa-handle')) { e.stopPropagation(); e.preventDefault(); } }, true);
+$app.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond sombre (téléphone) ferme
+
 // BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
 const composer = (placeholder) => {
   const d = state.data, k = draftKey();
@@ -952,12 +967,13 @@ const composer = (placeholder) => {
   const has = !!(store.get(k, '') || desc || compImg.items.length);
   const epics = [...d.epics].filter((e) => e.horizon !== 'done').sort(sortEpics);
   return `
-  <form class="quick-add composer${has ? ' has-draft' : ''}" data-form="add-task">
+  <form class="quick-add composer${state.composerOpen ? ' open' : ''}" data-form="add-task">
     <div class="qa-row">
       ${quickTypeBtn()}
       <input class="input" id="task-new" name="title" maxlength="200" placeholder="${placeholder}" value="${esc(store.get(k, ''))}" autocomplete="off" enterkeyhint="done">
       <button class="btn primary" type="submit">Ajouter</button>
     </div>
+    <button type="button" class="qa-handle" data-action="composer-more" aria-expanded="${!!state.composerOpen}" aria-label="Plus de détails"><span class="qa-handle-bar" aria-hidden="true"></span><span class="qa-handle-txt">Plus de détails</span></button>
     <div class="qa-more"><div class="qa-more-in">
       <textarea class="input" id="task-desc" name="description" maxlength="5000" rows="3" aria-label="Détails" placeholder="Détails, étapes, liens… (facultatif)">${esc(desc)}</textarea>
       <div class="img-strip composer-imgs" id="task-images">${imgGridHtml(compImg)}</div>
@@ -2251,9 +2267,10 @@ const actions = {
     $app.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
     if (isBeta()) $app.querySelectorAll('.qa-type').forEach((b) => { b.classList.add('pop'); b.addEventListener('animationend', () => b.classList.remove('pop'), { once: true }); b.focus({ preventScroll: true }); }); // petit rebond du bouton (et on garde le clavier)
   },
+  'composer-more': () => setComposerOpen(!state.composerOpen),
   'new-item': (el) => {
     if (isBeta() && state.tab === 'taches' && !sheet.open && $app.querySelector('.composer')) { // BÊTA : on ajoute depuis la ligne qui se déploie
-      if (el.dataset.epic) { store.set(`${draftKey()}:epic`, el.dataset.epic); const s = $app.querySelector('#task-epic'); if (s) s.value = el.dataset.epic; }
+      if (el.dataset.epic) { store.set(`${draftKey()}:epic`, el.dataset.epic); const s = $app.querySelector('#task-epic'); if (s) s.value = el.dataset.epic; setComposerOpen(true); }
       const box = $app.querySelector('.composer'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); $app.querySelector('#task-new').focus({ preventScroll: true }); return;
     }
     if (el.dataset.epic) return taskSheet({ epicId: Number(el.dataset.epic) });
@@ -2489,7 +2506,7 @@ const forms = {
       for (const it of pending) { try { await db.addTaskImage(state.pid, newId, it.blobs); } catch (e) { toast(e.message, true); } }
     }
     for (const i of compImg.items) { if (i.blobs) { URL.revokeObjectURL(i.thumb); URL.revokeObjectURL(i.full); } } compImg.items = [];
-    store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal');
+    store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal'); state.composerOpen = false;
     fx.focus([], { enter: true });
     await reloadProject();
     $app.querySelector('#task-new')?.focus();

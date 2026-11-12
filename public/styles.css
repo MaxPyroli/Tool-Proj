@@ -1223,41 +1223,51 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .ep-book:active { transform: translateY(1px); transition-duration: .06s; }
 @media (prefers-reduced-motion: reduce) { .ep-book { transition: none; } .ep-book:hover, .ep-book:active { transform: none; } }
 
-/* BÊTA · ajout de tâche : la ligne rapide se déploie (type, titre, détails, chantier, priorité) */
+/* BÊTA · ajout de tâche : une ligne (type, titre, « Ajouter ») ; le menu complet (détails, images, chantier, priorité) s'ouvre par la poignée */
 .composer { display: grid; gap: 0; }
 .composer .qa-row { display: flex; gap: 8px; }
 .composer .qa-row .input { flex: 1; min-width: 0; }
+.qa-handle { touch-action: none; justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin: 2px 0 0; padding: 4px 2px; border: 0; background: none; color: var(--muted); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.qa-handle:hover { color: var(--accent); }
+.qa-handle-bar { display: none; }
+.qa-handle-txt::after { content: " ▾"; display: inline-block; transition: transform .25s; }
+.composer.open .qa-handle-txt::after { transform: rotate(180deg); }
 .qa-more { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .32s cubic-bezier(.3, .9, .35, 1), opacity .25s; }
-.composer:focus-within .qa-more, .composer.has-draft .qa-more { grid-template-rows: 1fr; opacity: 1; }
+.composer.open .qa-more { grid-template-rows: 1fr; opacity: 1; }
 .qa-more-in { min-height: 0; overflow: hidden; display: grid; gap: 8px; padding: 0 2px; }
-.composer:focus-within .qa-more-in, .composer.has-draft .qa-more-in { padding-top: 8px; padding-bottom: 2px; }
+.composer.open .qa-more-in { padding-top: 8px; padding-bottom: 2px; }
 .qa-more textarea { resize: vertical; min-height: 76px; }
 .qa-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .qa-opts .field { margin: 0; }
 .qa-more .link-btn { justify-self: start; }
-@media (max-width: 430px) { .composer .qa-row { flex-wrap: wrap; } .composer .qa-type { flex: 1 1 100%; } .composer .qa-row .input { flex: 1 1 0; } }
-@media (prefers-reduced-motion: reduce) { .qa-more { transition: none; } }
-
-/* BÊTA · ajout de tâche sur téléphone : barre fixe en bas, au-dessus de la barre d'onglets ; elle se déploie vers le haut quand on la touche */
 .composer .btn.primary { transition: transform .12s, filter .12s; }
 .composer .btn.primary:active, .composer .qa-type:active { transform: scale(.94); }
-.qa-type.pop { animation: qa-pop .32s cubic-bezier(.3, 1.6, .5, 1); }
-@keyframes qa-pop { 0% { transform: scale(.82); } 100% { transform: scale(1); } }
+.qa-type.pop { animation: qa-pop .34s cubic-bezier(.3, 1.6, .5, 1); }
+.qa-type.pop svg { animation: qa-flip .38s cubic-bezier(.3, 1.2, .4, 1); }
+@keyframes qa-pop { 0% { transform: scale(.84); } 100% { transform: scale(1); } }
+@keyframes qa-flip { 0% { transform: rotateY(90deg) scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .qa-more, .composer .btn.primary { transition: none; } .qa-type.pop, .qa-type.pop svg { animation: none; } }
+
+/* téléphone : trois éléments séparés flottant en bas (pilule du type, barre de texte, sticker « Ajouter »), au-dessus des onglets */
 @media (max-width: 719px) {
-  .composer { position: fixed; left: 0; right: 0; z-index: 40; margin: 0; display: flex; flex-direction: column-reverse; gap: 0; background: none;
+  .composer { position: fixed; left: 0; right: 0; z-index: 40; margin: 0; display: flex; flex-direction: column-reverse; gap: 0; background: none; pointer-events: none;
     bottom: calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom, 0px)); }
+  .composer > * { pointer-events: auto; }
   .kbd .composer { bottom: var(--kb, 0px); }
-  .composer .qa-row { position: relative; flex-wrap: nowrap; align-items: stretch; background: var(--surface); padding: 9px 12px; border-top: 1px solid var(--line); box-shadow: 0 -8px 16px -10px rgb(0 0 0 / .35); }
-  .composer .qa-type { flex: none; min-width: 46px; min-height: 44px; padding: 0 10px; justify-content: center; }
+  .composer .qa-row { order: 1; position: relative; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 18px 12px 10px; background: linear-gradient(to top, var(--bg) 55%, transparent); }
+  .composer .qa-type { flex: none; min-width: 50px; min-height: 46px; padding: 0 14px; border-radius: 99px; justify-content: center; box-shadow: 0 2px 8px rgb(0 0 0 / .18); }
+  .composer .qa-row .input { flex: 1 1 0; min-height: 46px; border-radius: 99px; padding-left: 16px; box-shadow: 0 2px 8px rgb(0 0 0 / .14); }
+  .composer .qa-row .btn { min-height: 46px; }
+  .qa-handle { order: 3; justify-self: stretch; justify-content: center; width: 100%; margin: 0; padding: 6px 0 2px; background: none; }
+  .qa-handle-bar { display: block; width: 44px; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 35%, transparent); }
+  .qa-handle-txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .composer.open .qa-handle { background: var(--surface); padding: 10px 0 4px; }
+  .qa-more { order: 2; background: var(--surface); }
+  .qa-more-in { padding: 0 14px; }
+  .composer.open .qa-more-in { padding: 6px 14px 12px; }
+  .qa-more-in { max-height: calc(var(--vvh, 100dvh) - 170px); overflow-y: auto; }
   .composer .qa-lbl { display: none; }
-  .composer .qa-row .input { flex: 1 1 0; min-height: 44px; }
-  .composer .qa-row .btn { min-height: 44px; }
-  .composer .qa-more-in { background: var(--surface); padding: 0 12px; }
-  .composer:focus-within .qa-more-in { padding: 12px 12px 2px; }
-  .composer.has-draft:not(:focus-within) .qa-more { grid-template-rows: 0fr; opacity: 0; }
-  .composer .qa-more textarea { min-height: 84px; }
+  @media (min-width: 400px) { .composer .qa-lbl { display: inline-grid; } .composer .qa-type { padding: 0 16px; } }
   .composer::before { content: ""; position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: -1; opacity: 0; pointer-events: none; transition: opacity .25s; }
-  .composer:focus-within::before { opacity: 1; pointer-events: auto; }
-  .qa-more-in { max-height: calc(var(--vvh, 100dvh) - 130px); overflow-y: auto; }
+  .composer.open::before { opacity: 1; pointer-events: auto; }
 }
-@media (prefers-reduced-motion: reduce) { .composer .btn.primary, .qa-type.pop { transition: none; animation: none; } }
