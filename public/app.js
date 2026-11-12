@@ -754,7 +754,7 @@ function renderProject() {
     ${{ apercu: viewOverview, taches: viewTasks, idees: viewNotes, equipe: viewTeam }[state.tab](d)}
   </main>
   ${state.tab === 'idees' ? '<button class="fab hide-lg" data-action="new-note">+ Post-it</button>' : ''}
-  ${state.tab === 'taches' ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`; });
+  ${state.tab === 'taches' && !isBeta() ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}`; }); // BÊTA : sur téléphone la barre d'ajout en bas remplace le bouton flottant
 
   const wallEl = state.tab === 'idees' && state.boardView === 'wall' ? $app.querySelector('.board-wrap.wall') : null;
   if (wallEl) bindWall(wallEl); else wallApi = null;
@@ -2249,6 +2249,7 @@ const actions = {
     const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];
     store.set('quickType', state.quickType);
     $app.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
+    if (isBeta()) $app.querySelectorAll('.qa-type').forEach((b) => { b.classList.add('pop'); b.addEventListener('animationend', () => b.classList.remove('pop'), { once: true }); b.focus({ preventScroll: true }); }); // petit rebond du bouton (et on garde le clavier)
   },
   'new-item': (el) => {
     if (isBeta() && state.tab === 'taches' && !sheet.open && $app.querySelector('.composer')) { // BÊTA : on ajoute depuis la ligne qui se déploie

@@ -1237,3 +1237,27 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .qa-more .link-btn { justify-self: start; }
 @media (max-width: 430px) { .composer .qa-row { flex-wrap: wrap; } .composer .qa-type { flex: 1 1 100%; } .composer .qa-row .input { flex: 1 1 0; } }
 @media (prefers-reduced-motion: reduce) { .qa-more { transition: none; } }
+
+/* BÊTA · ajout de tâche sur téléphone : barre fixe en bas, au-dessus de la barre d'onglets ; elle se déploie vers le haut quand on la touche */
+.composer .btn.primary { transition: transform .12s, filter .12s; }
+.composer .btn.primary:active, .composer .qa-type:active { transform: scale(.94); }
+.qa-type.pop { animation: qa-pop .32s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes qa-pop { 0% { transform: scale(.82); } 100% { transform: scale(1); } }
+@media (max-width: 719px) {
+  .composer { position: fixed; left: 0; right: 0; z-index: 40; margin: 0; display: flex; flex-direction: column-reverse; gap: 0; background: none;
+    bottom: calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom, 0px)); }
+  .kbd .composer { bottom: var(--kb, 0px); }
+  .composer .qa-row { position: relative; flex-wrap: nowrap; align-items: stretch; background: var(--surface); padding: 9px 12px; border-top: 1px solid var(--line); box-shadow: 0 -8px 16px -10px rgb(0 0 0 / .35); }
+  .composer .qa-type { flex: none; min-width: 46px; min-height: 44px; padding: 0 10px; justify-content: center; }
+  .composer .qa-lbl { display: none; }
+  .composer .qa-row .input { flex: 1 1 0; min-height: 44px; }
+  .composer .qa-row .btn { min-height: 44px; }
+  .composer .qa-more-in { background: var(--surface); padding: 0 12px; }
+  .composer:focus-within .qa-more-in { padding: 12px 12px 2px; }
+  .composer.has-draft:not(:focus-within) .qa-more { grid-template-rows: 0fr; opacity: 0; }
+  .composer .qa-more textarea { min-height: 84px; }
+  .composer::before { content: ""; position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: -1; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .composer:focus-within::before { opacity: 1; pointer-events: auto; }
+  .qa-more-in { max-height: calc(var(--vvh, 100dvh) - 130px); overflow-y: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .composer .btn.primary, .qa-type.pop { transition: none; animation: none; } }
