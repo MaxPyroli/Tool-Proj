@@ -9,6 +9,6 @@
   },
   {
     "title": "Un seul ajout de tâche",
-    "text": "Une barre pour ajouter dans tous les onglets du projet : mini bloc-note du type, champ de texte, « + ». Dans le champ, une petite barre apparaît : tire-la vers le haut, le champ devient pleine largeur et prend le style des autres champs, le type et le « + » s'effacent, et une feuille de papier se déploie au-dessus de l'app assombrie (type, détails, images, priorité, chantier). Le « + » avec un champ vide l'ouvre aussi."
+    "text": "Une seule barre pour ajouter : mini bloc-note du type, champ de texte, « + ». Téléphone : barre en bas, tire la petite barre vers le haut. Ordinateur : la ligne reste en haut, « Plus de détails » (ou « + » avec un champ vide) ouvre une feuille de papier au centre, au-dessus de l'app assombrie, où le champ vient se ranger (Échap pour fermer)."
   }
 ]

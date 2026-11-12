@@ -985,7 +985,8 @@ let composerVars = {}; // mesures de la barre fermée, gardées quand la page se
 function composerMeasure(f) {
   if (f.classList.contains('open') || f.classList.contains('dragging') || f.classList.contains('closing')) return;
   const row = f.querySelector('.qa-row');
-  composerVars = { '--ry0': `${Math.round(row.getBoundingClientRect().top)}px`, '--b0': `${Math.round(parseFloat(getComputedStyle(f).bottom) || 0)}px` };
+  const rr = row.getBoundingClientRect();
+  composerVars = { '--ry0': `${Math.round(rr.top)}px`, '--rx0': `${Math.round(rr.left)}px`, '--rw0': `${Math.round(rr.width)}px` };
   for (const [k, v] of Object.entries(composerVars)) f.style.setProperty(k, v);
 }
 function refreshRy0(f) { // où la barre se range quand elle est fermée, MAINTENANT (le clavier, lui, bouge)
@@ -1047,6 +1048,7 @@ document.addEventListener('pointercancel', endHDrag);
 document.addEventListener('click', (e) => { if (Date.now() < swallowH && e.target.closest?.('.composer .qa-handle')) { e.stopPropagation(); e.preventDefault(); } }, true);
 // toucher la pastille du type ou la poignée ne doit JAMAIS fermer le clavier : on empêche le champ de perdre le focus
 document.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond assombri referme
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.composerOpen && document.querySelector('.composer.open')) { e.preventDefault(); setComposerOpen(false); } });
 document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-book, .composer .qa-handle, .composer .qa-send')) e.preventDefault(); });
 
 // BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
