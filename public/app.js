@@ -278,9 +278,15 @@ const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return nu
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* stockage bloqué */ } };
 const isBeta = () => (onWeb ? /\/beta\//.test(location.pathname) : lsGet('tp-beta') === '1');
 const betaUnlocked = () => lsGet('tp-beta-ok') === '1';
-if (onWeb && isBeta() && !betaUnlocked()) location.replace('../'); // le dossier /beta/ ne s'ouvre que si l'interrupteur a été débloqué sur cet appareil
+// L'app se souvient de la dernière version utilisée (normale ou bêta) et s'ouvre dessus au lancement.
+const MODE_KEY = 'tp-mode';
+if (onWeb) {
+  if (isBeta() && !betaUnlocked()) { lsSet(MODE_KEY, 'stable'); location.replace('../'); } // le dossier /beta/ ne s'ouvre que si l'interrupteur a été débloqué sur cet appareil
+  else if (isBeta()) lsSet(MODE_KEY, 'beta');
+  else if (lsGet(MODE_KEY) === 'beta' && betaUnlocked()) location.replace(`beta/${location.hash}`); // dernière fois : bêta
+}
 const betaSwitch = (toBeta) => {
-  if (onWeb) { location.href = toBeta ? 'beta/' : '../'; return; }
+  if (onWeb) { lsSet(MODE_KEY, toBeta ? 'beta' : 'stable'); location.href = toBeta ? 'beta/' : '../'; return; }
   lsSet('tp-beta', toBeta ? '1' : null); document.body.classList.toggle('beta', toBeta); drawBetaTab(); accountSheet();
 };
 function drawBetaTab() {
@@ -2286,7 +2292,7 @@ const actions = {
     if (verTaps < 7) return;
     verTaps = 0;
     if (isBeta()) { lsSet('tp-beta-ok', null); betaSwitch(false); return; }
-    lsSet('tp-beta-ok', betaUnlocked() ? null : '1');
+    lsSet('tp-beta-ok', betaUnlocked() ? null : '1'); if (!betaUnlocked()) lsSet(MODE_KEY, 'stable');
     toast(betaUnlocked() ? 'Version bêta débloquée' : 'Version bêta masquée'); accountSheet();
   },
   'beta-go': () => betaSwitch(true),
