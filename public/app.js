@@ -2407,7 +2407,7 @@ const actions = {
     if (!choice) return;
     closeSheet();
     const ids = choice.withTasks ? mine.map((t) => t.id) : [];
-    await removeWith('shred', $app.querySelector(`.ep-sheet[data-id="${e.id}"], .ep-closed[data-id="${e.id}"]`), () => db.deleteEpic(e.id, ids));
+    await removeWith('shred', $app.querySelector(`.ep-sheet[data-id="${e.id}"], .ep-closed[data-id="${e.id}"], .ep-book[data-id="${e.id}"]`), () => db.deleteEpic(e.id, ids));
     quiet(ids.length ? `Chantier et ${ids.length} tâche${ids.length > 1 ? 's' : ''} supprimés` : 'Chantier supprimé'); await reloadProject();
   },
   'pick-avatar-emoji': (el) => {
