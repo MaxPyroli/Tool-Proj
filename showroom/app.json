@@ -1,0 +1,58 @@
+{
+  "slug": "tool-proj",
+  "name": "Tool Proj",
+  "tag": "Productivité",
+  "tagline": "Le carnet de bord de tes projets d'apps.",
+  "pitch": "Avancement, tâches, idées et équipe, sur un mur de post-it qu'on zoome du bout des doigts. Installable sur téléphone.",
+  "accent": "#0d7c72",
+  "glow": "#0fb5a6",
+  "tile": "#0d7c72",
+  "format": "duo",
+  "chips": [
+    "PWA installable",
+    "Supabase",
+    "Gratuit"
+  ],
+  "hero_hint": "L'aperçu d'un projet : bureau et mobile",
+  "icon": "icon.png",
+  "links": [
+    {
+      "kind": "web",
+      "url": "https://toolproj.panamedev.fr/"
+    }
+  ],
+  "legal": [
+    {
+      "label": "Confidentialité",
+      "url": "https://toolproj.panamedev.fr/confidentialite.html"
+    }
+  ],
+  "features": [
+    {
+      "title": "Le plan de travail de post-it",
+      "text": "Un grand mur qu'on zoome (pincement ou Ctrl + molette) et qu'on parcourt en glissant, avec une mini-carte, le plein écran, « Ranger » par couleur, votes ou date, et des votes 👍.",
+      "hint": "Le mur de post-it, avec la mini-carte (bureau + mobile)"
+    },
+    {
+      "title": "Feuille de route et tableau",
+      "text": "Les grands chantiers rangés en Maintenant, Ensuite, Plus tard et Terminé, ou un tableau À faire / En cours / Fait où chaque chantier est un grand post-it.",
+      "hint": "La feuille de route ou le tableau (bureau + mobile)"
+    },
+    {
+      "title": "Tâches, bugs, idées",
+      "text": "Chaque élément a son type et sa couleur, sa priorité, une personne assignée. Une idée mûre se transforme en chantier, tâche, bug ou amélioration.",
+      "hint": "Une tâche ouverte avec ses détails (bureau + mobile)"
+    },
+    {
+      "title": "L'aperçu du projet",
+      "text": "Une jauge d'avancement, les chantiers en cours, les bugs ouverts, les idées les plus votées et l'activité récente.",
+      "hint": "L'aperçu avec la jauge d'avancement (bureau + mobile)"
+    },
+    {
+      "title": "Équipe et connexion",
+      "text": "Rôles admin ou membre par projet, avatars emoji, notifications quand une tâche t'est assignée, et connexion sans mot de passe : lien, code ou Face ID.",
+      "hint": "La liste des membres ou l'écran de connexion (bureau + mobile)"
+    }
+  ],
+  "shots": []
+}
