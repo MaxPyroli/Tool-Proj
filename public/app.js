@@ -89,7 +89,7 @@ function emojiSvg(e) {
 }
 const glyph = (v, size = '1em') => (glyphName(v) ? ico(glyphName(v), size) : emojiSvg(String(v ?? '')));
 const BOARD_W = 3000, BOARD_H = 2400;
-const APP_VERSION = '0.22.0';
+const APP_VERSION = '0.22.1';
 const APP_BUILD = 'dev'; // replaced by the build number when GitHub deploys the site
 /** Chargement : « Chargement... » s'écrit à la machine à écrire (voir .tw dans styles.css). */
 const LOADING = '<span class="tw" role="status"><span>Chargement...</span><i></i></span>';
@@ -101,7 +101,7 @@ let lastViewKey = null;
 let composerHost = null, composerFor = null;
 function mountComposer() {
   const inline = $app.querySelector('.composer');
-  if (!isBeta() || !inline) { composerHost?.remove(); composerHost = null; composerFor = null; document.body.classList.remove('has-composer'); document.documentElement.classList.remove('qa-side'); return; }
+  if (!inline) { composerHost?.remove(); composerHost = null; composerFor = null; document.body.classList.remove('has-composer'); document.documentElement.classList.remove('qa-side'); return; }
   document.body.classList.add('has-composer');
   if (!composerHost) { composerHost = document.createElement('div'); composerHost.id = 'composer-host'; document.body.append(composerHost); bindActions(composerHost); }
   const active = document.activeElement;
@@ -164,7 +164,7 @@ const state = {
   projects: [], filter: 'all',
   pid: null, data: null, tab: 'apercu',
   activityOpen: store.get('activityOpen', '0') === '1',
-  boardGroup: store.get('boardGroup', 'status'), taskFilter: 'all', showDone: false, epicDone: new Set(), epicOpen: new Set(), showLater: false, justDone: null, justDoneFrom: 'todo', justUndone: null,
+  taskFilter: 'all', showDone: false, epicDone: new Set(), epicOpen: new Set(), justDone: null, justDoneFrom: 'todo', justUndone: null,
   boardView: store.get('boardView', matchMedia('(max-width: 719px)').matches ? 'grid' : 'wall'),
   dragging: false, installPrompt: null,
 };
@@ -313,7 +313,6 @@ async function betaMenu() {
 let verTaps = 0, verTapAt = 0;
 
 // BÊTA : un tampon seulement pour une action ponctuelle (valider, envoyer, copier). Suppressions (déjà animées), modifications et curseurs : plus de tampon.
-const quiet = (msg) => { if (!isBeta()) toast(msg); };
 function toast(msg, err = false, action = null) {
   const box = document.getElementById('toasts');
   if (!err && !action) { // message tout simple : un tampon encreur le pose sur l'écran
@@ -454,7 +453,7 @@ async function render() {
   }
   state.pid = null; state.data = null; subscribe(null);
   try {
-    const [list, opens] = await Promise.all([db.listProjects(state.me.id), isBeta() ? db.listOpens() : {}]);
+    const [list, opens] = await Promise.all([db.listProjects(state.me.id), db.listOpens()]);
     state.projects = list;
     for (const [k, v] of Object.entries(state.opens || {})) opens[k] = Math.max(opens[k] || 0, v); // ce qu'on vient d'ouvrir passe devant même si le serveur n'a pas encore répondu
     state.opens = opens;
@@ -486,7 +485,6 @@ const taskKeys = (id) => [`task:${id}`, ...[...$app.querySelectorAll('[data-fx^=
 /** Vue « Liste » : la tâche terminée s'envole vers « Terminées » (en bas de la liste), puis la section fait un petit bond.
  *  À appeler AVANT le redessin ; la fonction rendue se lance APRÈS (la section « Terminées » n'existe qu'à ce moment-là). */
 function flyDone(id) {
-  if (state.boardGroup === 'epic') return null;
   const el = $app.querySelector(`.task[data-id="${id}"]`);
   if (!el) return null;
   const r = el.getBoundingClientRect();
@@ -635,9 +633,9 @@ function projectCard(p) {
 const PROJECT_SORTS = { alpha: 'Alphabétique', recent: 'Dernier ouvert', progress: 'Avancement' };
 // « dernier ouvert » est gardé sur le compte (table project_opens) : même ordre sur le PC et le téléphone
 const openedMap = () => state.opens || {};
-function noteOpened(id) { if (!isBeta()) return; state.opens = { ...(state.opens || {}), [id]: Date.now() }; db.markOpened(id); }
+function noteOpened(id) { state.opens = { ...(state.opens || {}), [id]: Date.now() }; db.markOpened(id); }
 function sortProjects(list) {
-  const mode = isBeta() ? store.get('projectSort', 'alpha') : 'alpha';
+  const mode = store.get('projectSort', 'alpha');
   const by = { alpha: () => 0, recent: (() => { const m = openedMap(); return (a, b) => (m[b.id] || 0) - (m[a.id] || 0); })(), progress: (a, b) => (b.progress || 0) - (a.progress || 0) }[mode] || (() => 0);
   return [...list].sort((a, b) => by(a, b) || a.name.localeCompare(b.name, 'fr', { sensitivity: 'base', numeric: true }) || a.id - b.id);
 }
@@ -657,7 +655,7 @@ function renderList() {
     ${counts.all ? `<div class="chips" role="toolbar" aria-label="Filtrer par statut" style="margin-bottom:16px">
       ${[['all', 'Tous'], ...Object.entries(STATUS)].map(([k, l]) => `<button class="chip" data-action="filter" data-v="${k}" aria-pressed="${state.filter === k}">${l}<span class="num">${counts[k]}</span></button>`).join('')}
     </div>` : ''}
-    ${isBeta() && counts.all > 1 ? `<div class="chips sort-chips" role="toolbar" aria-label="Ordre des projets" style="margin-bottom:16px"><span class="muted small sort-label">Ordre</span>
+    ${counts.all > 1 ? `<div class="chips sort-chips" role="toolbar" aria-label="Ordre des projets" style="margin-bottom:16px"><span class="muted small sort-label">Ordre</span>
       ${Object.entries(PROJECT_SORTS).map(([k, l]) => `<button class="chip" data-action="sort-projects" data-v="${k}" aria-pressed="${store.get('projectSort', 'alpha') === k}">${l}</button>`).join('')}
     </div>` : ''}
     ${shown.length ? `<div class="projects">${shown.map(projectCard).join('')}</div>`
@@ -783,7 +781,7 @@ function renderProject() {
   ];
   syncWallChrome();
   document.body.classList.add('with-tabbar');
-  redraw(`p${p.id}/${state.tab}/${state.boardGroup}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`, () => { $app.innerHTML = `
+  redraw(`p${p.id}/${state.tab}/${state.boardView}/${state.wall?.fs ? 'fs' : ''}`, () => { $app.innerHTML = `
   ${topbar(`
     <a class="btn ghost icon" href="#/" aria-label="Retour aux projets">${icon.back}</a>
     <div class="title" style="--pc:${esc(p.color)}"><span class="emoji-badge">${glyph(p.emoji)}</span><h1>${esc(p.name)}</h1><span class="pill ${p.status} hide-sm">${STATUS[p.status]}</span></div>
@@ -796,8 +794,7 @@ function renderProject() {
     ${{ apercu: viewOverview, taches: viewTasks, idees: viewNotes, equipe: viewTeam }[state.tab](d)}
   </main>
   ${state.tab === 'idees' ? '<button class="fab hide-lg" data-action="new-note">+ Post-it</button>' : ''}
-  ${state.tab === 'taches' && !isBeta() ? '<button class="fab hide-lg" data-action="new-item">+ Ajouter</button>' : ''}
-  ${isBeta() && state.tab !== 'taches' ? composer('Ajouter une tâche…', true) : ''}`; }); // BÊTA : sur téléphone la barre d'ajout en bas remplace le bouton flottant
+  ${state.tab !== 'taches' ? composer('Ajouter une tâche…', true) : ''}`; }); // sur téléphone la barre d'ajout en bas remplace le bouton flottant
 
   const wallEl = state.tab === 'idees' && state.boardView === 'wall' ? $app.querySelector('.board-wrap.wall') : null;
   if (wallEl) bindWall(wallEl); else wallApi = null;
@@ -986,7 +983,7 @@ const TYPE_LIST = Object.keys(TYPES);
 // Quick-add bar: the type button cycles through the types; what is typed is kept (per project) when you change tab.
 let addingTask = false; // un ajout rapide est en cours d'envoi
 const quickType = () => (TYPES[state.quickType] ? state.quickType : 'task');
-const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)">${isBeta() ? `<span class="qa-pg" aria-hidden="true">${typeIcon(k, 22)}<b class="qa-pgname">${TYPES[k]}</b></span><span class="qa-rings" aria-hidden="true"></span><span class="qa-d">` : ''}${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span>${isBeta() ? '</span>' : ''}</button>`; };
+const quickTypeBtn = () => { const k = quickType(); return `<button type="button" class="qa-type ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour changer)"><span class="qa-pg" aria-hidden="true">${typeIcon(k, 22)}<b class="qa-pgname">${TYPES[k]}</b></span><span class="qa-rings" aria-hidden="true"></span><span class="qa-d">${typeIcon(k, 18)}<span class="qa-lbl">${TYPE_LIST.map((t) => `<span ${t === k ? '' : 'aria-hidden="true" class="off"'}>${TYPES[t]}</span>`).join('')}</span></span></button>`; };
 // BÊTA : le même mini bloc-note, en large et avec le nom du type, dans la feuille complète (un toucher = page suivante)
 const typeBook = () => { const k = quickType(); return `<button type="button" class="qa-book ty-${k}" data-action="quick-type" aria-label="Type : ${TYPES[k]} (toucher pour passer au suivant)"><span class="qa-pg" aria-hidden="true">${typeIcon(k, 24)}<b>${TYPES[k]}</b><i class="qa-dots">${TYPE_LIST.map((t) => `<i${t === k ? ' class="on"' : ''}></i>`).join('')}</i></span><span class="qa-rings" aria-hidden="true"></span></button>`; };
 const draftKey = () => `draft:${state.pid}`;
@@ -994,7 +991,7 @@ const draftKey = () => `draft:${state.pid}`;
 // Téléphone (comme Reminder de Samsung) : on tire la petite barre vers le haut, le champ de texte monte avec le doigt jusqu'en haut de l'écran
 // et un menu de tâche complet se déploie derrière lui. --p va de 0 (barre en bas) à 1 (menu ouvert). Ordinateur : « Plus de détails ».
 const isMobile = () => matchMedia('(max-width: 719px)').matches;
-if (isBeta()) { // la page se redimensionne avec le clavier : une barre « fixée en bas » le suit toute seule, sans attendre un événement
+{ // la page se redimensionne avec le clavier : une barre « fixée en bas » le suit toute seule, sans attendre un événement
   const m = document.querySelector('meta[name="viewport"]');
   if (m && !/interactive-widget/.test(m.content)) m.content += ', interactive-widget=resizes-content';
 }
@@ -1103,12 +1100,7 @@ const composer = (placeholder, extra = false) => {
   </form>`;
 };
 
-const quickAdd = (placeholder) => isBeta() ? composer(placeholder) : `
-  <form class="quick-add" data-form="add-task">
-    ${quickTypeBtn()}
-    <input class="input" id="task-new" name="title" maxlength="200" placeholder="${placeholder}" value="${esc(store.get(draftKey(), ''))}" autocomplete="off" enterkeyhint="done">
-    <button class="btn primary" type="submit">Ajouter</button>
-  </form>`;
+const quickAdd = (placeholder) => composer(placeholder);
 
 const typeLabel = (k) => `<span class="with-ico">${typeIcon(k)} ${TYPES[k]}</span>`;
 const NEW_TITLE = { task: 'Nouvelle tâche', bug: 'Nouveau bug', idea: 'Nouvelle idée', improvement: 'Nouvelle amélioration' };
@@ -1162,19 +1154,12 @@ function taskRow(t, byId, { draggable = false, showEpic = null } = {}) {
 }
 
 function viewTasks(d) {
-  const byEpic = state.boardGroup === 'epic';
   const open = d.tasks.filter((t) => t.status !== 'done');
   const filters = [['all', 'Tout', open.length], ['bug', 'Bugs', open.filter((t) => t.type === 'bug').length],
     ['idea', 'Idées', open.filter((t) => t.type === 'idea').length],
     ['improvement', 'Améliorations', open.filter((t) => t.type === 'improvement').length], ['task', 'Tâches', open.filter((t) => t.type === 'task').length],
     ['mine', 'À moi', open.filter((t) => t.assigneeId === state.me.id).length]];
   return `
-  ${isBeta() ? '' : `<div class="task-tools"> <!-- BÊTA : plus de ligne d'outils (la ligne d'ajout suffit, et la vue « Par chantier » n'existe plus) -->
-    <div class="seg views" role="tablist" aria-label="Affichage">
-      ${[['status', 'Liste'], ['epic', 'Par chantier']].map(([k, l]) => `<button data-action="board-group" data-v="${k}" aria-pressed="${(k === 'epic') === byEpic}">${l}</button>`).join('')}
-    </div>
-    <button class="btn primary hide-sm" data-action="new-item">+ Ajouter</button>
-  </div>`}
   ${`<div class="chips" role="toolbar" aria-label="Filtrer">${filters.map(([k, l, n]) => `<button class="chip ${TYPES[k] ? `chip-t ty-${k}` : ''}" data-action="task-filter" data-v="${k}" aria-pressed="${state.taskFilter === k}">${l}<span class="num">${n}</span></button>`).join('')}</div>`}
   ${viewBoard(d)}`;
 }
@@ -1199,21 +1184,11 @@ function epicBook(e, openCount, doneCount, draggable) {
   </button>`;
 }
 
-/** A « Plus tard » chantier folded as a closed notepad: spiral + title only, tap to open it. */
-function epicClosed(e, openCount, doneCount, draggable) {
-  return `<button class="ep-closed hz-${e.horizon}" data-action="epic-toggle" data-id="${e.id}" data-drop-epic="${e.id}" ${draggable ? 'data-drag="epic" draggable="true"' : ''} aria-expanded="false">
-    <span class="ep-spiral" aria-hidden="true"></span>
-    <span class="ep-closed-title">${esc(e.title)}</span>
-    <span class="ep-closed-count">${openCount ? `${openCount} à faire` : doneCount ? 'tout fait' : 'vide'}</span>
-    <span class="ep-chev" aria-hidden="true">▾</span>
-  </button>`;
-}
-
 /** A chantier drawn as a big post-it with its tasks stuck on top of it. */
 function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = [], foldable = false) {
   const pr = epicProgress(d, e.id);
   const doneOpen = state.epicDone.has(e.id);
-  return `<article class="ep-sheet hz-${e.horizon}" ${isBeta() && e.horizon === 'later' ? `data-fx="book:${e.id}"` : ''} data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
+  return `<article class="ep-sheet hz-${e.horizon}" ${e.horizon === 'later' ? `data-fx="book:${e.id}"` : ''} data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
     <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
@@ -1238,57 +1213,24 @@ function boardGroups(d, list, keepEmpty = () => false) {
 function viewBoard(d) {
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const draggable = matchMedia('(pointer: fine)').matches;
-  const byEpic = !isBeta() && state.boardGroup === 'epic';
   // un chantier sans tâche à faire reste affiché (sinon on ne le voit pas après l'avoir créé), sauf rangé « Plus tard » (carnet) ou terminé
   const emptyOk = (e) => state.taskFilter === 'all' && e.horizon === 'now' && !d.tasks.some((t) => t.epicId === e.id && t.status !== 'done');
   const group = (list, keep) => boardGroups(d, list, keep).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
     : items.map((t) => taskRow(t, byId, { draggable })).join(''))).join(''); // tâches sans chantier : directement dans la liste, à côté des chantiers (pas de séparation)
-  if (byEpic) {
-    const mine = d.tasks.filter(matchesFilter).sort(sortItems);
-    // la tâche qu'on vient de cocher reste en place le temps de l'animation, puis passe dans « terminées »
-    const isFini = (t) => (t.id === state.justUndone ? true : t.status === 'done' && t.id !== state.justDone);
-    const open = mine.filter((t) => !isFini(t)), fini = mine.filter(isFini);
-    // chantiers rangés par moment ; un filtre ne garde que les chantiers qui ont des éléments correspondants
-    const bucket = (h) => d.epics.filter((e) => e.horizon === h).sort(sortEpics)
-      .map((e) => [e, open.filter((t) => t.epicId === e.id), fini.filter((t) => t.epicId === e.id)])
-      .filter(([, l, f]) => state.taskFilter === 'all' || l.length || f.length);
-    const isLoose = (t) => !d.epics.some((e) => e.id === t.epicId);
-    const loose = open.filter(isLoose), looseDone = fini.filter(isLoose);
-    const finished = bucket('done');
-    const note = ([e, l, f]) => epicNote(d, e, l, byId, draggable, true, f);
-    // « Plus tard » : calepins fermés (titre seulement), on les ouvre au toucher
-    const laterItem = ([e, l, f]) => (state.epicOpen.has(e.id) ? epicNote(d, e, l, byId, draggable, true, f, true) : epicClosed(e, l.length, f.length, draggable));
-    return `
-  ${quickAdd('Ajouter une tâche rapide…')}
-  <div class="columns rm" style="--n:2">
-    ${['now', 'later'].map((h) => { const list = bucket(h); return `
-      <section class="col shown" data-drop-horizon="${h}" aria-label="${HORIZON[h]}">
-        <div class="col-head"><h3><span class="dot" style="--c:var(--h-${h})"></span>${HORIZON[h]}</h3><span class="muted num small">${list.length}</span></div>
-        ${list.map(h === 'later' ? laterItem : note).join('') || `<p class="col-empty">${h === 'now' ? 'Rien en cours. Glisse un chantier ici, ou change son moment.' : 'Aucun chantier.'}</p>`}
-      </section>`; }).join('')}
-  </div>
-  ${loose.length || looseDone.length ? `<section class="ep-loose-wrap">
-    <div class="col-head"><h3>Sans chantier</h3><span class="muted num small">${loose.length}</span></div>
-    <p class="small muted ep-loose-hint">Pas dans un chantier : glisse-les sur un chantier pour les ranger.</p>
-    <div class="ep-loose" data-drop-epic="0">${loose.map((t) => taskRow(t, byId, { draggable })).join('')}${doneLine(0, looseDone, byId, draggable)}</div>
-  </section>` : ''}
-  ${finished.length ? `<details class="done-epics"><summary>${finished.length} chantier${finished.length > 1 ? 's' : ''} terminé${finished.length > 1 ? 's' : ''}</summary><div class="ep-grid">${finished.map(note).join('')}</div></details>` : ''}`;
-  }
   // la tâche qu'on vient de cocher reste à sa place (« à faire ») le temps de l'animation, puis passe dans « Terminées »
   const colOf = (t) => (t.id === state.justDone ? 'todo' : t.id === state.justUndone ? 'done' : t.status);
   const laterIds = new Set(d.epics.filter((e) => e.horizon === 'later').map((e) => e.id));
-  const parked = d.tasks.filter((t) => laterIds.has(t.epicId) && matchesFilter(t));
-  const beta = isBeta(); // BÊTA : les chantiers « Plus tard » sont des carnets fermés dans la liste (plus de lien « Afficher les tâches rangées »)
-  const visible = (t) => (beta ? !laterIds.has(t.epicId) : state.showLater || !laterIds.has(t.epicId));
-  const books = beta ? d.epics.filter((e) => e.horizon === 'later').sort(sortEpics)
+  // les chantiers « Plus tard » sont des carnets fermés à la suite de la liste
+  const visible = (t) => !laterIds.has(t.epicId);
+  const books = d.epics.filter((e) => e.horizon === 'later').sort(sortEpics)
     .map((e) => [e, d.tasks.filter((t) => t.epicId === e.id && t.status !== 'done' && matchesFilter(t)).sort(sortItems), d.tasks.filter((t) => t.epicId === e.id && t.status === 'done' && matchesFilter(t)).sort(sortItems)])
     .filter(([, l, f]) => state.taskFilter === 'all' || l.length || f.length)
-    .map(([e, l, f]) => (state.epicOpen.has(e.id) ? epicNote(d, e, l, byId, draggable, false, f, true) : epicBook(e, l.length, f.length, draggable))).join('') : '';
+    .map(([e, l, f]) => (state.epicOpen.has(e.id) ? epicNote(d, e, l, byId, draggable, false, f, true) : epicBook(e, l.length, f.length, draggable))).join('');
   const pick = (s) => d.tasks.filter((t) => colOf(t) === s && matchesFilter(t) && visible(t)).sort(sortItems);
   const todoList = pick('todo'), doneList = pick('done');
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
-  ${beta ? '<div class="ep-new-row"><button type="button" class="link-btn ep-new" data-action="new-epic">+ Nouveau chantier</button></div>' : ''}
+  <div class="ep-new-row"><button type="button" class="link-btn ep-new" data-action="new-epic">+ Nouveau chantier</button></div>
   <div class="columns one">
     <section class="col shown" aria-label="${TASK.todo}">
       <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR.todo}"></span>${TASK.todo}</h3><span class="muted num small">${todoList.length}</span></div>
@@ -1298,8 +1240,7 @@ function viewBoard(d) {
   ${doneList.length ? `<section class="done-box">
     <button class="done-head" data-action="toggle-done" aria-expanded="${state.showDone}"><span>${TASK.done}es · ${doneList.length}</span><span class="chev" aria-hidden="true">${state.showDone ? '▴' : '▾'}</span></button>
     ${state.showDone ? `<div class="done-list">${group(doneList)}</div>` : ''}
-  </section>` : ''}
-  ${parked.length && !beta ? `<button class="link-btn" data-action="toggle-later">${state.showLater ? 'Masquer' : 'Afficher'} les ${parked.length} tâche${parked.length > 1 ? 's' : ''} rangée${parked.length > 1 ? 's' : ''} dans des chantiers « Plus tard »</button>` : ''}`;
+  </section>` : ''}`;
 }
 
 const segField = (name, options, value, label, cls = '') => `
@@ -1398,7 +1339,7 @@ async function openLightbox(index) {
 
 // pasted pictures (a screenshot has no text) and dropped files, while a task sheet is open
 document.addEventListener('paste', (e) => {
-  const ctx = sheet.open && sheet.querySelector('#tf-images') ? sheetImg : !sheet.open && isBeta() && document.activeElement?.closest?.('.composer') ? compImg : null;
+  const ctx = sheet.open && sheet.querySelector('#tf-images') ? sheetImg : !sheet.open && document.activeElement?.closest?.('.composer') ? compImg : null;
   if (!ctx) return;
   const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
   if (!files.length || (e.clipboardData.getData('text/plain') || '').trim()) return;
@@ -1506,21 +1447,6 @@ function bindTaskDnD() {
       if (!t || (t.epicId ?? null) === epicId) return;
       await db.updateTask(id, { epicId });
       fx.focus([`task:${id}`]);
-      await reloadProject();
-    }));
-  });
-  $app.querySelectorAll('[data-drop-horizon]').forEach((col) => {
-    const accepts = 'epic';
-    col.addEventListener('dragover', (e) => { if (drag?.kind === accepts) { e.preventDefault(); col.classList.add('drop'); } });
-    col.addEventListener('dragleave', () => col.classList.remove('drop'));
-    col.addEventListener('drop', run(async (e) => {
-      e.preventDefault(); col.classList.remove('drop');
-      if (!drag || drag.kind !== accepts) return;
-      const { id } = drag; drag = null;
-      const ep = state.data.epics.find((x) => x.id === id);
-      if (!ep || ep.horizon === col.dataset.dropHorizon) return;
-      const maxPos = Math.max(0, ...state.data.epics.map((x) => x.position));
-      await db.updateEpic(id, { horizon: col.dataset.dropHorizon, position: maxPos + 1 });
       await reloadProject();
     }));
   });
@@ -2346,7 +2272,7 @@ const actions = {
   },
   'passkey-delete': async (el) => {
     await db.deletePasskey(el.dataset.id);
-    quiet('Clé supprimée'); loadPasskeys();
+    loadPasskeys();
   },
   close: () => (faxEl ? closeFax() : closeSheet()),
   account: accountSheet,
@@ -2366,21 +2292,19 @@ const actions = {
     closeSheet();
     const chemise = projectCard({ id: p.id, name: p.name, emoji: p.emoji, color: p.color, status: p.status, role: 'admin', progress: 0, description: '', tasks: { total: 0, done: 0 }, noteCount: 0, updatedAt: new Date().toISOString(), members: [] });
     await removeWith('shred', null, () => db.deleteProject(p.id), chemise);
-    quiet('Projet supprimé');
+    
     state.data = null; location.hash = '#/';
   },
-  'board-group': (el) => { state.boardGroup = el.dataset.v; store.set('boardGroup', el.dataset.v); renderProject(); },
-  'goto-roadmap': () => { state.boardGroup = 'epic'; store.set('boardGroup', 'epic'); location.hash = `#/p/${state.pid}/taches`; },
+  'goto-roadmap': () => { location.hash = `#/p/${state.pid}/taches`; },
   'task-filter': (el) => { state.taskFilter = el.dataset.v; renderProject(); },
   'toggle-done': () => { state.showDone = !state.showDone; renderProject(); },
   'epic-toggle': (el) => {
     const k = Number(el.dataset.id), opening = !state.epicOpen.has(k);
     opening ? state.epicOpen.add(k) : state.epicOpen.delete(k);
-    if (isBeta()) fx.focus([...$app.querySelectorAll('[data-fx]')].map((e) => e.dataset.fx).filter((x) => x !== `book:${k}`)); // les autres carnets et tâches glissent à leur nouvelle place
+    fx.focus([...$app.querySelectorAll('[data-fx]')].map((e) => e.dataset.fx).filter((x) => x !== `book:${k}`)); // les autres carnets et tâches glissent à leur nouvelle place
     renderProject();
-    if (isBeta()) (opening ? fx.bookOpen : fx.bookClose)($app.querySelector(opening ? `.ep-sheet[data-id="${k}"]` : `.ep-book[data-id="${k}"]`));
+    (opening ? fx.bookOpen : fx.bookClose)($app.querySelector(opening ? `.ep-sheet[data-id="${k}"]` : `.ep-book[data-id="${k}"]`));
   },
-  'toggle-later': () => { state.showLater = !state.showLater; renderProject(); },
   'epic-done': (el) => { const k = Number(el.dataset.id); state.epicDone.has(k) ? state.epicDone.delete(k) : state.epicDone.add(k); renderProject(); },
   'quick-type': (el) => {
     const keys = Object.keys(TYPES); state.quickType = keys[(keys.indexOf(quickType()) + 1) % keys.length];
@@ -2392,7 +2316,6 @@ const actions = {
     document.querySelectorAll('.qa-type').forEach((b) => { b.outerHTML = quickTypeBtn(); });
     document.querySelectorAll('.qa-book').forEach((b) => { b.outerHTML = typeBook(); });
     if (had) input.focus({ preventScroll: true }); // le clavier reste ouvert
-    if (!isBeta()) return;
     if (!wide) document.querySelectorAll('.composer .qa-row').forEach((row) => { // petit texte léger qui indique le type choisi, puis disparaît
       row.querySelector('.qa-type-tip')?.remove();
       const t = document.createElement('span'); t.className = 'qa-type-tip'; t.textContent = TYPES[state.quickType]; t.setAttribute('aria-hidden', 'true');
@@ -2407,7 +2330,7 @@ const actions = {
   'composer-more': () => { if (!isMobile()) setComposerOpen(!state.composerOpen); }, // sur téléphone, la poignée est gérée au doigt (toucher / tirer)
   'composer-close': () => setComposerOpen(false),
   'new-item': (el) => {
-    if (isBeta() && !sheet.open && document.querySelector('.composer')) { // BÊTA : on ajoute depuis la ligne qui se déploie
+    if (!sheet.open && document.querySelector('.composer')) { // on ajoute depuis la ligne qui se déploie
       if (el.dataset.epic) { store.set(`${draftKey()}:epic`, el.dataset.epic); const s = document.querySelector('#task-epic'); if (s) s.value = el.dataset.epic; setComposerOpen(true); }
       const box = document.querySelector('.composer'); box.scrollIntoView({ behavior: 'smooth', block: 'center' }); document.querySelector('#task-new').focus({ preventScroll: true }); return;
     }
@@ -2419,7 +2342,7 @@ const actions = {
   'edit-link': (el) => linksSheet(Number(el.dataset.id)),
   'delete-link': async (el) => {
     await db.deleteLink(Number(el.dataset.id));
-    quiet('Lien supprimé'); await reloadProject(); linksSheet();
+    await reloadProject(); linksSheet();
   },
   'choose-new': (el) => (el.dataset.v === 'epic' ? epicSheet({}) : taskSheet({ type: el.dataset.v, status: 'todo' })),
   'open-epic': (el) => epicSheet(state.data.epics.find((e) => e.id === Number(el.dataset.id))),
@@ -2431,7 +2354,7 @@ const actions = {
     closeSheet();
     const ids = choice.withTasks ? mine.map((t) => t.id) : [];
     await removeWith('shred', $app.querySelector(`.ep-sheet[data-id="${e.id}"], .ep-closed[data-id="${e.id}"], .ep-book[data-id="${e.id}"]`), () => db.deleteEpic(e.id, ids));
-    quiet(ids.length ? `Chantier et ${ids.length} tâche${ids.length > 1 ? 's' : ''} supprimés` : 'Chantier supprimé'); await reloadProject();
+    await reloadProject();
   },
   'pick-avatar-emoji': (el) => {
     const form = el.closest('form');
@@ -2495,7 +2418,7 @@ const actions = {
     const id = Number(el.dataset.id);
     closeSheet();
     await removeWith('trash', $app.querySelector(`.task[data-id="${id}"]`), () => db.deleteTask(id));
-    quiet('Supprimé'); await reloadProject();
+    await reloadProject();
   },
   'board-view': (el) => {
     state.boardView = el.dataset.v; store.set('boardView', el.dataset.v);
@@ -2534,7 +2457,7 @@ const actions = {
     const id = Number(el.dataset.id);
     closeSheet();
     await removeWith('trash', $app.querySelector(`.note[data-note="${id}"]`), () => db.deleteNote(id));
-    quiet('Post-it décollé'); fx.focus(noteKeys()); await reloadProject();
+    fx.focus(noteKeys()); await reloadProject();
   },
   'remove-member': async (el) => {
     const id = el.dataset.id;
@@ -2567,7 +2490,7 @@ const actions = {
     const id = Number(el.dataset.id);
     if (!(await confirmSheet('Révoquer cet accès ? Claude ne pourra plus lire ni modifier tes projets avec cette adresse.', 'Révoquer'))) return accountSheet();
     await db.revokeClaudeAccess(id);
-    quiet('Accès révoqué'); accountSheet();
+    accountSheet();
   },
   'push-on': async () => {
     const perm = await Notification.requestPermission();
@@ -2632,17 +2555,17 @@ const forms = {
     const same = JSON.stringify(Object.entries(body.typeColors).sort()) === JSON.stringify(Object.entries(cur.typeColors || {}).sort());
     if (same) delete body.typeColors; // saving other settings never depends on the colour column
     await db.updateProject(state.pid, body);
-    closeSheet(); quiet('Projet mis à jour'); await reloadProject();
+    closeSheet(); await reloadProject();
   },
   async 'add-task'(f) {
     if (addingTask) return; // un seul ajout à la fois : on peut retoucher le bouton pendant que ça s'envoie, ça n'ajoute pas de doublon
     const title = f.elements.title.value.trim();
-    if (!title) { if (isBeta()) setComposerOpen(true, { focus: true }); return; } // champ vide : le « + » ouvre le menu complet
+    if (!title) { setComposerOpen(true, { focus: true }); return; } // champ vide : le « + » ouvre le menu complet
     addingTask = true; f.classList.add('sending');
     try {
-      if (isBeta()) await compImg.queue; // images encore en cours de réduction
-      const pending = isBeta() ? compImg.items.filter((i) => i.blobs) : [];
-      const extra = isBeta() ? { description: f.elements.description?.value || '', priority: f.elements.priority?.value || 'normal', epicId: f.elements.epicId?.value || null } : {};
+      await compImg.queue; // images encore en cours de réduction
+      const pending = compImg.items.filter((i) => i.blobs);
+      const extra = { description: f.elements.description?.value || '', priority: f.elements.priority?.value || 'normal', epicId: f.elements.epicId?.value || null };
       const newId = await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: 'todo', ...extra }, state.data.tasks);
       // la tâche est enregistrée : on vide tout de suite le champ (le reste, images et rechargement, se fait derrière)
       f.elements.title.value = ''; store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal');
@@ -2676,7 +2599,7 @@ const forms = {
     const b = formData(f);
     if (f.dataset.id) await db.updateLink(Number(f.dataset.id), b);
     else await db.addLink(state.pid, b, state.data.links);
-    (f.dataset.id ? quiet : toast)(f.dataset.id ? 'Lien modifié' : 'Lien ajouté'); await reloadProject(); linksSheet();
+    if (!f.dataset.id) toast('Lien ajouté'); await reloadProject(); linksSheet();
   },
   async 'new-epic'(f) {
     await db.addEpic(state.pid, formData(f), state.data.epics);
@@ -2735,12 +2658,12 @@ function bindActions(root) {
 $app.addEventListener('change', run(async (e) => {
   if (e.target.dataset.change === 'progress') {
     await db.updateProject(state.pid, { manualProgress: e.target.value });
-    quiet(`Avancement : ${e.target.value} %`); await reloadProject();
+    await reloadProject();
     return;
   }
   const el = e.target.closest('[data-change="role"]');
   if (!el) return;
-  try { await db.setRole(state.pid, el.dataset.id, el.value); quiet('Rôle mis à jour'); }
+  try { await db.setRole(state.pid, el.dataset.id, el.value); }
   finally { await reloadProject(); }
 }));
 

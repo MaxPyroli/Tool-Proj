@@ -2,10 +2,17 @@
 
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
-## 0.22.0
+## 0.22.1
+- Une seule barre pour ajouter une tâche, en bas de l'écran : bloc-note du type, champ, bouton Ajouter. Sur téléphone, tire la petite barre vers le haut pour le menu complet ; sur ordinateur, « Plus de détails » ouvre une feuille sur le côté. Tu peux y coller des images.
+- Les chantiers « Plus tard » deviennent des carnets fermés avec une couverture et un tampon, qui s'ouvrent et se referment en s'animant. La vue « Par chantier » disparaît.
+- Un bouton « + Nouveau chantier » en haut de la liste des tâches.
+- Sur la page des projets, une ligne « Ordre » : alphabétique, dernier ouvert (retenu sur ton compte) ou avancement.
+- Moins de tampons : seulement pour ajouter, envoyer ou copier. Plus pour les suppressions ni les modifications.
 - Le message « nouvelle adresse » ne s'affiche plus si tu as déjà une clé d'accès.
 - On peut glisser une tâche dans un chantier (même vide) depuis la liste.
 - Un chantier vide (sans tâche à faire) reste affiché dans la liste : on le voit dès qu'on le crée.
+
+## 0.22.0
 - Les projets sont toujours rangés par ordre alphabétique (plus de changement de place quand on en modifie un).
 - Grille des post-it sur ordinateur : on peut attraper un post-it à la souris et le jeter dans la corbeille.
 - Quand on enlève un post-it de la grille, les autres glissent pour se recaler.

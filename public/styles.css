@@ -1372,3 +1372,5 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 
 .sort-chips { align-items: center; }
 .sort-label { align-self: center; margin-right: 2px; }
+/* ordinateur : la barre d'ajout flottante est en bas de l'écran, les commandes du mur se posent au-dessus d'elle */
+@media (min-width: 720px) { html:not(.wall-open) body.has-composer .wall-bar { bottom: 86px; } }
