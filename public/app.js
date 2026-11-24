@@ -1269,6 +1269,7 @@ function viewBoard(d) {
   const todoList = pick('todo'), doneList = pick('done');
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
+  ${beta ? '<div class="ep-new-row"><button type="button" class="link-btn ep-new" data-action="new-epic">+ Nouveau chantier</button></div>' : ''}
   <div class="columns one">
     <section class="col shown" aria-label="${TASK.todo}">
       <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR.todo}"></span>${TASK.todo}</h3><span class="muted num small">${todoList.length}</span></div>

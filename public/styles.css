@@ -1366,3 +1366,6 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 
 /* BÊTA · espacements : sans ligne d'outils au-dessus, les filtres ont besoin de leur propre marge */
 @media (max-width: 719px) { body.has-composer .chips { margin-bottom: 28px; } } /* la barre d'ajout est dans <body> : sans ça les filtres touchent la spirale du premier bloc-note */
+
+.ep-new-row { display: flex; justify-content: flex-end; margin: -4px 4px 8px; }
+.ep-new { font-size: .9rem; font-weight: 700; }

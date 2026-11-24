@@ -10,5 +10,9 @@
   {
     "title": "Un seul ajout de tâche",
     "text": "Une seule barre flottante pour ajouter, en bas de l'écran : mini bloc-note du type, champ de texte, bouton Ajouter. Téléphone : tire la petite barre vers le haut pour le menu complet. Ordinateur : « Plus de détails » (ou « + » avec un champ vide) ouvre la feuille sur le côté droit, la page se pousse à gauche et le champ vient se ranger dedans (Échap pour fermer)."
+  },
+  {
+    "title": "Nouveau chantier en un geste",
+    "text": "Un bouton « + Nouveau chantier » directement en haut de la liste des tâches, plus besoin de passer par le menu d'ajout."
   }
 ]
