@@ -18,5 +18,9 @@
   {
     "title": "Ordre des projets",
     "text": "Sur la page des projets, une ligne « Ordre » : alphabétique, dernier ouvert (retenu sur ton compte, donc pareil sur PC et téléphone) ou avancement. Ton choix est retenu."
+  },
+  {
+    "title": "Sortir une tâche d'un chantier",
+    "text": "Glisse une tâche (souris, ou appui long au doigt) et lâche-la en dehors de tout chantier : elle devient une tâche sans chantier. Lâchée sur un chantier, elle y entre."
   }
 ]

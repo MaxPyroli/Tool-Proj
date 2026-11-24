@@ -1524,6 +1524,21 @@ function bindTaskDnD() {
       await reloadProject();
     }));
   });
+  // BÊTA : une tâche rangée dans un chantier, lâchée en dehors de tout chantier, en sort (les chantiers arrêtent l'événement avant d'arriver ici)
+  bindTaskDnD.off?.();
+  if (isBeta()) {
+    const overAnywhere = (e) => { if (drag?.kind === 'task') { e.preventDefault(); markEpicDrop(null); } };
+    const dropAnywhere = run(async (e) => {
+      if (drag?.kind !== 'task') return;
+      e.preventDefault(); const { id } = drag; drag = null;
+      const t = state.data.tasks.find((x) => x.id === id);
+      if (!t || !t.epicId) return;
+      await db.updateTask(id, { epicId: null });
+      fx.focus([`task:${id}`]); await reloadProject();
+    });
+    document.addEventListener('dragover', overAnywhere); document.addEventListener('drop', dropAnywhere);
+    bindTaskDnD.off = () => { document.removeEventListener('dragover', overAnywhere); document.removeEventListener('drop', dropAnywhere); };
+  }
 }
 
 /** Touch: long-press a task, then drag it onto a chantier (or « hors chantier »). One delegated listener set, bound once. */
@@ -1542,19 +1557,22 @@ function bindTaskDnD() {
     g.ghost.style.transform = `translate(${g.x - g.ox}px, ${g.y - g.oy}px) rotate(2deg)`;
     if (g.y < 100) scrollBy(0, -14); else if (g.y > innerHeight - 120) scrollBy(0, 14);
     g.box = boxAt(); markEpicDrop(g.box);
+    g.overAny = !!document.elementFromPoint(g.x, g.y)?.closest('[data-drop-epic]'); // au-dessus d'un chantier (même celui où elle est déjà) : on ne la sort pas
     g.raf = requestAnimationFrame(frame);
   };
   const end = (drop) => {
     if (!g) return;
     clearTimeout(g.timer); cancelAnimationFrame(g.raf);
-    const { active, box, id, el, ghost } = g; g = null;
+    const { active, box, id, el, ghost, overAny } = g; g = null;
     if (!active) return;
     ghost.remove(); el.classList.remove('dragging'); markEpicDrop(null);
     swallowClick = Date.now() + 500;
     state.dragging = false;
-    if (drop && box) {
+    const t = state.data?.tasks.find((x) => x.id === id);
+    const target = box ? Number(box.dataset.dropEpic) || null : isBeta() && drop && !overAny && t?.epicId ? null : undefined; // BÊTA : lâchée en dehors de tout chantier, elle en sort
+    if (drop && target !== undefined) {
       run(async () => {
-        await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null });
+        await db.updateTask(id, { epicId: target });
         fx.focus([`task:${id}`]); await reloadProject();
       })();
     }
