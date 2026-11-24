@@ -1490,7 +1490,7 @@ function bindTaskDnD() {
   $app.querySelectorAll('[data-drop-epic]').forEach((box) => {
     box.addEventListener('dragover', (e) => {
       if (drag?.kind !== 'task') return;
-      e.stopPropagation();
+      e.stopPropagation(); document.querySelector('.drag-out-tip')?.remove();
       if (same(box)) { markEpicDrop(null); return; }
       e.preventDefault(); markEpicDrop(box);
     });
@@ -1527,8 +1527,16 @@ function bindTaskDnD() {
   // BÊTA : une tâche rangée dans un chantier, lâchée en dehors de tout chantier, en sort (les chantiers arrêtent l'événement avant d'arriver ici)
   bindTaskDnD.off?.();
   if (isBeta()) {
-    const overAnywhere = (e) => { if (drag?.kind === 'task') { e.preventDefault(); markEpicDrop(null); } };
+    const outTip = (e, on) => { // étiquette « Sortir du chantier » qui suit le curseur tant qu'on est en dehors de tout chantier
+      let tip = document.querySelector('.drag-out-tip');
+      if (!on) { tip?.remove(); return; }
+      if (!tip) { tip = document.createElement('div'); tip.className = 'drag-out-tip'; tip.setAttribute('aria-hidden', 'true'); tip.innerHTML = `${ico('folder', 16)} Sortir du chantier`; document.body.append(tip); }
+      tip.style.transform = `translate(${e.clientX + 18}px, ${e.clientY + 18}px)`;
+    };
+    const overAnywhere = (e) => { if (drag?.kind === 'task') { e.preventDefault(); markEpicDrop(null); outTip(e, !!state.data.tasks.find((x) => x.id === drag.id)?.epicId); } };
+    document.addEventListener('dragend', () => outTip(null, false), true);
     const dropAnywhere = run(async (e) => {
+      outTip(null, false);
       if (drag?.kind !== 'task') return;
       e.preventDefault(); const { id } = drag; drag = null;
       const t = state.data.tasks.find((x) => x.id === id);
@@ -1557,7 +1565,8 @@ function bindTaskDnD() {
     g.ghost.style.transform = `translate(${g.x - g.ox}px, ${g.y - g.oy}px) rotate(2deg)`;
     if (g.y < 100) scrollBy(0, -14); else if (g.y > innerHeight - 120) scrollBy(0, 14);
     g.box = boxAt(); markEpicDrop(g.box);
-    g.overAny = !!document.elementFromPoint(g.x, g.y)?.closest('[data-drop-epic]'); // au-dessus d'un chantier (même celui où elle est déjà) : on ne la sort pas
+    g.overAny = !!document.elementFromPoint(g.x, g.y)?.closest('[data-drop-epic]');
+    if (isBeta()) g.ghost.classList.toggle('out', !g.overAny && !!state.data?.tasks.find((x) => x.id === g.id)?.epicId); // contour pointillé + étiquette : on est en train de la sortir du chantier // au-dessus d'un chantier (même celui où elle est déjà) : on ne la sort pas
     g.raf = requestAnimationFrame(frame);
   };
   const end = (drop) => {

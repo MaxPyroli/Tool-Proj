@@ -21,6 +21,6 @@
   },
   {
     "title": "Sortir une tâche d'un chantier",
-    "text": "Glisse une tâche (souris, ou appui long au doigt) et lâche-la en dehors de tout chantier : elle devient une tâche sans chantier. Lâchée sur un chantier, elle y entre."
+    "text": "Glisse une tâche (souris, ou appui long au doigt) et lâche-la en dehors de tout chantier : elle devient une tâche sans chantier. Pendant que tu la tiens, un contour pointillé et une étiquette « Sortir du chantier » te montrent que tu es en train de la sortir. Lâchée sur un chantier, elle y entre."
   }
 ]

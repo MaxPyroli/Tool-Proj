@@ -1374,3 +1374,9 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .sort-label { align-self: center; margin-right: 2px; }
 /* ordinateur : la barre d'ajout flottante est en bas de l'écran, les commandes du mur se posent au-dessus d'elle (bêta : la barre n'existe que là) */
 @media (min-width: 720px) { html:not(.wall-open) body.has-composer .wall-bar { bottom: 86px; } }
+
+/* BÊTA : on voit qu'on sort une tâche d'un chantier (tâche tenue au doigt, ou curseur à la souris) */
+.dnd-ghost.out { outline: 3px dashed var(--accent); outline-offset: 5px; }
+.dnd-ghost.out::after { content: 'Sortir du chantier'; position: absolute; left: 50%; top: -34px; translate: -50% 0; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink, #fff); font-weight: 800; font-size: .85rem; box-shadow: var(--shadow-lift); }
+.drag-out-tip { position: fixed; left: 0; top: 0; z-index: 99999; pointer-events: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 12px; white-space: nowrap; font-weight: 800; font-size: .9rem;
+  background: var(--surface); color: var(--text); border: 2px dashed var(--accent); box-shadow: var(--shadow-lift); }
