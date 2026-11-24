@@ -1230,7 +1230,6 @@ function viewBoard(d) {
   const todoList = pick('todo'), doneList = pick('done');
   return `
   ${quickAdd('Ajouter une tâche rapide…')}
-  <div class="loose-drop" data-drop-epic="0" aria-hidden="true">${ico('folder', 18)} Sortir du chantier</div>
   <div class="ep-new-row"><button type="button" class="link-btn ep-new" data-action="new-epic">+ Nouveau chantier</button></div>
   <div class="columns one">
     <section class="col shown" aria-label="${TASK.todo}">
@@ -1413,11 +1412,6 @@ function chooserSheet({ title = 'Ajouter', action = 'choose-new', noteId = '' } 
 }
 
 /** One dashed drop zone at a time (chantier post-it, « hors chantier » or a status column). */
-/** Pendant le glissement d'une tâche rangée dans un chantier, une zone « Sortir du chantier » apparaît en haut de l'écran (les tâches sans chantier n'ont pas de bloc où déposer). */
-function showLooseDrop(taskId) {
-  const t = taskId == null ? null : state.data?.tasks.find((x) => x.id === taskId);
-  document.body.classList.toggle('dragging-task', !!(t && t.epicId));
-}
 function markEpicDrop(box) {
   $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => { if (x !== box) x.classList.remove('drop-epic', 'drop'); });
   box?.classList.add('drop-epic');
@@ -1428,8 +1422,8 @@ function bindTaskDnD() {
   if (!matchMedia('(pointer: fine)').matches) return; // au doigt : voir le glissement par appui long plus bas
   let drag = null;
   $app.querySelectorAll('[data-drag]').forEach((el) => {
-    el.addEventListener('dragstart', (e) => { e.stopPropagation(); drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); showLooseDrop(drag.kind === 'task' ? drag.id : null); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
-    el.addEventListener('dragend', () => { el.classList.remove('dragging'); showLooseDrop(null); $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => x.classList.remove('drop-epic', 'drop')); });
+    el.addEventListener('dragstart', (e) => { e.stopPropagation(); drag = { kind: el.dataset.drag, id: Number(el.dataset.id) }; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.dataset.id); });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); $app.querySelectorAll('.drop-epic, .col.drop').forEach((x) => x.classList.remove('drop-epic', 'drop')); });
   });
   // une tâche glissée sur un chantier (post-it) s'y range ; sur « hors chantier », elle en sort
   // une seule zone en pointillés à la fois, et jamais sur le chantier où la tâche est déjà
@@ -1446,7 +1440,7 @@ function bindTaskDnD() {
       if (e.clientX <= r.left || e.clientX >= r.right || e.clientY <= r.top || e.clientY >= r.bottom) box.classList.remove('drop-epic');
     });
     box.addEventListener('drop', run(async (e) => {
-      e.preventDefault(); e.stopPropagation(); markEpicDrop(null); showLooseDrop(null);
+      e.preventDefault(); e.stopPropagation(); markEpicDrop(null);
       if (drag?.kind !== 'task') return;
       const { id } = drag; drag = null;
       const t = state.data.tasks.find((x) => x.id === id), epicId = Number(box.dataset.dropEpic) || null;
@@ -1456,6 +1450,19 @@ function bindTaskDnD() {
       await reloadProject();
     }));
   });
+  // une tâche rangée dans un chantier, lâchée en dehors de tout chantier, en sort (les chantiers arrêtent l'événement avant d'arriver ici)
+  bindTaskDnD.off?.();
+  const overAnywhere = (e) => { if (drag?.kind === 'task') { e.preventDefault(); markEpicDrop(null); } };
+  const dropAnywhere = run(async (e) => {
+    if (drag?.kind !== 'task') return;
+    e.preventDefault(); const { id } = drag; drag = null;
+    const t = state.data.tasks.find((x) => x.id === id);
+    if (!t || !t.epicId) return;
+    await db.updateTask(id, { epicId: null });
+    fx.focus([`task:${id}`]); await reloadProject();
+  });
+  document.addEventListener('dragover', overAnywhere); document.addEventListener('drop', dropAnywhere);
+  bindTaskDnD.off = () => { document.removeEventListener('dragover', overAnywhere); document.removeEventListener('drop', dropAnywhere); };
 }
 
 /** Touch: long-press a task, then drag it onto a chantier (or « hors chantier »). One delegated listener set, bound once. */
@@ -1474,19 +1481,22 @@ function bindTaskDnD() {
     g.ghost.style.transform = `translate(${g.x - g.ox}px, ${g.y - g.oy}px) rotate(2deg)`;
     if (g.y < 100) scrollBy(0, -14); else if (g.y > innerHeight - 120) scrollBy(0, 14);
     g.box = boxAt(); markEpicDrop(g.box);
+    g.overAny = !!document.elementFromPoint(g.x, g.y)?.closest('[data-drop-epic]'); // au-dessus d'un chantier (même celui où elle est déjà) : on ne la sort pas
     g.raf = requestAnimationFrame(frame);
   };
   const end = (drop) => {
     if (!g) return;
     clearTimeout(g.timer); cancelAnimationFrame(g.raf);
-    const { active, box, id, el, ghost } = g; g = null;
+    const { active, box, id, el, ghost, overAny } = g; g = null;
     if (!active) return;
-    ghost.remove(); el.classList.remove('dragging'); markEpicDrop(null); showLooseDrop(null);
+    ghost.remove(); el.classList.remove('dragging'); markEpicDrop(null);
     swallowClick = Date.now() + 500;
     state.dragging = false;
-    if (drop && box) {
+    const t = state.data?.tasks.find((x) => x.id === id);
+    const target = box ? Number(box.dataset.dropEpic) || null : drop && !overAny && t?.epicId ? null : undefined; // lâchée en dehors de tout chantier : elle en sort
+    if (drop && target !== undefined) {
       run(async () => {
-        await db.updateTask(id, { epicId: Number(box.dataset.dropEpic) || null });
+        await db.updateTask(id, { epicId: target });
         fx.focus([`task:${id}`]); await reloadProject();
       })();
     }
@@ -1496,7 +1506,7 @@ function bindTaskDnD() {
     g.active = true; state.dragging = true; g.ox = g.x - r.left; g.oy = g.y - r.top;
     const ghost = g.el.cloneNode(true); ghost.classList.add('dnd-ghost'); ghost.removeAttribute('data-action');
     ghost.style.cssText = `position:fixed;left:0;top:0;width:${r.width}px;margin:0;z-index:99999;pointer-events:none;`;
-    document.body.append(ghost); g.ghost = ghost; g.el.classList.add('dragging'); showLooseDrop(g.id);
+    document.body.append(ghost); g.ghost = ghost; g.el.classList.add('dragging');
     navigator.vibrate?.(15);
     frame();
   };
