@@ -1194,7 +1194,7 @@ function epicClosed(e, openCount, doneCount, draggable) {
 function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = [], foldable = false) {
   const pr = epicProgress(d, e.id);
   const doneOpen = state.epicDone.has(e.id);
-  return `<article class="ep-sheet hz-${e.horizon}" ${isBeta() && e.horizon === 'later' ? `data-fx="book:${e.id}"` : ''} ${state.boardGroup === 'epic' ? `data-drop-epic="${e.id}"` : ''} data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
+  return `<article class="ep-sheet hz-${e.horizon}" ${isBeta() && e.horizon === 'later' ? `data-fx="book:${e.id}"` : ''} data-drop-epic="${e.id}" data-id="${e.id}" ${draggable && dragEpic ? 'data-drag="epic" draggable="true"' : ''}>
     <span class="ep-spiral" aria-hidden="true"></span>
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>

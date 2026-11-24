@@ -3,6 +3,7 @@
 Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiffre du milieu ne change que pour un grand tournant. Le **numéro de build** est ajouté automatiquement à chaque mise en ligne (voir *Mon compte*).
 
 ## 0.22.0
+- On peut glisser une tâche dans un chantier (même vide) depuis la liste.
 - Un chantier vide (sans tâche à faire) reste affiché dans la liste : on le voit dès qu'on le crée.
 - Les projets sont toujours rangés par ordre alphabétique (plus de changement de place quand on en modifie un).
 - Grille des post-it sur ordinateur : on peut attraper un post-it à la souris et le jeter dans la corbeille.
