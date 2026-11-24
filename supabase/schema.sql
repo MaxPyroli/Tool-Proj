@@ -899,6 +899,25 @@ do $$ begin
 end $$;
 
 -- =========================================================
+-- Dernier projet ouvert (propre à chaque personne, suit le compte sur tous les appareils)
+-- =========================================================
+create table if not exists public.project_opens (
+  project_id bigint not null references public.projects (id) on delete cascade,
+  user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  opened_at timestamptz not null default now(),
+  primary key (project_id, user_id)
+);
+alter table public.project_opens enable row level security;
+drop policy if exists "project_opens_select" on public.project_opens;
+create policy "project_opens_select" on public.project_opens for select to authenticated using (user_id = auth.uid());
+drop policy if exists "project_opens_insert" on public.project_opens;
+create policy "project_opens_insert" on public.project_opens for insert to authenticated with check (user_id = auth.uid() and public.is_member(project_id));
+drop policy if exists "project_opens_update" on public.project_opens;
+create policy "project_opens_update" on public.project_opens for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and public.is_member(project_id));
+revoke all on public.project_opens from anon, authenticated;
+grant select, insert, update on public.project_opens to authenticated;
+
+-- =========================================================
 -- Temps réel (les changements des autres apparaissent en direct)
 -- =========================================================
 do $$

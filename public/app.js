@@ -453,8 +453,12 @@ async function render() {
     return renderProject();
   }
   state.pid = null; state.data = null; subscribe(null);
-  try { state.projects = await db.listProjects(state.me.id); }
-  catch (e) { toast(e.message, true); }
+  try {
+    const [list, opens] = await Promise.all([db.listProjects(state.me.id), isBeta() ? db.listOpens() : {}]);
+    state.projects = list;
+    for (const [k, v] of Object.entries(state.opens || {})) opens[k] = Math.max(opens[k] || 0, v); // ce qu'on vient d'ouvrir passe devant même si le serveur n'a pas encore répondu
+    state.opens = opens;
+  } catch (e) { toast(e.message, true); }
   renderList();
 }
 
@@ -627,10 +631,11 @@ function projectCard(p) {
   </a>`;
 }
 
-// BÊTA : ordre d'affichage des projets (alphabétique, dernier ouvert, avancement) ; « dernier ouvert » est mémorisé sur cet appareil
+// BÊTA : ordre d'affichage des projets (alphabétique, dernier ouvert, avancement)
 const PROJECT_SORTS = { alpha: 'Alphabétique', recent: 'Dernier ouvert', progress: 'Avancement' };
-const openedMap = () => { try { return JSON.parse(store.get('projectOpened', '{}')) || {}; } catch { return {}; } };
-function noteOpened(id) { if (!isBeta()) return; const m = openedMap(); m[id] = Date.now(); store.set('projectOpened', JSON.stringify(m)); }
+// « dernier ouvert » est gardé sur le compte (table project_opens) : même ordre sur le PC et le téléphone
+const openedMap = () => state.opens || {};
+function noteOpened(id) { if (!isBeta()) return; state.opens = { ...(state.opens || {}), [id]: Date.now() }; db.markOpened(id); }
 function sortProjects(list) {
   const mode = isBeta() ? store.get('projectSort', 'alpha') : 'alpha';
   const by = { alpha: () => 0, recent: (() => { const m = openedMap(); return (a, b) => (m[b.id] || 0) - (m[a.id] || 0); })(), progress: (a, b) => (b.progress || 0) - (a.progress || 0) }[mode] || (() => 0);

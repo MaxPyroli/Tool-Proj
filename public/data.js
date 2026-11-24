@@ -91,6 +91,13 @@ export async function addPasskey() {
   if (created?.id) await sb.auth.passkey.update({ passkeyId: created.id, friendlyName: deviceName() }).catch(() => {});
 }
 
+/** Dernier projet ouvert, propre à la personne (suit le compte sur tous ses appareils). Jamais bloquant : sans la table, on renvoie vide. */
+export async function listOpens() {
+  try { const { data, error } = await sb.from('project_opens').select('project_id, opened_at'); if (error) return {}; return Object.fromEntries((data || []).map((r) => [r.project_id, Date.parse(r.opened_at)])); } catch { return {}; }
+}
+export async function markOpened(projectId) {
+  try { await sb.from('project_opens').upsert({ project_id: projectId, opened_at: new Date().toISOString() }, { onConflict: 'project_id,user_id' }); } catch { /* sans importance */ }
+}
 export async function listPasskeys() { return ok(await sb.auth.passkey.list()) || []; }
 export async function deletePasskey(id) { ok(await sb.auth.passkey.delete({ passkeyId: id })); }
 

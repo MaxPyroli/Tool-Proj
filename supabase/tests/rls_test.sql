@@ -344,4 +344,20 @@ do $$ begin assert (select count(*) from task_images) = 0, 'supprimer la tâche 
 delete from projects where name = 'Images';
 reset role;
 
+-- ===== Dernier projet ouvert =====
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select create_project('Ouvertures') as opid \gset
+insert into project_opens (project_id) values (:opid);
+do $$ begin assert (select count(*) from project_opens) = 1, 'ma date d''ouverture est enregistrée'; end $$;
+update project_opens set opened_at = now();
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+do $$ begin assert (select count(*) from project_opens) = 0, 'je ne vois pas les ouvertures des autres'; end $$;
+select pg_temp.expect_error(format('insert into project_opens (project_id) values (%s)', :opid), 'row-level security');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+delete from projects where name = 'Ouvertures';
+do $$ begin assert (select count(*) from project_opens) = 0, 'supprimer le projet supprime ses ouvertures'; end $$;
+select pg_temp.expect_error(format($f$insert into project_opens (project_id, user_id) values (%s, '00000000-0000-0000-0000-00000000000a')$f$, :opid), 'row-level security');
+reset role;
+
 \echo 'OK : tous les tests de sécurité passent'
