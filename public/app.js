@@ -2808,7 +2808,8 @@ function signedIn() {
   if (state.me && !state.me.onboarded) welcomeSheet();
   else if (state.me && passkeysMoved() && store.get('passkeysMoved', '') !== '1') {
     store.set('passkeysMoved', '1');
-    setTimeout(passkeyMovedSheet, 700);
+    // seulement si la personne n'a encore aucune clé d'accès (sinon le message ne sert à rien)
+    db.listPasskeys().then((keys) => { if (!keys.length && state.me && !sheet.open) setTimeout(passkeyMovedSheet, 700); else setTimeout(maybeNewsPopup, 1500); }).catch(() => setTimeout(maybeNewsPopup, 1500));
   } else setTimeout(maybeNewsPopup, 1500);
 }
 
