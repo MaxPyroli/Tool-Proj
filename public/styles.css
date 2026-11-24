@@ -1369,3 +1369,6 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 
 .ep-new-row { display: flex; justify-content: flex-end; margin: -4px 4px 8px; }
 .ep-new { font-size: .9rem; font-weight: 700; }
+
+.sort-chips { align-items: center; }
+.sort-label { align-self: center; margin-right: 2px; }

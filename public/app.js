@@ -442,6 +442,7 @@ async function render() {
   if (!state.me) return renderAuth();
   const r = route();
   if (r.name === 'project') {
+    noteOpened(r.id);
     state.tab = ['apercu', 'taches', 'idees', 'equipe'].includes(r.tab) ? r.tab : 'apercu';
     if (state.pid !== r.id || !state.data) {
       state.pid = r.id; state.data = null;
@@ -626,10 +627,20 @@ function projectCard(p) {
   </a>`;
 }
 
+// BÊTA : ordre d'affichage des projets (alphabétique, dernier ouvert, avancement) ; « dernier ouvert » est mémorisé sur cet appareil
+const PROJECT_SORTS = { alpha: 'Alphabétique', recent: 'Dernier ouvert', progress: 'Avancement' };
+const openedMap = () => { try { return JSON.parse(store.get('projectOpened', '{}')) || {}; } catch { return {}; } };
+function noteOpened(id) { if (!isBeta()) return; const m = openedMap(); m[id] = Date.now(); store.set('projectOpened', JSON.stringify(m)); }
+function sortProjects(list) {
+  const mode = isBeta() ? store.get('projectSort', 'alpha') : 'alpha';
+  const by = { alpha: () => 0, recent: (() => { const m = openedMap(); return (a, b) => (m[b.id] || 0) - (m[a.id] || 0); })(), progress: (a, b) => (b.progress || 0) - (a.progress || 0) }[mode] || (() => 0);
+  return [...list].sort((a, b) => by(a, b) || a.name.localeCompare(b.name, 'fr', { sensitivity: 'base', numeric: true }) || a.id - b.id);
+}
+
 function renderList() {
   const counts = { all: state.projects.length };
   for (const s of Object.keys(STATUS)) counts[s] = state.projects.filter((p) => p.status === s).length;
-  const shown = state.filter === 'all' ? state.projects : state.projects.filter((p) => p.status === state.filter);
+  const shown = sortProjects(state.filter === 'all' ? state.projects : state.projects.filter((p) => p.status === state.filter));
   redraw(`list/${state.filter}`, () => { $app.innerHTML = `
   ${topbar(`<a class="brand" href="#/"><img src="icons/icon.svg" alt="">Tool Proj</a><span class="grow"></span>
     <button class="btn primary hide-sm" data-action="new-project">+ Nouveau projet</button>`)}
@@ -640,6 +651,9 @@ function renderList() {
     </div>
     ${counts.all ? `<div class="chips" role="toolbar" aria-label="Filtrer par statut" style="margin-bottom:16px">
       ${[['all', 'Tous'], ...Object.entries(STATUS)].map(([k, l]) => `<button class="chip" data-action="filter" data-v="${k}" aria-pressed="${state.filter === k}">${l}<span class="num">${counts[k]}</span></button>`).join('')}
+    </div>` : ''}
+    ${isBeta() && counts.all > 1 ? `<div class="chips sort-chips" role="toolbar" aria-label="Ordre des projets" style="margin-bottom:16px"><span class="muted small sort-label">Ordre</span>
+      ${Object.entries(PROJECT_SORTS).map(([k, l]) => `<button class="chip" data-action="sort-projects" data-v="${k}" aria-pressed="${store.get('projectSort', 'alpha') === k}">${l}</button>`).join('')}
     </div>` : ''}
     ${shown.length ? `<div class="projects">${shown.map(projectCard).join('')}</div>`
       : `<div class="empty"><div class="big">${ico('folder', 44)}</div><p>${counts.all ? 'Aucun projet avec ce statut.' : "Aucun projet pour l'instant."}</p>
@@ -2333,6 +2347,7 @@ const actions = {
   account: accountSheet,
   changelog: changelogSheet,
   filter: (el) => { state.filter = el.dataset.v; renderList(); },
+  'sort-projects': (el) => { store.set('projectSort', el.dataset.v); renderList(); },
   'new-project': () => projectForm(null),
   'edit-project': () => projectForm(state.data.project),
   'pick-emoji': (el) => { sheet.querySelector('#pf-emoji').value = el.dataset.v; },

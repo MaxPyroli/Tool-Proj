@@ -14,5 +14,9 @@
   {
     "title": "Nouveau chantier en un geste",
     "text": "Un bouton « + Nouveau chantier » directement en haut de la liste des tâches, plus besoin de passer par le menu d'ajout."
+  },
+  {
+    "title": "Ordre des projets",
+    "text": "Sur la page des projets, une ligne « Ordre » : alphabétique, dernier ouvert (mémorisé sur cet appareil) ou avancement. Ton choix est retenu."
   }
 ]
