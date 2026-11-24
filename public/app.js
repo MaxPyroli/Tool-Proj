@@ -2590,10 +2590,10 @@ const forms = {
     try {
       await compImg.queue; // images encore en cours de réduction
       const pending = compImg.items.filter((i) => i.blobs);
-      const extra = { description: f.elements.description?.value || '', priority: f.elements.priority?.value || 'normal', epicId: f.elements.epicId?.value || null };
+      const extra = { description: f.elements.description?.value || '', priority: f.elements.priority?.value || 'normal', epicId: (state.composerOpen && f.elements.epicId?.value) || null }; // le chantier choisi ne compte que si le menu complet est ouvert : un ajout rapide reste hors chantier
       const newId = await db.addTask(state.pid, { title, type: quickType(), assigneeId: state.me.id, status: 'todo', ...extra }, state.data.tasks);
       // la tâche est enregistrée : on vide tout de suite le champ (le reste, images et rechargement, se fait derrière)
-      f.elements.title.value = ''; store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal');
+      f.elements.title.value = ''; store.set(draftKey(), ''); store.set(`${draftKey()}:desc`, ''); store.set(`${draftKey()}:prio`, 'normal'); store.set(`${draftKey()}:epic`, '');
       if (pending.length) {
         toast('Envoi des images…');
         for (const it of pending) { try { await db.addTaskImage(state.pid, newId, it.blobs); } catch (e) { toast(e.message, true); } }
