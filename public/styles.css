@@ -1374,3 +1374,9 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .sort-label { align-self: center; margin-right: 2px; }
 /* ordinateur : la barre d'ajout flottante est en bas de l'écran, les commandes du mur se posent au-dessus d'elle */
 @media (min-width: 720px) { html:not(.wall-open) body.has-composer .wall-bar { bottom: 86px; } }
+
+/* zone « Sortir du chantier » : n'existe que pendant le glissement d'une tâche rangée dans un chantier */
+.loose-drop { display: none; position: fixed; z-index: 60; top: 74px; left: 50%; translate: -50% 0; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 14px; font-weight: 700; white-space: nowrap;
+  background: var(--surface); color: var(--text); border: 2px dashed var(--line-strong, var(--line)); box-shadow: var(--shadow-lift); }
+body.dragging-task .loose-drop { display: flex; }
+.loose-drop.drop-epic { border-color: var(--accent, #0f766e); background: var(--accent-soft, var(--surface)); }

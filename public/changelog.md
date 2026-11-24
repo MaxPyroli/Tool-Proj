@@ -5,6 +5,7 @@ Numérotation `0.x.y` : on avance par petits pas (le dernier chiffre) ; le chiff
 ## 0.22.1
 - Une seule barre pour ajouter une tâche, en bas de l'écran : bloc-note du type, champ, bouton Ajouter. Sur téléphone, tire la petite barre vers le haut pour le menu complet ; sur ordinateur, « Plus de détails » ouvre une feuille sur le côté. Tu peux y coller des images.
 - Les chantiers « Plus tard » deviennent des carnets fermés avec une couverture et un tampon, qui s'ouvrent et se referment en s'animant. La vue « Par chantier » disparaît.
+- Pour sortir une tâche d'un chantier, une zone « Sortir du chantier » apparaît en haut quand tu la glisses (souris ou appui long).
 - Un bouton « + Nouveau chantier » en haut de la liste des tâches.
 - Sur la page des projets, une ligne « Ordre » : alphabétique, dernier ouvert (retenu sur ton compte) ou avancement.
 - Moins de tampons : seulement pour ajouter, envoyer ou copier. Plus pour les suppressions ni les modifications.
