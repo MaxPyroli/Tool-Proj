@@ -1209,8 +1209,8 @@ function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = []
 }
 
 /** Items of one board column, grouped by chantier (chantiers in roadmap order, loose items last). */
-function boardGroups(d, list) {
-  const groups = [...d.epics].sort(sortEpics).map((e) => [e, list.filter((t) => t.epicId === e.id)]).filter(([, l]) => l.length);
+function boardGroups(d, list, keepEmpty = () => false) {
+  const groups = [...d.epics].sort(sortEpics).map((e) => [e, list.filter((t) => t.epicId === e.id)]).filter(([e, l]) => l.length || keepEmpty(e));
   const loose = list.filter((t) => !d.epics.some((e) => e.id === t.epicId));
   if (loose.length) groups.push([null, loose]);
   return groups;
@@ -1220,7 +1220,9 @@ function viewBoard(d) {
   const byId = Object.fromEntries(d.members.map((m) => [m.id, m]));
   const draggable = matchMedia('(pointer: fine)').matches;
   const byEpic = !isBeta() && state.boardGroup === 'epic';
-  const group = (list) => boardGroups(d, list).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
+  // un chantier sans tâche à faire reste affiché (sinon on ne le voit pas après l'avoir créé), sauf rangé « Plus tard » (carnet) ou terminé
+  const emptyOk = (e) => state.taskFilter === 'all' && e.horizon === 'now' && !d.tasks.some((t) => t.epicId === e.id && t.status !== 'done');
+  const group = (list, keep) => boardGroups(d, list, keep).map(([e, items]) => (e ? epicNote(d, e, items, byId, draggable)
     : items.map((t) => taskRow(t, byId, { draggable })).join(''))).join(''); // tâches sans chantier : directement dans la liste, à côté des chantiers (pas de séparation)
   if (byEpic) {
     const mine = d.tasks.filter(matchesFilter).sort(sortItems);
@@ -1270,7 +1272,7 @@ function viewBoard(d) {
   <div class="columns one">
     <section class="col shown" aria-label="${TASK.todo}">
       <div class="col-head"><h3><span class="dot" style="--c:${TASK_COLOR.todo}"></span>${TASK.todo}</h3><span class="muted num small">${todoList.length}</span></div>
-      ${group(todoList) || (books ? '' : '<p class="col-empty">Rien à faire pour le moment.</p>')}${books}
+      ${group(todoList, emptyOk) || (books ? '' : '<p class="col-empty">Rien à faire pour le moment.</p>')}${books}
     </section>
   </div>
   ${doneList.length ? `<section class="done-box">
