@@ -1380,3 +1380,20 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .dnd-ghost.out::after { content: 'Sortir du chantier'; position: absolute; left: 50%; top: -34px; translate: -50% 0; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink, #fff); font-weight: 800; font-size: .85rem; box-shadow: var(--shadow-lift); }
 .drag-out-tip { position: fixed; left: 0; top: 0; z-index: 99999; pointer-events: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 12px; white-space: nowrap; font-weight: 800; font-size: .9rem;
   background: var(--surface); color: var(--text); border: 2px dashed var(--accent); box-shadow: var(--shadow-lift); }
+
+/* BÊTA : images collées depuis la barre d'ajout (menu fermé), au-dessus de la barre */
+.composer .qa-pasted { display: none; position: absolute; z-index: 4; left: 12px; right: 12px; bottom: calc(100% - 4px); flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.composer:not(.open):focus-within .qa-pasted, .composer:not(.open) .qa-pasted:has(.img-th) { display: flex; }
+.qa-pasted .img-th { width: 52px; height: 52px; box-shadow: var(--shadow-lift); }
+.qa-chip { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 2px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font: 700 .9rem/1 inherit; cursor: pointer; box-shadow: var(--shadow-lift); }
+.qa-chip:active { transform: translateY(1px); }
+.img-add.img-paste { flex-direction: column; gap: 2px; font-size: .72rem; font-weight: 700; }
+/* BÊTA : boutons pour ouvrir / refermer un chantier (carnets) */
+.ep-open-pill { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; padding: 8px 12px; border: 2px solid currentColor; border-radius: 10px; color: var(--pi-ink); background: rgb(255 255 255 / .55); font-weight: 800; font-size: .85rem; line-height: 1; }
+.ep-book:hover .ep-open-pill { background: rgb(255 255 255 / .8); }
+.ep-fold-pill { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: auto; min-width: 40px; height: 40px; padding: 0 10px; margin: -4px 0; border: 2px solid var(--np-ink); border-radius: 10px; font-weight: 800; font-size: .85rem; line-height: 1; }
+.ep-fold-pill svg { transform: rotate(180deg); }
+.ep-fold-txt { display: none; }
+@media (min-width: 480px) { .ep-fold-txt { display: inline; } }
+.ep-chev-ico { display: inline-flex; vertical-align: middle; transition: transform .2s; }
+.ep-chev-ico.up { transform: rotate(180deg); }

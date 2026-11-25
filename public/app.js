@@ -1066,7 +1066,7 @@ document.addEventListener('click', (e) => { if (Date.now() < swallowH && e.targe
 // toucher la pastille du type ou la poignée ne doit JAMAIS fermer le clavier : on empêche le champ de perdre le focus
 document.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond assombri referme
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.composerOpen && document.querySelector('.composer.open')) { e.preventDefault(); setComposerOpen(false); } });
-document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-book, .composer .qa-handle, .composer .qa-send')) e.preventDefault(); });
+document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-book, .composer .qa-handle, .composer .qa-send, .composer .qa-pasted button')) e.preventDefault(); });
 
 // BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
 const composer = (placeholder, extra = false) => {
@@ -1079,6 +1079,7 @@ const composer = (placeholder, extra = false) => {
   <form class="quick-add composer${extra ? ' composer-x' : ''}${state.composerOpen ? ' open' : ''}" data-form="add-task" style="${Object.entries(composerVars).map(([k, v]) => `${k}:${v}`).join(';')}">
     <div class="qa-slot" aria-hidden="true"></div>
     <div class="qa-row">
+      ${isBeta() ? `<div class="qa-pasted img-strip" id="qa-pasted">${pastedHtml()}</div>` : ''}
       ${quickTypeBtn()}
       <input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche…" value="${esc(store.get(k, ''))}" autocomplete="off" enterkeyhint="done">
       <button class="btn primary qa-send" type="submit" aria-label="Ajouter"><span class="qa-long">Ajouter</span><span class="qa-short" aria-hidden="true">+</span></button>
@@ -1168,7 +1169,7 @@ function viewTasks(d) {
 function doneLine(key, doneItems, byId, draggable) {
   if (!doneItems.length) return '';
   const open = state.epicDone.has(key), n = doneItems.length;
-  return `<button class="ep-done" data-action="epic-done" data-id="${key}" aria-expanded="${open}">${ico('check', 13)} ${n} terminé${n > 1 ? 's' : ''} <span class="ep-chev" aria-hidden="true">${open ? '▴' : '▾'}</span></button>
+  return `<button class="ep-done" data-action="epic-done" data-id="${key}" aria-expanded="${open}">${ico('check', 13)} ${n} terminé${n > 1 ? 's' : ''} ${isBeta() ? `<span class="ep-chev-ico${open ? ' up' : ''}" aria-hidden="true">${ico('chev', 16)}</span>` : `<span class="ep-chev" aria-hidden="true">${open ? '▴' : '▾'}</span>`}</button>
     ${open ? `<div class="ep-stack ep-stack-done">${doneItems.map((t) => taskRow(t, byId, { draggable })).join('')}</div>` : ''}`;
 }
 
@@ -1180,7 +1181,7 @@ function epicBook(e, openCount, doneCount, draggable) {
     <span class="ep-spiral" aria-hidden="true"></span>
     <span class="ep-book-tag">Plus tard</span>
     <span class="ep-book-label"><span class="ep-book-title">${esc(e.title)}</span><span class="ep-book-count">${openCount ? `${openCount} à faire` : doneCount ? 'tout fait' : 'vide'}</span></span>
-    <span class="ep-chev" aria-hidden="true">▾</span>
+    ${isBeta() ? `<span class="ep-open-pill" aria-hidden="true">Ouvrir ${ico('chev', 16)}</span>` : '<span class="ep-chev" aria-hidden="true">▾</span>'}
   </button>`;
 }
 
@@ -1193,7 +1194,7 @@ function epicNote(d, e, items, byId, draggable, dragEpic = false, doneItems = []
     <header class="ep-head">
       <button class="ep-title" data-action="open-epic" data-id="${e.id}"><h4>${esc(e.title)}</h4><span class="hz ${e.horizon}">${HORIZON[e.horizon]}</span></button>
       <span class="ep-count num">${pr.done}/${pr.total}</span>
-      ${foldable ? `<button class="ep-fold" data-action="epic-toggle" data-id="${e.id}" aria-label="Replier ${esc(e.title)}">▴</button>` : ''}
+      ${foldable ? (isBeta() ? `<button class="ep-fold ep-fold-pill" data-action="epic-toggle" data-id="${e.id}" aria-label="Refermer le carnet ${esc(e.title)}" title="Refermer">${ico('chev', 18)}<span class="ep-fold-txt">Fermer</span></button>` : `<button class="ep-fold" data-action="epic-toggle" data-id="${e.id}" aria-label="Replier ${esc(e.title)}">▴</button>`) : ''}
       <button class="btn sm primary ep-add" data-action="new-item" data-epic="${e.id}" aria-label="Ajouter dans ${esc(e.title)}">+</button>
     </header>
     <div class="progress ep-bar"><i style="width:${pr.pct}%"></i></div>
@@ -1274,14 +1275,24 @@ async function prepareImage(file) {
 
 function renderImageGrid() {
   const box = imgState === compImg ? document.querySelector('#task-images') : sheet.querySelector('#tf-images');
+  if (imgState === compImg) { const q = document.querySelector('#qa-pasted'); if (q) q.innerHTML = pastedHtml(); }
   if (!box) return;
   box.innerHTML = imgGridHtml(imgState);
+}
+/** BÊTA : au-dessus de la barre d'ajout (menu fermé) : les images déjà jointes + « Coller » / « Photo » (sur téléphone, un appui long dans le champ ne propose pas de coller une image). */
+function pastedHtml() {
+  if (!isBeta()) return '';
+  const th = compImg.items.map((it, i) => `<div class="img-th">
+      <button type="button" class="img-open" data-action="img-open" data-i="${i}" aria-label="Agrandir l'image">${it.thumb ? `<img src="${esc(it.thumb)}" alt="">` : '<span class="img-wait"></span>'}</button>
+      <button type="button" class="img-del" data-action="img-del" data-i="${i}" aria-label="Retirer l'image">${ico('x', 14)}</button></div>`).join('');
+  const room = compImg.items.length < IMG_MAX;
+  return `${th}${room ? `<button type="button" class="qa-chip" data-action="img-pick" aria-label="Choisir une photo">${ico('image', 16)}<span>Photo</span></button>${navigator.clipboard?.read ? `<button type="button" class="qa-chip" data-action="img-paste" aria-label="Coller une image">${ico('image', 16)}<span>Coller</span></button>` : ''}<input type="file" accept="image/*" multiple hidden data-img-input>` : ''}`;
 }
 function imgGridHtml(S) {
   return S.items.map((it, i) => `<div class="img-th">
       <button type="button" class="img-open" data-action="img-open" data-i="${i}" aria-label="Agrandir l'image">${it.thumb ? `<img src="${esc(it.thumb)}" alt="">` : '<span class="img-wait"></span>'}</button>
       <button type="button" class="img-del" data-action="img-del" data-i="${i}" aria-label="Retirer l'image">${ico('x', 14)}</button></div>`).join('')
-    + (S.items.length < IMG_MAX ? `<button type="button" class="img-add" data-action="img-pick" title="Ajouter une image (ou colle-la dans le texte)" aria-label="Ajouter une image">${ico('image', 20)}<span aria-hidden="true">+</span></button><input type="file" accept="image/*" multiple hidden data-img-input>` : '');
+    + (S.items.length < IMG_MAX ? `<button type="button" class="img-add" data-action="img-pick" title="Ajouter une image (ou colle-la dans le texte)" aria-label="Ajouter une image">${ico('image', 20)}<span aria-hidden="true">+</span></button>${isBeta() && navigator.clipboard?.read ? `<button type="button" class="img-add img-paste" data-action="img-paste" aria-label="Coller une image">${ico('image', 18)}<span>Coller</span></button>` : ''}<input type="file" accept="image/*" multiple hidden data-img-input>` : '');
 }
 
 function initTaskImages(t, isNew) {
@@ -1342,7 +1353,9 @@ document.addEventListener('paste', (e) => {
   const ctx = sheet.open && sheet.querySelector('#tf-images') ? sheetImg : !sheet.open && document.activeElement?.closest?.('.composer') ? compImg : null;
   if (!ctx) return;
   const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
-  if (!files.length || (e.clipboardData.getData('text/plain') || '').trim()) return;
+  if (!files.length) return;
+  const txt = (e.clipboardData.getData('text/plain') || '').trim();
+  if (isBeta() ? txt.length > 400 : txt) return; // BÊTA : une image copiée depuis une page arrive souvent avec un petit bout de texte (adresse, nom) : on colle l'image quand même
   e.preventDefault(); imgState = ctx; addImageFiles(files);
 });
 sheet.addEventListener('dragover', (e) => { if (sheet.querySelector('#tf-images') && [...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
@@ -2431,9 +2444,18 @@ const actions = {
     setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { const fly = finishing ? flyDone(t.id) : null; fx.focus(taskKeys(t.id)); renderProject(); fly?.(); } }, finishing ? 1300 : 900);
   },
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
-  'img-open': (el) => { imgState = el.closest('#task-images') ? compImg : sheetImg; openLightbox(Number(el.dataset.i)); },
+  'img-paste': async (el) => { // BÊTA : bouton « Coller » : lit le presse-papiers (un geste de l'utilisateur est nécessaire ; sur téléphone, le système demande l'autorisation)
+    imgState = el.closest('#task-images, #qa-pasted') ? compImg : sheetImg;
+    try {
+      const files = [];
+      for (const item of await navigator.clipboard.read()) { const type = item.types.find((t) => t.startsWith('image/')); if (type) files.push(new File([await item.getType(type)], 'image', { type })); }
+      if (!files.length) { toast("Pas d'image dans le presse-papiers.", true); return; }
+      addImageFiles(files);
+    } catch { toast('Impossible de lire le presse-papiers : autorise « Coller » dans ton navigateur.', true); }
+  },
+  'img-open': (el) => { imgState = el.closest('#task-images, #qa-pasted') ? compImg : sheetImg; openLightbox(Number(el.dataset.i)); },
   'img-del': async (el) => {
-    imgState = el.closest('#task-images') ? compImg : sheetImg;
+    imgState = el.closest('#task-images, #qa-pasted') ? compImg : sheetImg;
     const it = imgState.items[Number(el.dataset.i)]; if (!it) return;
     if (it.path) await db.deleteTaskImage({ id: it.id, path: it.path });
     if (it.blobs) { URL.revokeObjectURL(it.thumb); URL.revokeObjectURL(it.full); }
@@ -2598,7 +2620,7 @@ const forms = {
         toast('Envoi des images…');
         for (const it of pending) { try { await db.addTaskImage(state.pid, newId, it.blobs); } catch (e) { toast(e.message, true); } }
       }
-      for (const i of compImg.items) { if (i.blobs) { URL.revokeObjectURL(i.thumb); URL.revokeObjectURL(i.full); } } compImg.items = [];
+      for (const i of compImg.items) { if (i.blobs) { URL.revokeObjectURL(i.thumb); URL.revokeObjectURL(i.full); } } compImg.items = []; imgState = compImg; renderImageGrid(); // la barre n'est pas redessinée tant que le champ a le focus : on vide les miniatures nous-mêmes
       setComposerOpen(false, { keepFocus: true });
       fx.focus([], { enter: true });
       await reloadProject();
