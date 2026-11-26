@@ -1,9 +1,5 @@
 [
   {
-    "title": "Ajouter une image depuis l'ajout rapide",
-    "text": "Une petite icône image au bout de la barre d'ajout ouvre ta galerie ou ton appareil photo. L'image s'affiche en petit au-dessus de la barre et part avec la tâche. Sur ordinateur, tu peux aussi coller une image directement dans le titre."
-  },
-  {
     "title": "Boutons des carnets plus clairs",
     "text": "Un carnet fermé a un vrai bouton « Ouvrir » ; un carnet ouvert a un bouton « Fermer » bien visible au lieu du petit triangle. Même flèche plus nette pour « N terminées »."
   }
