@@ -1114,8 +1114,17 @@ document.addEventListener('paste', (e) => { // texte : toujours en texte brut su
   const el = e.target; if (el.id !== 'task-new' || !el.isContentEditable || e.defaultPrevented) return;
   if (clipImages(e.clipboardData).length) return;
   const t = (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ');
-  if (!t) return; // pas de texte : on laisse le navigateur faire (une image arrive alors dans le champ, l'écouteur « input » la récupère)
+  if (!t) { // pas de texte : on laisse le navigateur faire (une image arrive alors dans le champ, l'écouteur « input » la récupère) ; si au bout de 700 ms rien n'est arrivé, on le dit et on montre ce que le presse-papiers contenait
+    const types = [...(e.clipboardData.types || [])].join(', ') || 'rien', n0 = compImg.items.length;
+    setTimeout(() => { if (compImg.items.length === n0 && !el.textContent.trim()) toast(`Rien d'utilisable dans le presse-papiers (reçu : ${types}).`, true); }, 700);
+    return;
+  }
   e.preventDefault(); document.execCommand('insertText', false, t);
+});
+document.addEventListener('beforeinput', (e) => { // certains claviers déposent l'image par ce chemin (avec `dataTransfer`)
+  const el = e.target; if (el.id !== 'task-new' || !el.isContentEditable || !e.dataTransfer) return;
+  const f = clipImages(e.dataTransfer); if (!f.length) return;
+  e.preventDefault(); imgState = compImg; addImageFiles(f);
 });
 document.addEventListener('input', async (e) => { // le clavier peut insérer une image toute faite : on la prend, elle ne reste pas dans le titre
   const el = e.target; if (el.id !== 'task-new' || !el.isContentEditable) return;
