@@ -1112,10 +1112,10 @@ const qaSet = (f, v) => { const el = qaEl(f); if (!el) return; if (el.isContentE
 document.addEventListener('keydown', (e) => { if (e.target.id === 'task-new' && e.target.isContentEditable && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.target.closest('form')?.requestSubmit(); } });
 document.addEventListener('paste', (e) => { // texte : toujours en texte brut sur une seule ligne (les images sont prises par l'autre écouteur)
   const el = e.target; if (el.id !== 'task-new' || !el.isContentEditable || e.defaultPrevented) return;
-  const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
-  if (files.length) return;
-  e.preventDefault(); const t = (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ');
-  if (t) document.execCommand('insertText', false, t);
+  if (clipImages(e.clipboardData).length) return;
+  const t = (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ');
+  if (!t) return; // pas de texte : on laisse le navigateur faire (une image arrive alors dans le champ, l'écouteur « input » la récupère)
+  e.preventDefault(); document.execCommand('insertText', false, t);
 });
 document.addEventListener('input', async (e) => { // le clavier peut insérer une image toute faite : on la prend, elle ne reste pas dans le titre
   const el = e.target; if (el.id !== 'task-new' || !el.isContentEditable) return;
@@ -1372,10 +1372,24 @@ async function openLightbox(index) {
 }
 
 // pasted pictures (a screenshot has no text) and dropped files, while a task sheet is open
+/** Les images d'un collage : `files`, ou (Android) les éléments de type fichier du presse-papiers. */
+const clipImages = (cd) => {
+  const out = [...(cd?.files || [])].filter((f) => f.type.startsWith('image/'));
+  if (!out.length) for (const it of cd?.items || []) { if (it.kind === 'file' && it.type.startsWith('image/')) { const f = it.getAsFile(); if (f) out.push(f); } }
+  return out;
+};
+/** Dernier recours (BÊTA) : le collage ne contient qu'un morceau de page avec <img src="…"> : on va chercher l'image. */
+async function htmlImages(cd) {
+  const m = /<img[^>]+src=["']([^"']+)["']/i.exec(cd?.getData('text/html') || ''); if (!m) return [];
+  try { const b = await (await fetch(m[1])).blob(); return b.type.startsWith('image/') ? [new File([b], 'image', { type: b.type })] : []; } catch { return []; }
+}
 document.addEventListener('paste', (e) => {
   const ctx = sheet.open && sheet.querySelector('#tf-images') ? sheetImg : !sheet.open && document.activeElement?.closest?.('.composer') ? compImg : null;
   if (!ctx) return;
-  const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
+  const files = clipImages(e.clipboardData);
+  if (!files.length && isBeta() && e.target.id === 'task-new' && !(e.clipboardData.getData('text/plain') || '').trim() && /<img/i.test(e.clipboardData.getData('text/html') || '')) {
+    e.preventDefault(); const cd = e.clipboardData; htmlImages(cd).then((f) => { if (f.length) { imgState = ctx; addImageFiles(f); } }); return;
+  }
   if (!files.length) return;
   const txt = (e.clipboardData.getData('text/plain') || '').trim();
   if (isBeta() ? txt.length > 400 : txt) return; // BÊTA : une image copiée depuis une page arrive souvent avec un petit bout de texte (adresse, nom) : on colle l'image quand même
