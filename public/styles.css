@@ -1381,13 +1381,13 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 .drag-out-tip { position: fixed; left: 0; top: 0; z-index: 99999; pointer-events: none; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 12px; white-space: nowrap; font-weight: 800; font-size: .9rem;
   background: var(--surface); color: var(--text); border: 2px dashed var(--accent); box-shadow: var(--shadow-lift); }
 
-/* BÊTA : images collées depuis la barre d'ajout (menu fermé), au-dessus de la barre */
+/* BÊTA : images collées dans le titre de l'ajout rapide : miniatures au-dessus de la barre (menu fermé) */
 .composer .qa-pasted { display: none; position: absolute; z-index: 4; left: 12px; right: 12px; bottom: calc(100% - 4px); flex-wrap: wrap; align-items: flex-end; gap: 8px; }
-.composer:not(.open):focus-within .qa-pasted, .composer:not(.open) .qa-pasted:has(.img-th) { display: flex; }
+.composer:not(.open) .qa-pasted:has(.img-th) { display: flex; }
 .qa-pasted .img-th { width: 52px; height: 52px; box-shadow: var(--shadow-lift); }
-.qa-chip { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 2px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); font: 700 .9rem/1 inherit; cursor: pointer; box-shadow: var(--shadow-lift); }
-.qa-chip:active { transform: translateY(1px); }
-.img-add.img-paste { flex-direction: column; gap: 2px; font-size: .72rem; font-weight: 700; }
+/* BÊTA : le titre est un champ modifiable (contenteditable), une seule ligne, texte d'aide quand il est vide */
+.composer .qa-row .qa-input { display: flex; align-items: center; white-space: pre; overflow: hidden; font-size: 16px; line-height: 1.2; cursor: text; -webkit-user-select: text; user-select: text; padding-right: 12px; }
+.composer .qa-row .qa-input:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
 /* BÊTA : boutons pour ouvrir / refermer un chantier (carnets) */
 .ep-open-pill { position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; padding: 8px 12px; border: 2px solid currentColor; border-radius: 10px; color: var(--pi-ink); background: rgb(255 255 255 / .55); font-weight: 800; font-size: .85rem; line-height: 1; }
 .ep-book:hover .ep-open-pill { background: rgb(255 255 255 / .8); }
