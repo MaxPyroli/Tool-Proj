@@ -1066,7 +1066,7 @@ document.addEventListener('click', (e) => { if (Date.now() < swallowH && e.targe
 // toucher la pastille du type ou la poignée ne doit JAMAIS fermer le clavier : on empêche le champ de perdre le focus
 document.addEventListener('click', (e) => { if (e.target.classList?.contains('composer') && state.composerOpen) setComposerOpen(false); }); // toucher le fond assombri referme
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.composerOpen && document.querySelector('.composer.open')) { e.preventDefault(); setComposerOpen(false); } });
-document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-book, .composer .qa-handle, .composer .qa-send')) e.preventDefault(); });
+document.addEventListener('mousedown', (e) => { if (e.target.closest?.('.composer .qa-type, .composer .qa-book, .composer .qa-handle, .composer .qa-send, .composer .qa-imgbtn')) e.preventDefault(); });
 
 // BÊTA : un seul endroit pour ajouter (type, titre, détails, chantier, priorité). La ligne rapide se déploie quand on la touche.
 const composer = (placeholder, extra = false) => {
@@ -1083,6 +1083,7 @@ const composer = (placeholder, extra = false) => {
       ${quickTypeBtn()}
       ${isBeta() ? `<div class="input qa-input" id="task-new" contenteditable="true" role="textbox" aria-label="Ajouter une tâche" data-placeholder="Ajouter une tâche…" enterkeyhint="done" autocapitalize="sentences" spellcheck="true">${esc(store.get(k, ''))}</div>`
         : `<input class="input" id="task-new" name="title" maxlength="200" placeholder="Ajouter une tâche…" value="${esc(store.get(k, ''))}" autocomplete="off" enterkeyhint="done">`}
+      ${isBeta() ? `<button type="button" class="qa-imgbtn" data-action="qa-img" aria-label="Ajouter une image" title="Ajouter une image">${ico('image', 22)}</button><input type="file" id="qa-file" accept="image/*" multiple hidden data-img-input>` : ''}
       <button class="btn primary qa-send" type="submit" aria-label="Ajouter"><span class="qa-long">Ajouter</span><span class="qa-short" aria-hidden="true">+</span></button>
     </div>
     <button type="button" class="qa-handle" data-action="composer-more" aria-expanded="${!!state.composerOpen}" aria-label="Plus de détails"><span class="qa-handle-bar" aria-hidden="true"></span><span class="qa-handle-txt">Plus de détails</span></button>
@@ -2489,6 +2490,7 @@ const actions = {
     await reloadProject();
     setTimeout(() => { state.justDone = null; state.justUndone = null; if (!state.dragging && !sheet.open) { const fly = finishing ? flyDone(t.id) : null; fx.focus(taskKeys(t.id)); renderProject(); fly?.(); } }, finishing ? 1300 : 900);
   },
+  'qa-img': () => { if (compImg.items.length >= IMG_MAX) { toast(`${IMG_MAX} images au plus par tâche.`, true); return; } document.querySelector('#qa-file')?.click(); }, // BÊTA : icône image dans la barre d'ajout
   'img-pick': (el) => el.closest('.img-strip').querySelector('[data-img-input]').click(),
   'img-open': (el) => { imgState = el.closest('#task-images, #qa-pasted') ? compImg : sheetImg; openLightbox(Number(el.dataset.i)); },
   'img-del': async (el) => {

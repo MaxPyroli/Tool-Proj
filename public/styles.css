@@ -1397,3 +1397,10 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 @media (min-width: 480px) { .ep-fold-txt { display: inline; } }
 .ep-chev-ico { display: inline-flex; vertical-align: middle; transition: transform .2s; }
 .ep-chev-ico.up { transform: rotate(180deg); }
+
+/* BÊTA : petite icône image au bout du champ de l'ajout rapide (ouvre la galerie / l'appareil photo) */
+.composer .qa-row .qa-input { padding-right: 52px; }
+.composer .qa-imgbtn { position: absolute; z-index: 5; top: 50%; translate: 0 -50%; right: calc(var(--qa-pr, 0px) + var(--sw, 50px) + 16px); width: 40px; height: 40px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.composer .qa-imgbtn:active { background: var(--surface-2); color: var(--text); }
+.composer.open .qa-imgbtn, .composer.dragging .qa-imgbtn, .composer.closing .qa-imgbtn { display: none; }
+@media (max-width: 719px) { .composer .qa-row { --qa-pr: calc(12px + 18px * var(--p)); } }

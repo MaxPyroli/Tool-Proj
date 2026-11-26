@@ -1,7 +1,7 @@
 [
   {
-    "title": "Coller une image directement dans le titre",
-    "text": "Dans la barre d'ajout, le titre accepte maintenant les images comme dans WhatsApp : appui long puis « Coller », ou la suggestion d'image de ton clavier. L'image s'affiche en petit au-dessus de la barre et part avec la tâche."
+    "title": "Ajouter une image depuis l'ajout rapide",
+    "text": "Une petite icône image au bout de la barre d'ajout ouvre ta galerie ou ton appareil photo. L'image s'affiche en petit au-dessus de la barre et part avec la tâche. Sur ordinateur, tu peux aussi coller une image directement dans le titre."
   },
   {
     "title": "Boutons des carnets plus clairs",
