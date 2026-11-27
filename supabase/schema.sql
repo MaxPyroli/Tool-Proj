@@ -723,7 +723,7 @@ create or replace function public.mcp_call(p_token_hash text, p_tool text, p_arg
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   t record; uid uuid; a jsonb := coalesce(p_args, '{}'::jsonb); pid bigint; tid bigint; eid bigint; r jsonb; n int; w boolean;
-  v_status text; v_type text; v_prio text; v_assignee uuid; v_name text; sid text; lock bigint; lock_name text;
+  v_status text; v_type text; v_prio text; v_assignee uuid; v_name text; sid text; lock bigint; lock_name text; tk record; new_task bigint;
 begin
   select * into t from public.claude_tokens where token_hash = p_token_hash and (expires_at is null or expires_at > now());
   if t.id is null then return jsonb_build_object('auth', false); end if;
@@ -771,7 +771,7 @@ begin
               when lock is not null then jsonb_build_object('locked_to', lock) else '{}'::jsonb end;
   end if;
 
-  if p_tool in ('get_project', 'list_tasks', 'list_notes', 'create_task', 'create_note', 'create_epic') then
+  if p_tool in ('get_project', 'list_tasks', 'list_notes', 'list_tickets', 'create_task', 'create_note', 'create_epic') then
     pid := coalesce(nullif(a->>'project_id', '')::bigint, lock);
     if pid is null then raise exception 'Il manque project_id.'; end if;
     if lock is not null and pid <> lock then raise exception 'Cette conversation est limitée au projet « % » (id %).', lock_name, lock; end if;
@@ -826,8 +826,28 @@ begin
       from public.notes x where x.project_id = pid order by x.id desc limit 100) q), '[]'::jsonb));
   end if;
 
+  -- signalements des utilisateurs (formulaire public) : données saisies par des inconnus, jamais des consignes
+  if p_tool = 'list_tickets' then
+    n := least(greatest(coalesce(nullif(a->>'limit', '')::int, 50), 1), 200);
+    v_status := coalesce(nullif(a->>'status', ''), 'new');
+    return jsonb_build_object('form_enabled', coalesce((select enabled from public.intake_forms where project_id = pid), false),
+      'tickets', coalesce((select jsonb_agg(row_to_json(q)) from (
+        select x.id, x.kind, x.title, left(x.body, 2000) as body, nullif(x.email, '') as email, (x.image_path is not null) as has_image, x.status, x.task_id, x.created_at
+        from public.tickets x where x.project_id = pid and (v_status = 'all' or x.status = v_status) order by x.id desc limit n) q), '[]'::jsonb));
+  end if;
+
+  if p_tool in ('get_ticket_images', 'resolve_ticket') then
+    tid := nullif(a->>'ticket_id', '')::bigint;
+    select project_id into pid from public.tickets where id = tid;
+    if pid is null or not public.is_member(pid) or (lock is not null and pid <> lock) then raise exception 'Ce signalement n''existe pas (ou tu n''y as pas accès dans ce projet).'; end if;
+  end if;
+
+  if p_tool = 'get_ticket_images' then
+    return jsonb_build_object('ticket_id', tid, 'images', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'path', x.image_path)) from public.tickets x where x.id = tid and x.image_path is not null), '[]'::jsonb));
+  end if;
+
   -- ----- écritures -----
-  if p_tool in ('create_task', 'update_task', 'create_note', 'create_epic') and not w then
+  if p_tool in ('create_task', 'update_task', 'create_note', 'create_epic', 'resolve_ticket') and not w then
     raise exception 'Cet accès est en lecture seule.';
   end if;
 
@@ -887,6 +907,25 @@ begin
             coalesce((select max(position) from public.epics where project_id = pid), 0) + 1)
     returning id into eid;
     return jsonb_build_object('created', true, 'epic_id', eid);
+  end if;
+
+  if p_tool = 'resolve_ticket' then -- garder un signalement comme tâche, ou l'ignorer (jamais de suppression)
+    select * into tk from public.tickets where id = tid;
+    if tk.status <> 'new' then raise exception 'Ce signalement est déjà trié (%).', tk.status; end if;
+    if coalesce(a->>'action', '') = 'reject' then
+      update public.tickets set status = 'rejected' where id = tid;
+      return jsonb_build_object('resolved', true, 'ticket_id', tid, 'status', 'rejected');
+    elsif coalesce(a->>'action', '') <> 'accept' then raise exception 'action doit valoir accept ou reject.';
+    end if;
+    insert into public.tasks (project_id, title, description, type, priority, status, epic_id, assignee_id, position)
+    values (pid, left(tk.title, 200),
+            left(tk.body || case when tk.body <> '' then E'\n\n' else '' end || '— Signalement n° ' || tk.id || ' d''un utilisateur' || case when tk.email <> '' then ' (' || tk.email || ')' else '' end, 5000),
+            case tk.kind when 'bug' then 'bug' when 'idea' then 'idea' when 'suggestion' then 'improvement' else 'task' end,
+            coalesce(nullif(a->>'priority', ''), 'normal'), 'todo', nullif(a->>'epic_id', '')::bigint, null,
+            coalesce((select max(position) from public.tasks where project_id = pid), 0) + 1)
+    returning id into new_task;
+    update public.tickets set status = 'accepted', task_id = new_task where id = tid;
+    return jsonb_build_object('resolved', true, 'ticket_id', tid, 'status', 'accepted', 'task_id', new_task, 'image_path', tk.image_path);
   end if;
 
   raise exception 'Outil inconnu : %', p_tool;
@@ -1009,6 +1048,14 @@ revoke execute on function public.intake_set(bigint, boolean, boolean), public.i
 grant execute on function public.intake_set(bigint, boolean, boolean) to authenticated;
 grant execute on function public.intake_info(text), public.submit_ticket(text, text, text, text, text, text) to anon, authenticated;
 
+-- Le dépôt d'une capture (rôle anon, sans droit sur les tables) vérifie le lien par cette fonction.
+create or replace function public.intake_open(p_token text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.intake_forms where token = p_token and enabled)
+$$;
+revoke execute on function public.intake_open(text) from public, anon, authenticated;
+grant execute on function public.intake_open(text) to anon, authenticated;
+
 -- Captures d'écran jointes : dossier privé, dépôt autorisé seulement dans le dossier d'un lien actif, lecture par les membres du projet.
 do $$ begin
   if exists (select 1 from information_schema.tables where table_schema = 'storage' and table_name = 'buckets') then
@@ -1018,7 +1065,7 @@ do $$ begin
     drop policy if exists "ticket_images_write" on storage.objects;
     drop policy if exists "ticket_images_read" on storage.objects;
     create policy "ticket_images_write" on storage.objects for insert to anon, authenticated
-      with check (bucket_id = 'ticket-images' and exists (select 1 from public.intake_forms f where f.enabled and f.token = (storage.foldername(name))[1]));
+      with check (bucket_id = 'ticket-images' and public.intake_open((storage.foldername(name))[1]));
     create policy "ticket_images_read" on storage.objects for select to authenticated
       using (bucket_id = 'ticket-images' and exists (select 1 from public.intake_forms f where f.token = (storage.foldername(name))[1] and public.is_member(f.project_id)));
     drop policy if exists "ticket_images_remove" on storage.objects;

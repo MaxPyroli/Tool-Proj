@@ -20,15 +20,27 @@
   body { min-height: 100dvh; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--mono); padding: max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); display: flex; justify-content: center; }
   body.embed { background: transparent; padding: 8px; }
   .wrap { width: 100%; max-width: 430px; }
-  .ticket { position: relative; background: var(--paper); padding: 26px 22px 30px; filter: drop-shadow(0 10px 14px var(--shadow)); animation: print .7s cubic-bezier(.2, .8, .3, 1) both; }
+  .ticket { position: relative; background: var(--paper) linear-gradient(180deg, rgb(0 0 0 / .035), transparent 70px, transparent calc(100% - 90px), rgb(0 0 0 / .03)); padding: 26px 22px 30px; filter: drop-shadow(0 10px 14px var(--shadow)); animation: print .7s cubic-bezier(.2, .8, .3, 1) both; }
+  /* chaque bloc « s'imprime » l'un après l'autre */
+  .ticket form > *, .ticket .done > * { animation: line .45s cubic-bezier(.2, .8, .3, 1) both; animation-delay: calc(var(--i, 0) * 70ms + 250ms); }
+  @keyframes line { from { opacity: 0; transform: translateY(-8px); clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }
   /* bords en dents de scie, en haut et en bas */
   .ticket::before, .ticket::after { content: ""; position: absolute; left: 0; right: 0; height: 8px; background-size: 16px 100%; }
   .ticket::before { top: -7px; background-image: conic-gradient(from 135deg at top, #0000, var(--paper) 1deg 90deg, #0000 91deg); }
   .ticket::after { bottom: -7px; background-image: conic-gradient(from -45deg at bottom, #0000, var(--paper) 1deg 90deg, #0000 91deg); }
   @keyframes print { from { transform: translateY(-24px); clip-path: inset(0 0 100% 0); opacity: .4; } to { transform: none; clip-path: inset(0 0 0 0); opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .ticket { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .ticket, .ticket form > *, .ticket .done > *, .stamp { animation: none !important; } }
   .head { text-align: center; }
-  .head .emoji { font-size: 2rem; line-height: 1; }
+  .head .emoji { font-size: 2.1rem; line-height: 1; }
+  .head .kicker { margin: 0 0 8px; font-size: .68rem; letter-spacing: .3em; color: var(--muted); }
+  .meta { display: flex; justify-content: space-between; gap: 10px; margin: 12px 0 0; font-size: .72rem; letter-spacing: .06em; color: var(--muted); }
+  .barcode { height: 38px; margin: 18px auto 4px; width: 78%; background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 9px, var(--ink) 9px 12px, transparent 12px 14px, var(--ink) 14px 15px, transparent 15px 19px, var(--ink) 19px 21px, transparent 21px 22px); opacity: .85; }
+  .thanks { margin: 8px 0 0; text-align: center; font-size: .72rem; letter-spacing: .24em; color: var(--muted); }
+  .stamp { display: inline-block; margin: 6px auto 0; padding: 4px 16px; border: 3px solid var(--danger); color: var(--danger); font: 800 1.6rem/1.1 var(--mono); letter-spacing: .18em; text-transform: uppercase; transform: rotate(-7deg); mix-blend-mode: multiply; opacity: .9; border-radius: 4px; box-shadow: inset 0 0 0 2px rgb(180 35 24 / .35); animation: stamp .5s .6s cubic-bezier(.2, 1.4, .4, 1) both; }
+  @keyframes stamp { from { opacity: 0; transform: rotate(-7deg) scale(2.2); } to { opacity: .9; transform: rotate(-7deg) scale(1); } }
+  .count { float: right; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); font-size: .72rem; }
+  .shake { animation: shake .35s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
   .head h1 { margin: 6px 0 2px; font-size: 1.15rem; letter-spacing: .12em; text-transform: uppercase; overflow-wrap: anywhere; }
   .head p { margin: 0; color: var(--muted); font-size: .85rem; }
   .sep { border: 0; border-top: 2px dashed var(--line); margin: 16px 0; }
@@ -54,8 +66,11 @@
   .shot { position: relative; display: none; }
   .shot img { display: block; width: 72px; height: 72px; object-fit: cover; border: 2px solid var(--ink); }
   .shot button { position: absolute; top: -10px; right: -10px; width: 28px; height: 28px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); font-weight: 800; line-height: 1; }
-  .send { width: 100%; margin-top: 20px; min-height: 52px; font: inherit; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); border: 0; cursor: pointer; }
-  .send:disabled { opacity: .6; cursor: progress; }
+  .send { position: relative; overflow: hidden; width: 100%; margin-top: 20px; min-height: 52px; font: inherit; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); border: 0; cursor: pointer; }
+  .send:disabled { opacity: .7; cursor: progress; }
+  .send:not(:disabled):active { transform: translateY(1px); }
+  .send.printing::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .35), transparent); animation: sweep 1s linear infinite; }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
   .err { margin: 12px 0 0; color: var(--danger); font-weight: 700; font-size: .9rem; }
   .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
   .done { text-align: center; }
@@ -84,9 +99,11 @@
 
     <form id="form" hidden novalidate>
       <div class="head">
+        <p class="kicker">— TICKET DE SIGNALEMENT —</p>
         <div class="emoji" id="emoji" aria-hidden="true"></div>
         <h1 id="pname"></h1>
         <p id="intro">Un bug, une idée, une question ? Dis-nous tout.</p>
+        <div class="meta"><span id="metadate"></span><span>CAISSE 01</span></div>
       </div>
       <hr class="sep">
       <fieldset>
@@ -99,7 +116,7 @@
         </div>
       </fieldset>
       <div class="field"><label for="title">En bref</label><input id="title" name="title" type="text" maxlength="200" required autocomplete="off" placeholder="Ex. L'appli plante au lancement"></div>
-      <div class="field"><label for="body">Détails</label><textarea id="body" name="body" maxlength="5000" placeholder="Comment ça arrive, ce que tu voudrais…"></textarea></div>
+      <div class="field"><label for="body">Détails <span class="count" id="count">0 / 5000</span></label><textarea id="body" name="body" maxlength="5000" placeholder="Comment ça arrive, ce que tu voudrais…"></textarea></div>
       <div class="field">
         <label>Capture d'écran <span style="font-weight:400;text-transform:none;letter-spacing:0">(facultatif)</span></label>
         <div class="file"><button type="button" id="pick">Ajouter une image</button><div class="shot" id="shot"><img alt="" id="shotimg"><button type="button" id="shotdel" aria-label="Retirer l'image">×</button></div></div>
@@ -109,17 +126,22 @@
       <input class="hp" id="site" name="site" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
       <p class="err" id="err" role="alert" hidden></p>
       <button class="send" id="send" type="submit">Envoyer le ticket</button>
+      <div class="barcode" aria-hidden="true"></div>
+      <p class="thanks">* MERCI *</p>
     </form>
 
     <div id="done" class="done" hidden>
       <div class="head"><div class="emoji" id="emoji2" aria-hidden="true"></div><h1 id="pname2"></h1></div>
       <hr class="sep">
+      <span class="stamp">Reçu</span>
       <p class="big">MERCI !</p>
       <p class="hint" style="font-size:.9rem">Ton ticket est bien arrivé.</p>
       <div class="num" id="num"></div>
       <div class="rec" id="rec"></div>
       <hr class="sep">
       <button class="link" id="again" type="button">Envoyer un autre ticket</button>
+      <div class="barcode" aria-hidden="true"></div>
+      <p class="thanks">* À BIENTÔT *</p>
     </div>
   </main>
   <p class="foot">Pensé par Paname Dev et codé par Claude · <a href="confidentialite.html">Confidentialité</a></p>
@@ -144,10 +166,21 @@
     if (!r.ok) throw new Error((j && j.message) || 'Envoi impossible pour le moment.');
     return j;
   };
-  const show = (id) => { for (const k of ['loading', 'closed', 'form', 'done']) $(k).hidden = k !== id; };
-  const say = (m) => { const e = $('err'); e.textContent = m || ''; e.hidden = !m; };
+  const show = (id) => {
+    for (const k of ['loading', 'closed', 'form', 'done']) $(k).hidden = k !== id;
+    const box = id === 'form' ? $('form') : id === 'done' ? $('done') : null; if (box) [...box.children].forEach((el, i) => el.style.setProperty('--i', i));
+  };
+  const stamp = () => { const d = new Date(); return d.toLocaleDateString('fr-FR') + '  ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
+  $('body').addEventListener('input', () => { $('count').textContent = `${$('body').value.length} / 5000`; });
+  const say = (m) => { const e = $('err'); e.textContent = m || ''; e.hidden = !m; if (m) { e.classList.remove('shake'); void e.offsetWidth; e.classList.add('shake'); } };
   // le parent (page ou appli qui intègre ce formulaire) peut suivre : window.addEventListener('message', e => e.data.source === 'toolproj-ticket')
-  const tell = (type, extra) => { try { parent !== window && parent.postMessage({ source: 'toolproj-ticket', type, ...extra }, '*'); } catch { /* ignoré */ } };
+  const tell = (type, extra) => {
+    const msg = { source: 'toolproj-ticket', type, ...extra };
+    try { parent !== window && parent.postMessage(msg, '*'); } catch { /* ignoré */ }
+    try { if (type === 'sent') window.ToolProjTicket?.onSent?.(String(extra.id)); } catch { /* WebView Android : addJavascriptInterface(..., "ToolProjTicket") */ }
+    try { window.webkit?.messageHandlers?.toolprojTicket?.postMessage(msg); } catch { /* WebView iOS */ }
+    try { window.ReactNativeWebView?.postMessage(JSON.stringify(msg)); } catch { /* React Native */ }
+  };
 
   async function shrink(file) { // image réduite dans le navigateur (1280 px, JPEG, sans métadonnées)
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -170,7 +203,7 @@
     if ($('site').value) { done(0, 'bug', ''); return; } // piège à robots : on fait comme si
     const title = $('title').value.trim(); if (!title) { say('Dis-nous en deux mots de quoi il s\'agit.'); $('title').focus(); return; }
     const kind = document.querySelector('input[name=kind]:checked').value, email = $('email').value.trim();
-    const btn = $('send'); btn.disabled = true; btn.textContent = 'Impression…';
+    const btn = $('send'); btn.disabled = true; btn.classList.add('printing'); btn.textContent = 'Impression…';
     try {
       let path = null;
       if (image) {
@@ -181,7 +214,7 @@
       const id = await rpc('submit_ticket', { p_token: token, p_kind: kind, p_title: title, p_body: $('body').value.trim(), p_email: email, p_image: path });
       done(id, kind, title);
     } catch (err) { say(err.message); }
-    finally { btn.disabled = false; btn.textContent = 'Envoyer le ticket'; }
+    finally { btn.disabled = false; btn.classList.remove('printing'); btn.textContent = 'Envoyer le ticket'; }
   });
   function done(id, kind, title) {
     const now = new Date();
@@ -193,7 +226,7 @@
     show('done'); const c = $('card'); c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; window.scrollTo(0, 0);
     tell('sent', { id });
   }
-  $('again').addEventListener('click', () => { $('form').reset(); $('shotdel').click(); show('form'); });
+  $('again').addEventListener('click', () => { $('form').reset(); $('count').textContent = '0 / 5000'; $('metadate').textContent = stamp(); $('shotdel').click(); show('form'); });
 
   (async () => {
     if (!token || !cfg.supabaseUrl) { show('closed'); return; }
@@ -204,6 +237,11 @@
       for (const id of ['pname', 'pname2']) $(id).textContent = info.name;
       for (const id of ['emoji', 'emoji2']) $(id).textContent = info.emoji || '';
       if (info.intro) $('intro').textContent = info.intro;
+      $('metadate').textContent = stamp();
+      if (/^#[0-9a-f]{6}$/i.test(info.color || '')) { // la couleur du projet pour le bouton (texte blanc ou noir selon la luminosité)
+        const n = parseInt(info.color.slice(1), 16), lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+        document.documentElement.style.setProperty('--accent', info.color); document.documentElement.style.setProperty('--accent-ink', lum > 0.62 ? '#1d2430' : '#fff');
+      }
       const t = q.get('type'); if (KIND[t]) document.querySelector(`input[name=kind][value=${t}]`).checked = true;
       show('form'); tell('ready', {});
     } catch { show('closed'); }

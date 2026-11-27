@@ -226,7 +226,7 @@ insert into claude_tokens (label, token_hash, can_write) values ('zed', repeat('
 reset role;
 
 select set_config('t.cpid', :'cpid', false);
-do $$ declare r jsonb; tid bigint; other_pid bigint; pidv bigint := current_setting('t.cpid')::bigint; begin
+do $$ declare r jsonb; tid bigint; kid bigint; other_pid bigint; pidv bigint := current_setting('t.cpid')::bigint; begin
   assert (public.mcp_call(repeat('9', 64), 'ping')->>'auth')::boolean = false, 'empreinte inconnue refusée';
   assert (public.mcp_call(repeat('3', 64), 'ping')->>'auth')::boolean = false, 'accès expiré refusé';
   assert (public.mcp_call(repeat('1', 64), 'ping')->>'auth')::boolean = true, 'accès valide';
@@ -258,6 +258,26 @@ do $$ declare r jsonb; tid bigint; other_pid bigint; pidv bigint := current_sett
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "assignee": "inconnu"}')$f$, tid), 'Personne');
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'update_task', '{"task_id": %s, "status": "fini"}')$f$, tid), 'check constraint');
   perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'create_task', '{"project_id": %s, "title": "x", "assignee": "zed"}')$f$, pidv), 'pas membre');
+  -- signalements des utilisateurs (formulaire public)
+  insert into intake_forms (project_id, enabled) values (pidv, true);
+  insert into tickets (project_id, kind, title, body, email, image_path) values
+    (pidv, 'bug', 'Plantage au lancement', 'Sur Pixel', 'u@ex.fr', 'jeton/11111111-1111-1111-1111-111111111111.jpg'),
+    (pidv, 'idea', 'Mode sombre', '', '', null);
+  r := public.mcp_call(repeat('2', 64), 'list_tickets', jsonb_build_object('project_id', pidv));
+  assert jsonb_array_length(r->'tickets') = 2 and (r->>'form_enabled')::boolean, 'lecture seule : on lit les signalements';
+  assert (public.mcp_call(repeat('2', 64), 'list_tickets', jsonb_build_object('project_id', pidv, 'status', 'accepted'))->'tickets') = '[]'::jsonb, 'filtre par statut';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'list_tickets', '{"project_id": %s}')$f$, pidv), 'accès');
+  kid := (select id from tickets where title = 'Plantage au lancement');
+  assert public.mcp_call(repeat('2', 64), 'get_ticket_images', jsonb_build_object('ticket_id', kid))->'images'->0->>'path' like 'jeton/%', 'chemin de la capture renvoyé';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('6', 64), 'get_ticket_images', '{"ticket_id": %s}')$f$, kid), 'n''existe pas');
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('2', 64), 'resolve_ticket', '{"ticket_id": %s, "action": "accept"}')$f$, kid), 'lecture seule');
+  r := public.mcp_call(repeat('1', 64), 'resolve_ticket', jsonb_build_object('ticket_id', kid, 'action', 'accept'));
+  assert (select type from tasks where id = (r->>'task_id')::bigint) = 'bug' and (select status from tickets where id = kid) = 'accepted' and r->>'image_path' like 'jeton/%', 'garder = tâche (bug) + signalement accepté';
+  assert (select description from tasks where id = (r->>'task_id')::bigint) like '%Signalement n°%(u@ex.fr)', 'provenance notée dans la tâche';
+  perform pg_temp.expect_error(format($f$select public.mcp_call(repeat('1', 64), 'resolve_ticket', '{"ticket_id": %s, "action": "reject"}')$f$, kid), 'déjà trié');
+  perform public.mcp_call(repeat('1', 64), 'resolve_ticket', jsonb_build_object('ticket_id', (select id from tickets where title = 'Mode sombre'), 'action', 'reject'));
+  assert (select status from tickets where title = 'Mode sombre') = 'rejected', 'ignorer';
+  delete from tasks where description like '%Signalement n°%'; delete from tickets; delete from intake_forms;
   -- images d'une tâche : chemins renvoyés aux seuls membres
   insert into task_images (task_id, project_id, path) values (tid, pidv, pidv || '/' || tid || '/11111111-1111-1111-1111-111111111111.jpg');
   assert jsonb_array_length(public.mcp_call(repeat('1', 64), 'get_task_images', jsonb_build_object('task_id', tid))->'images') = 1, 'get_task_images : le membre voit les images';
@@ -383,6 +403,7 @@ select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'autre',
 select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', '')$f$, :'ftok'), 'titre est obligatoire');
 select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', 'x', '', 'pas-un-mail')$f$, :'ftok'), 'e-mail');
 select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', 'x', '', '', 'autre-dossier/a.jpg')$f$, :'ftok'), 'Image invalide');
+do $$ begin assert public.intake_open(current_setting('t.ftok')) and not public.intake_open('mauvais'), 'le dépôt d''une capture vérifie le lien (sans droit sur les tables)'; end $$;
 select pg_temp.expect_error('select * from public.tickets', 'permission denied');
 select pg_temp.expect_error('select * from public.intake_forms', 'permission denied');
 reset role;

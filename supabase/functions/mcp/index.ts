@@ -32,6 +32,30 @@ async function withPictures(data: { task_id: number; images: { id: number; path:
   return { task_id: data.task_id, total: (data.images ?? []).length, images: out };
 }
 
+// Capture d'un signalement (bucket privé « ticket-images ») : même principe que les images d'une tâche.
+async function withTicketPicture(data: { ticket_id: number; images: { id: number; path: string }[] }) {
+  const out = [];
+  for (const img of (data.images ?? []).slice(0, 1)) {
+    const { data: blob } = await sb.storage.from("ticket-images").download(img.path);
+    if (!blob || blob.size > 1_500_000) continue;
+    out.push({ id: img.id, mimeType: blob.type || "image/jpeg", bytes: blob.size, data: encodeBase64(new Uint8Array(await blob.arrayBuffer())) });
+  }
+  return { ticket_id: data.ticket_id, total: (data.images ?? []).length, images: out };
+}
+
+// Quand un signalement devient une tâche, sa capture est recopiée dans les images de la tâche (même rangement que l'app).
+async function copyTicketPicture(path: string, taskId: number, projectId: number) {
+  const { data: blob } = await sb.storage.from("ticket-images").download(path);
+  if (!blob) return false;
+  const dest = `${projectId}/${taskId}/${crypto.randomUUID()}.jpg`;
+  for (const name of [dest, dest.replace(/\.jpg$/, "_t.jpg")]) {
+    const { error } = await sb.storage.from("task-images").upload(name, blob, { contentType: blob.type || "image/jpeg", upsert: false });
+    if (error) return false;
+  }
+  await sb.from("task_images").insert({ task_id: taskId, project_id: projectId, path: dest });
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, mcp-session-id, mcp-protocol-version", "Access-Control-Expose-Headers": "mcp-session-id", "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS" } });
   const last = new URL(req.url).pathname.split("/").filter(Boolean).pop() ?? "";
@@ -52,6 +76,12 @@ Deno.serve(async (req) => {
     if (error) throw new Error(error.message);
     if (data?.auth === false) throw new AuthError("Accès refusé");
     if (tool === "get_task_images") return await withPictures(data, Number(args.limit));
+    if (tool === "get_ticket_images") return await withTicketPicture(data);
+    if (tool === "resolve_ticket" && data?.task_id && data?.image_path) {
+      const { data: row } = await sb.from("tasks").select("project_id").eq("id", data.task_id).maybeSingle();
+      const copied = row ? await copyTicketPicture(String(data.image_path), Number(data.task_id), Number(row.project_id)) : false;
+      const { image_path: _p, ...rest } = data; return { ...rest, image_copied: copied };
+    }
     return data;
   };
 
