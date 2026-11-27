@@ -1390,3 +1390,6 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 @media (min-width: 480px) { .ep-fold-txt { display: inline; } }
 .ep-chev-ico { display: inline-flex; vertical-align: middle; transition: transform .2s; }
 .ep-chev-ico.up { transform: rotate(180deg); }
+
+/* BÊTA : numéro de la tâche tout en bas de sa fiche (pour s'y référer) */
+.task-id { margin: 14px 0 0; text-align: center; font-size: .75rem; letter-spacing: .04em; color: var(--muted); user-select: text; -webkit-user-select: text; }

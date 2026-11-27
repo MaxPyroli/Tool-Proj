@@ -2,5 +2,9 @@
   {
     "title": "Boutons des carnets plus clairs",
     "text": "Un carnet fermé a un vrai bouton « Ouvrir » ; un carnet ouvert a un bouton « Fermer » bien visible au lieu du petit triangle. Même flèche plus nette pour « N terminées »."
+  },
+  {
+    "title": "Numéro de la tâche",
+    "text": "Tout en bas de la fiche d'une tâche, son numéro en petit (« Tâche n° 143 ») : pratique pour t'y référer."
   }
 ]
