@@ -360,4 +360,54 @@ do $$ begin assert (select count(*) from project_opens) = 0, 'supprimer le proje
 select pg_temp.expect_error(format($f$insert into project_opens (project_id, user_id) values (%s, '00000000-0000-0000-0000-00000000000a')$f$, :opid), 'row-level security');
 reset role;
 
+-- ===== Formulaire public (signalements) =====
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select create_project('Avec formulaire') as fpid \gset
+select (intake_set(:fpid, true)).token as ftok \gset
+select set_config('t.fpid', :'fpid', false), set_config('t.ftok', :'ftok', false);
+do $$ begin assert (select enabled from intake_forms where project_id = current_setting('t.fpid')::bigint), 'formulaire activé par un admin'; end $$;
+-- un non-admin / non-membre ne peut ni activer ni voir
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+select pg_temp.expect_error(format('select intake_set(%s, false)', :fpid), 'Réservé aux admins');
+do $$ begin assert (select count(*) from intake_forms) = 0 and (select count(*) from tickets) = 0, 'un non-membre ne voit rien'; end $$;
+reset role;
+-- l'invité (rôle anon) : voit seulement le nom, envoie un signalement, rien d'autre
+set role anon;
+do $$ begin assert (public.intake_info(current_setting('t.ftok'))->>'name') = 'Avec formulaire', 'la page publique connaît le nom du projet'; end $$;
+do $$ begin assert public.intake_info('mauvais') = 'null'::jsonb, 'lien inconnu : rien'; end $$;
+select public.submit_ticket(:'ftok', 'bug', 'Ça plante', 'au démarrage', 'invite@ex.fr') as tid \gset
+select set_config('t.tid', :'tid', false);
+select pg_temp.expect_error($$select public.submit_ticket('mauvais', 'bug', 'x')$$, 'fermé');
+select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'autre', 'x')$f$, :'ftok'), 'Type inconnu');
+select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', '')$f$, :'ftok'), 'titre est obligatoire');
+select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', 'x', '', 'pas-un-mail')$f$, :'ftok'), 'e-mail');
+select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', 'x', '', '', 'autre-dossier/a.jpg')$f$, :'ftok'), 'Image invalide');
+select pg_temp.expect_error('select * from public.tickets', 'permission denied');
+select pg_temp.expect_error('select * from public.intake_forms', 'permission denied');
+reset role;
+-- le projet lit sa boîte, trie, mais l'adresse IP n'est pas exposée aux membres par le client
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+do $$ begin assert (select count(*) from tickets where project_id = current_setting('t.fpid')::bigint and status = 'new') = 1, 'le membre voit le signalement'; end $$;
+update tickets set status = 'rejected' where id = :tid;
+select pg_temp.expect_error(format('update tickets set title = ''piraté'' where id = %s', :tid), 'permission denied');
+-- couper le formulaire : l'envoi est refusé ; renouveler : l'ancien lien est mort
+select intake_set(:fpid, false);
+reset role; set role anon;
+select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', 'x')$f$, :'ftok'), 'fermé');
+reset role; set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select (intake_set(:fpid, true, true)).token as ftok2 \gset
+select (:'ftok2' <> :'ftok') as nouveau \gset
+select pg_temp.expect_error(format('select 1 / %s', case when :'nouveau' then 1 else 0 end), 'zero') where not :'nouveau';
+reset role; set role anon;
+select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'bug', 'x')$f$, :'ftok'), 'fermé');
+-- limite : 5 envois par heure et par adresse IP
+select set_config('request.headers', '{"x-forwarded-for": "1.2.3.4, 10.0.0.1"}', false);
+select public.submit_ticket(:'ftok2', 'idea', 'a' || g) from generate_series(1, 5) g;
+select pg_temp.expect_error(format($f$select public.submit_ticket('%s', 'idea', 'de trop')$f$, :'ftok2'), 'Trop d''envois');
+reset role;
+delete from projects where name = 'Avec formulaire';
+
 \echo 'OK : tous les tests de sécurité passent'

@@ -918,13 +918,123 @@ revoke all on public.project_opens from anon, authenticated;
 grant select, insert, update on public.project_opens to authenticated;
 
 -- =========================================================
+-- Formulaire public : les utilisateurs d'une app envoient un signalement (bug, idée, suggestion, question)
+-- Un lien secret par projet (activable / coupable / renouvelable par un admin), une boîte « à trier » pour les membres.
+-- =========================================================
+create table if not exists public.intake_forms (
+  project_id bigint primary key references public.projects (id) on delete cascade,
+  enabled boolean not null default false,
+  token text not null unique default replace(gen_random_uuid()::text, '-', ''),
+  intro text not null default '' check (char_length(intro) <= 300),
+  created_at timestamptz not null default now()
+);
+create table if not exists public.tickets (
+  id bigint generated always as identity primary key,
+  project_id bigint not null references public.projects (id) on delete cascade,
+  kind text not null check (kind in ('bug', 'idea', 'suggestion', 'question')),
+  title text not null check (char_length(title) between 1 and 200),
+  body text not null default '' check (char_length(body) <= 5000),
+  email text not null default '' check (char_length(email) <= 200),
+  image_path text check (image_path is null or char_length(image_path) <= 200),
+  status text not null default 'new' check (status in ('new', 'accepted', 'rejected')),
+  task_id bigint references public.tasks (id) on delete set null,
+  ip_hash text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists tickets_project_idx on public.tickets (project_id, status, created_at desc);
+create index if not exists tickets_rate_idx on public.tickets (ip_hash, created_at);
+alter table public.intake_forms enable row level security;
+alter table public.tickets enable row level security;
+drop policy if exists "intake_forms_select" on public.intake_forms;
+create policy "intake_forms_select" on public.intake_forms for select to authenticated using (public.is_member(project_id));
+drop policy if exists "intake_forms_update" on public.intake_forms;
+create policy "intake_forms_update" on public.intake_forms for update to authenticated using (public.is_project_admin(project_id)) with check (public.is_project_admin(project_id));
+drop policy if exists "tickets_select" on public.tickets;
+create policy "tickets_select" on public.tickets for select to authenticated using (public.is_member(project_id));
+drop policy if exists "tickets_update" on public.tickets;
+create policy "tickets_update" on public.tickets for update to authenticated using (public.is_member(project_id)) with check (public.is_member(project_id));
+drop policy if exists "tickets_remove" on public.tickets;
+create policy "tickets_remove" on public.tickets for delete to authenticated using (public.is_project_admin(project_id));
+revoke all on public.intake_forms, public.tickets from anon, authenticated;
+grant select, update (intro) on public.intake_forms to authenticated;
+grant select, update (status, task_id), delete on public.tickets to authenticated;
+
+-- Un admin active / coupe le formulaire ou renouvelle le lien (l'ancien lien cesse de marcher).
+create or replace function public.intake_set(p_project bigint, p_enabled boolean default null, p_rotate boolean default false)
+returns public.intake_forms language plpgsql security definer set search_path = '' as $$
+declare f public.intake_forms;
+begin
+  if not public.is_project_admin(p_project) then raise exception 'Réservé aux admins du projet'; end if;
+  insert into public.intake_forms (project_id) values (p_project) on conflict (project_id) do nothing;
+  update public.intake_forms set
+    enabled = coalesce(p_enabled, enabled),
+    token = case when p_rotate then replace(gen_random_uuid()::text, '-', '') else token end
+  where project_id = p_project returning * into f;
+  return f;
+end $$;
+
+-- Ce que la page publique affiche (rien de plus que le nom du projet).
+create or replace function public.intake_info(p_token text)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select coalesce((select jsonb_build_object('name', p.name, 'emoji', p.emoji, 'color', p.color, 'intro', f.intro)
+    from public.intake_forms f join public.projects p on p.id = f.project_id
+    where f.token = p_token and f.enabled), 'null'::jsonb)
+$$;
+
+-- Envoi d'un signalement par un utilisateur (sans compte). 5 par heure et par adresse IP, 60 par heure et par projet.
+create or replace function public.submit_ticket(p_token text, p_kind text, p_title text, p_body text default '', p_email text default '', p_image text default null)
+returns bigint language plpgsql security definer set search_path = '' as $$
+declare f public.intake_forms; ip text; h text; n int; new_id bigint; t text := btrim(coalesce(p_title, '')); e text := btrim(coalesce(p_email, ''));
+begin
+  select * into f from public.intake_forms where token = p_token and enabled;
+  if not found then raise exception 'Ce formulaire est fermé.' using errcode = 'P0001'; end if;
+  if p_kind not in ('bug', 'idea', 'suggestion', 'question') then raise exception 'Type inconnu.'; end if;
+  if char_length(t) < 1 or char_length(t) > 200 then raise exception 'Le titre est obligatoire (200 caractères au plus).'; end if;
+  if char_length(coalesce(p_body, '')) > 5000 then raise exception 'Le texte est trop long.'; end if;
+  if e <> '' and (char_length(e) > 200 or e !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then raise exception 'Cette adresse e-mail n''est pas valide.'; end if;
+  if p_image is not null and p_image <> '' and left(p_image, char_length(f.token) + 1) <> f.token || '/' then raise exception 'Image invalide.'; end if;
+  begin ip := split_part(coalesce(current_setting('request.headers', true)::json ->> 'x-forwarded-for', ''), ',', 1); exception when others then ip := ''; end;
+  h := md5(coalesce(ip, '') || ':' || f.project_id::text);
+  if ip <> '' then
+    select count(*) into n from public.tickets where ip_hash = h and created_at > now() - interval '1 hour';
+    if n >= 5 then raise exception 'Trop d''envois pour le moment, réessaie plus tard.'; end if;
+  end if;
+  select count(*) into n from public.tickets where project_id = f.project_id and created_at > now() - interval '1 hour';
+  if n >= 60 then raise exception 'Trop d''envois pour le moment, réessaie plus tard.'; end if;
+  insert into public.tickets (project_id, kind, title, body, email, image_path, ip_hash)
+    values (f.project_id, p_kind, t, btrim(coalesce(p_body, '')), e, nullif(p_image, ''), h) returning id into new_id;
+  return new_id;
+end $$;
+revoke execute on function public.intake_set(bigint, boolean, boolean), public.intake_info(text), public.submit_ticket(text, text, text, text, text, text) from public, anon, authenticated;
+grant execute on function public.intake_set(bigint, boolean, boolean) to authenticated;
+grant execute on function public.intake_info(text), public.submit_ticket(text, text, text, text, text, text) to anon, authenticated;
+
+-- Captures d'écran jointes : dossier privé, dépôt autorisé seulement dans le dossier d'un lien actif, lecture par les membres du projet.
+do $$ begin
+  if exists (select 1 from information_schema.tables where table_schema = 'storage' and table_name = 'buckets') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+      values ('ticket-images', 'ticket-images', false, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
+      on conflict (id) do update set public = false, file_size_limit = 2097152, allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+    drop policy if exists "ticket_images_write" on storage.objects;
+    drop policy if exists "ticket_images_read" on storage.objects;
+    create policy "ticket_images_write" on storage.objects for insert to anon, authenticated
+      with check (bucket_id = 'ticket-images' and exists (select 1 from public.intake_forms f where f.enabled and f.token = (storage.foldername(name))[1]));
+    create policy "ticket_images_read" on storage.objects for select to authenticated
+      using (bucket_id = 'ticket-images' and exists (select 1 from public.intake_forms f where f.token = (storage.foldername(name))[1] and public.is_member(f.project_id)));
+    drop policy if exists "ticket_images_remove" on storage.objects;
+    create policy "ticket_images_remove" on storage.objects for delete to authenticated
+      using (bucket_id = 'ticket-images' and exists (select 1 from public.intake_forms f where f.token = (storage.foldername(name))[1] and public.is_project_admin(f.project_id)));
+  end if;
+end $$;
+
+-- =========================================================
 -- Temps réel (les changements des autres apparaissent en direct)
 -- =========================================================
 do $$
 declare t text;
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    foreach t in array array['projects', 'memberships', 'tasks', 'epics', 'project_links', 'notes', 'note_votes', 'task_images'] loop
+    foreach t in array array['projects', 'memberships', 'tasks', 'epics', 'project_links', 'notes', 'note_votes', 'task_images', 'tickets'] loop
       if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
         execute format('alter publication supabase_realtime add table public.%I', t);
       end if;

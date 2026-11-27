@@ -62,6 +62,17 @@ if (!db) db = seed();
 const save = () => { try { ls.set(KEY, JSON.stringify(db)); } catch { /* trop gros */ } };
 const nextId = (t) => (db.seq[t] = (db.seq[t] || 0) + 1);
 db.seq = db.seq || {};
+if (!db.intake_forms) { // formulaire public de démonstration (projet « Appli vélo »)
+  const velo = db.projects.find((x) => /vélo/i.test(x.name)) || db.projects[0];
+  db.intake_forms = velo ? [{ id: 1, project_id: velo.id, enabled: true, token: 'demo0123456789abcdef0123456789ab', intro: '', created_at: new Date().toISOString() }] : [];
+  db.tickets = velo ? [
+    { id: 1, project_id: velo.id, kind: 'bug', title: 'Le GPS se coupe dans le métro', body: 'Après la dernière mise à jour, le tracé disparaît dès que je descends sous terre.', email: 'camille@exemple.fr', image_path: null, status: 'new', task_id: null, ip_hash: '', created_at: new Date(Date.now() - 3600e3).toISOString() },
+    { id: 2, project_id: velo.id, kind: 'idea', title: 'Pouvoir partager un trajet par message', body: '', email: '', image_path: null, status: 'new', task_id: null, ip_hash: '', created_at: new Date(Date.now() - 86400e3).toISOString() },
+    { id: 3, project_id: velo.id, kind: 'question', title: 'Est-ce que ça marche sans connexion ?', body: 'Je pars en randonnée ce week-end.', email: '', image_path: null, status: 'rejected', task_id: null, ip_hash: '', created_at: new Date(Date.now() - 5 * 86400e3).toISOString() },
+  ] : [];
+  save();
+}
+if (!db.tickets) db.tickets = [];
 const fixSeq = () => { for (const t of Object.keys(db)) if (Array.isArray(db[t])) db.seq[t] = Math.max(db.seq[t] || 0, ...db[t].map((r) => (typeof r.id === 'number' ? r.id : 0))); };
 fixSeq();
 
@@ -181,6 +192,13 @@ export function createClient() {
         db.memberships.push({ id: nextId('memberships'), project_id: a.p_project, user_id: pr.id, role: a.p_role, created_at: iso() }); save();
         return { data: null, error: null };
       }
+      if (name === 'intake_set') {
+        let f = db.intake_forms.find((x) => x.project_id === a.p_project);
+        if (!f) { f = { id: nextId('intake_forms'), project_id: a.p_project, enabled: false, token: crypto.randomUUID().replace(/-/g, ''), intro: '', created_at: iso() }; db.intake_forms.push(f); }
+        if (a.p_enabled !== null && a.p_enabled !== undefined) f.enabled = a.p_enabled;
+        if (a.p_rotate) f.token = crypto.randomUUID().replace(/-/g, '');
+        save(); return { data: { ...f }, error: null };
+      }
       if (name === 'push_test') return { data: false, error: null };
       return { data: null, error: { message: `Fonction inconnue : ${name}` } };
     },
@@ -195,7 +213,7 @@ export function createClient() {
       signInWithPasskey: noPasskey, registerPasskey: noPasskey,
       passkey: { update: noPasskey, list: async () => ({ data: [], error: null }), delete: noPasskey },
     },
-    storage: { from: () => ({ createSignedUrls: async () => ({ data: null, error: { message: 'Les images ne sont pas disponibles dans la version de test.' } }), upload: async () => ({ data: null, error: { message: 'Les images ne sont pas disponibles dans la version de test.' } }), remove: async () => ({ data: [], error: null }) }) },
+    storage: { from: () => ({ remove: async () => ({ data: [], error: null }), createSignedUrl: async () => ({ data: { signedUrl: 'data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27160%27 height=%2790%27%3E%3Crect width=%27160%27 height=%2790%27 fill=%27%23cde%27/%3E%3C/svg%3E' }, error: null }), createSignedUrls: async () => ({ data: null, error: { message: 'Les images ne sont pas disponibles dans la version de test.' } }), upload: async () => ({ data: null, error: { message: 'Les images ne sont pas disponibles dans la version de test.' } }), remove: async () => ({ data: [], error: null }) }) },
     channel: () => { const ch = { on: () => ch, subscribe: () => ch }; return ch; },
     removeChannel: () => {},
   };

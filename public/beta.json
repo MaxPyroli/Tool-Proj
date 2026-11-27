@@ -6,5 +6,9 @@
   {
     "title": "Numéro de la tâche",
     "text": "Tout en bas de la fiche d'une tâche, son numéro en petit (« Tâche n° 143 ») : pratique pour t'y référer."
+  },
+  {
+    "title": "Formulaire public (signalements)",
+    "text": "Dans l'aperçu d'un projet (admin) : « Activer le formulaire ». Tu obtiens un lien, un QR code et un code à copier pour l'intégrer dans un site ou une app Android (WebView, iframe ou API). Les utilisateurs envoient bug, idée, suggestion ou question (avec capture d'écran et e-mail facultatifs) sur une page en ticket de caisse ; tout arrive dans « Signalements », où tu gardes un envoi comme tâche ou tu l'ignores."
   }
 ]

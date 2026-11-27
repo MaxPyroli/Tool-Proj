@@ -201,7 +201,7 @@ const noteDto = (n, me) => ({
 });
 
 export async function getProject(id, me) {
-  const [p, tasks, epics, links, notes, activity, imgRows] = await Promise.all([
+  const [p, tasks, epics, links, notes, activity, imgRows, intakeRow, ticketRows] = await Promise.all([
     sb.from('projects').select(PROJECT_SELECT).eq('id', id).maybeSingle().then(ok),
     sb.from('tasks').select('*').eq('project_id', id).order('position').order('id').then(ok),
     sb.from('epics').select('*').eq('project_id', id).order('position').order('id').then(ok),
@@ -209,6 +209,8 @@ export async function getProject(id, me) {
     sb.from('notes').select('*, author:profiles!notes_created_by_fkey(display_name), note_votes(user_id)').eq('project_id', id).order('z').order('id').then(ok),
     sb.from('activity').select('id, message, created_at, profiles(display_name)').eq('project_id', id).order('id', { ascending: false }).limit(30).then(ok),
     sb.from('task_images').select('id, task_id, path').eq('project_id', id).order('id').then((r) => (r.error ? [] : r.data)), // tolerates a database without images yet
+    sb.from('intake_forms').select('enabled, token, intro').eq('project_id', id).maybeSingle().then((r) => (r.error ? null : r.data)), // formulaire public (tolère une base sans)
+    sb.from('tickets').select('id, kind, title, body, email, image_path, status, task_id, created_at').eq('project_id', id).order('id', { ascending: false }).limit(200).then((r) => (r.error ? [] : r.data)),
   ]);
   const imagesOf = {};
   for (const i of imgRows) (imagesOf[i.task_id] ||= []).push({ id: i.id, path: i.path });
@@ -222,6 +224,8 @@ export async function getProject(id, me) {
     links: links.map(linkDto),
     notes: notes.map((n) => noteDto(n, me)),
     activity: activity.map((a) => ({ id: a.id, message: a.message, createdAt: a.created_at, user: a.profiles?.display_name })),
+    intake: intakeRow ? { enabled: intakeRow.enabled, token: intakeRow.token, intro: intakeRow.intro } : null,
+    tickets: ticketRows.map((t) => ({ id: t.id, kind: t.kind, title: t.title, body: t.body, email: t.email, imagePath: t.image_path, status: t.status, taskId: t.task_id, createdAt: t.created_at })),
   };
 }
 
@@ -427,4 +431,20 @@ export function subscribeProject(pid, onChange) {
   ch.on('postgres_changes', { event: '*', schema: 'public', table: 'note_votes' }, onChange);
   ch.subscribe();
   return () => sb.removeChannel(ch);
+}
+
+// ---------- formulaire public (signalements des utilisateurs de l'app) ----------
+
+/** Active / coupe le formulaire d'un projet, ou renouvelle son lien (admin). Renvoie { enabled, token, intro }. */
+export async function setIntake(projectId, { enabled = null, rotate = false } = {}) {
+  const r = ok(await sb.rpc('intake_set', { p_project: projectId, p_enabled: enabled, p_rotate: rotate }));
+  return { enabled: r.enabled, token: r.token, intro: r.intro };
+}
+export async function setIntakeIntro(projectId, intro) { ok(await sb.from('intake_forms').update({ intro: intro.slice(0, 300) }).eq('project_id', projectId)); }
+export async function updateTicket(id, f) { const row = {}; if (f.status) row.status = f.status; if (f.taskId !== undefined) row.task_id = f.taskId; ok(await sb.from('tickets').update(row).eq('id', id)); }
+export async function deleteTicket(id, imagePath) { ok(await sb.from('tickets').delete().eq('id', id)); if (imagePath) await sb.storage.from('ticket-images').remove([imagePath]).catch(() => {}); }
+/** Lien de la capture d'écran jointe à un signalement (dossier privé, 1 h). */
+export async function ticketImageUrl(path) {
+  const { data, error } = await sb.storage.from('ticket-images').createSignedUrl(path, 3600);
+  if (error) throw new Error(error.message); return data?.signedUrl || '';
 }

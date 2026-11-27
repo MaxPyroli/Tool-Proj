@@ -872,6 +872,7 @@ function viewOverview(d) {
         : p.role === 'admin' ? '<p class="muted small">Pas encore de description. <button class="link-btn" data-action="edit-project">En ajouter une</button></p>' : ''}
     </section>
     <div class="stack" style="gap:16px">
+      ${intakeCard(d)}
       <section class="panel">
         <div class="row between"><h3>Chantiers en cours</h3><button class="link-btn small" data-action="goto-roadmap">Voir les chantiers</button></div>
         ${now.length ? `<div class="stack" style="gap:12px">${now.map((e) => { const pr = epicProgress(d, e.id); return `
@@ -895,6 +896,80 @@ function viewOverview(d) {
       </section>
     </div>
   </div>`;
+}
+
+// ---------- BÊTA : formulaire public (les utilisateurs d'une app envoient bugs, idées, suggestions, questions) ----------
+const TICKET_KIND = { bug: 'Bug', idea: 'Idée', suggestion: 'Suggestion', question: 'Question' };
+const TICKET_TO_TASK = { bug: 'bug', idea: 'idea', suggestion: 'improvement', question: 'task' };
+/** Adresse de la page publique (toujours celle de l'app normale, jamais /beta/). */
+const ticketUrl = (token, extra = '') => `${new URL(isBeta() ? '../ticket.html' : 'ticket.html', location.href).href.replace(/#.*$/, '')}?p=${token}${extra}`;
+
+function intakeCard(d) {
+  if (!isBeta()) return '';
+  const admin = d.project.role === 'admin', f = d.intake, news = d.tickets.filter((t) => t.status === 'new').length;
+  if (!f?.enabled && !admin) return '';
+  return `<section class="panel intake-card">
+    <div class="row between"><h3>Signalements</h3>${admin && f?.enabled ? '<button class="link-btn small" data-action="intake-settings">Réglages</button>' : ''}</div>
+    ${f?.enabled ? (news ? `<p class="small"><b class="num">${news}</b> à trier</p><button class="btn primary sm" data-action="tickets-open">Ouvrir la boîte</button>`
+        : `<p class="muted small">Rien à trier${d.tickets.length ? ` · ${d.tickets.length} reçu${d.tickets.length > 1 ? 's' : ''} au total` : ''}.</p>${d.tickets.length ? '<button class="link-btn small" data-action="tickets-open">Voir la boîte</button>' : ''}`)
+      : '<p class="muted small">Laisse les utilisateurs de ton app t\'envoyer un bug, une idée ou une question avec un petit formulaire (sans compte).</p><button class="btn sm" data-action="intake-settings">Activer le formulaire</button>'}
+  </section>`;
+}
+
+function ticketsSheet() {
+  const d = state.data, isAdmin = d.project.role === 'admin';
+  const card = (t, triage) => `<article class="ticket-card" data-ticket="${t.id}">
+    <div class="row"><span class="chip chip-t ty-${TICKET_TO_TASK[t.kind]}" style="pointer-events:none">${TICKET_KIND[t.kind]}</span><span class="small muted">${timeAgo(t.createdAt)}${t.status === 'accepted' ? ' · gardé' : t.status === 'rejected' ? ' · ignoré' : ''}</span></div>
+    <h4>${esc(t.title)}</h4>
+    ${t.body ? `<p class="ticket-body">${esc(t.body)}</p>` : ''}
+    ${t.email ? `<p class="small"><a href="mailto:${esc(t.email)}?subject=${encodeURIComponent('Re : ' + t.title)}">${esc(t.email)}</a></p>` : ''}
+    ${t.imagePath ? `<a class="ticket-shot" data-shot="${esc(t.imagePath)}" target="_blank" rel="noopener" aria-label="Voir la capture d'écran"><span class="img-wait"></span></a>` : ''}
+    ${triage ? `<div class="row end"><button class="btn sm ghost" data-action="ticket-reject" data-id="${t.id}">Ignorer</button><button class="btn sm primary" data-action="ticket-accept" data-id="${t.id}">Garder comme tâche</button></div>`
+      : isAdmin ? `<div class="row end"><button class="btn sm ghost" data-action="ticket-del" data-id="${t.id}">Supprimer</button></div>` : ''}
+  </article>`;
+  const fresh = d.tickets.filter((t) => t.status === 'new').reverse(), old = d.tickets.filter((t) => t.status !== 'new');
+  openSheet(`<div class="stack">
+    <div class="sheet-head"><h2 id="sheet-title">Signalements</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+    ${fresh.length ? fresh.map((t) => card(t, true)).join('') : '<p class="muted">Rien à trier pour le moment.</p>'}
+    ${old.length ? `<details class="ticket-old"><summary>Déjà triés · ${old.length}</summary><div class="stack">${old.map((t) => card(t, false)).join('')}</div></details>` : ''}
+  </div>`, (sh) => {
+    sh.querySelectorAll('[data-shot]').forEach(async (a) => { try { const u = await db.ticketImageUrl(a.dataset.shot); a.href = u; a.innerHTML = `<img src="${esc(u)}" alt="Capture d'écran">`; } catch { a.remove(); } });
+  });
+}
+
+async function intakeSheet() {
+  const d = state.data, f = d.intake, url = f ? ticketUrl(f.token) : '';
+  const cfg = window.TOOL_PROJ_CONFIG || {};
+  const iframe = `<iframe src="${url}&embed=1" title="Envoyer un ticket" style="width:100%;max-width:460px;height:760px;border:0"></iframe>`;
+  const api = `POST ${cfg.supabaseUrl || 'https://…supabase.co'}/rest/v1/rpc/submit_ticket
+apikey: ${cfg.supabaseKey || '…'}
+Content-Type: application/json
+
+{ "p_token": "${f?.token || '…'}", "p_kind": "bug", "p_title": "…", "p_body": "…", "p_email": "" }`;
+  openSheet(`<div class="stack">
+    <div class="sheet-head"><h2 id="sheet-title">Formulaire public</h2><button type="button" class="btn ghost icon" data-action="close" aria-label="Fermer">${ico('x')}</button></div>
+    <p class="small muted">Les utilisateurs de ton app ouvrent un lien et envoient un bug, une idée, une suggestion ou une question, sans compte. Tout arrive dans « Signalements » de l'aperçu.</p>
+    <div class="row between intake-switch"><strong>${f?.enabled ? 'Formulaire activé' : 'Formulaire coupé'}</strong><button type="button" class="btn sm ${f?.enabled ? '' : 'primary'}" data-action="intake-toggle">${f?.enabled ? 'Couper' : 'Activer'}</button></div>
+    ${f?.enabled ? `
+    <label class="field"><span>Lien à partager</span><div class="row"><input class="input grow" id="intake-url" readonly value="${esc(url)}" onfocus="this.select()"><button type="button" class="btn sm" data-action="intake-copy">Copier</button></div></label>
+    <div class="intake-qr" id="intake-qr" aria-label="QR code du lien"></div>
+    <label class="field"><span>Message d'accueil <small class="muted">(facultatif)</small></span><input class="input" id="intake-intro" maxlength="300" value="${esc(f.intro || '')}" placeholder="Un bug, une idée, une question ? Dis-nous tout."></label>
+    <details class="intake-how"><summary>Intégrer dans mon site ou mon app</summary>
+      <div class="stack">
+        <p class="small"><b>Le plus simple : ouvrir le lien.</b> Dans ton app Android, un bouton « Signaler un problème » qui ouvre le lien dans le navigateur, ou dans une WebView :</p>
+        <pre class="code-box">webView.settings.javaScriptEnabled = true\nwebView.loadUrl("${esc(url)}&embed=1")</pre>
+        <p class="small"><b>Sur un site :</b> une iframe.</p><pre class="code-box">${esc(iframe)}</pre>
+        <p class="small"><b>Réglages du lien :</b> <code>&amp;type=bug</code> (ou idea, suggestion, question) présélectionne le type, <code>&amp;embed=1</code> enlève le pied de page, <code>&amp;theme=dark</code> ou <code>light</code> force le thème. La page prévient l'appli qui l'intègre par <code>postMessage</code> (<code>{source:"toolproj-ticket", type:"sent"}</code>).</p>
+        <p class="small"><b>Formulaire 100 % à toi (API) :</b> une requête, sans compte.</p><pre class="code-box">${esc(api)}</pre>
+        <p class="small muted">Limites : 5 envois par heure et par adresse IP. Une capture d'écran se dépose d'abord dans le dossier <code>ticket-images/${esc(f.token)}/</code> du stockage (JPEG, PNG ou WebP, 2 Mo), puis son chemin est donné dans <code>p_image</code>.</p>
+      </div>
+    </details>
+    <button type="button" class="btn sm ghost danger" data-action="intake-rotate">Renouveler le lien</button>
+    <p class="small muted">Renouveler le lien coupe l'ancien : utile s'il a été partagé trop largement.</p>` : ''}
+  </div>`, (sh) => {
+    sh.querySelector('#intake-intro')?.addEventListener('change', async (e) => { try { await db.setIntakeIntro(state.pid, e.target.value.trim()); state.data.intake.intro = e.target.value.trim(); toast('Message enregistré'); } catch (err) { toast(err.message, true); } });
+    if (f?.enabled) import('./vendor/qrcode.mjs').then(({ default: qrcode }) => { const q = qrcode(0, 'M'); q.addData(url); q.make(); const box = sh.querySelector('#intake-qr'); if (box) box.innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); }).catch(() => {});
+  });
 }
 
 function noteHtml(n, wall) {
@@ -2412,6 +2487,29 @@ const actions = {
     const form = el.closest('form');
     form.elements[`tc_${el.dataset.t}`].value = el.dataset.v;
     refreshStylePreview(form); syncTypeColors(form);
+  },
+  'intake-settings': () => intakeSheet(),
+  'intake-toggle': async () => {
+    try { state.data.intake = await db.setIntake(state.pid, { enabled: !state.data.intake?.enabled }); toast(state.data.intake.enabled ? 'Formulaire activé' : 'Formulaire coupé'); renderProject(); intakeSheet(); } catch (e) { toast(e.message, true); }
+  },
+  'intake-copy': async () => { const ok = await copyText(sheet.querySelector('#intake-url')?.value || ''); toast(ok ? 'Lien copié' : 'Sélectionne le lien pour le copier'); },
+  'intake-rotate': async () => {
+    if (!(await confirmSheet('Renouveler le lien ? L\'ancien cessera de marcher tout de suite.', 'Renouveler'))) return;
+    try { state.data.intake = await db.setIntake(state.pid, { rotate: true }); toast('Nouveau lien créé'); intakeSheet(); } catch (e) { toast(e.message, true); }
+  },
+  'tickets-open': () => ticketsSheet(),
+  'ticket-reject': async (el) => { try { await db.updateTicket(Number(el.dataset.id), { status: 'rejected' }); await reloadProject(); ticketsSheet(); } catch (e) { toast(e.message, true); } },
+  'ticket-del': async (el) => { const t = state.data.tickets.find((x) => x.id === Number(el.dataset.id)); try { await db.deleteTicket(t.id, t.imagePath); await reloadProject(); ticketsSheet(); } catch (e) { toast(e.message, true); } },
+  'ticket-accept': async (el) => {
+    const t = state.data.tickets.find((x) => x.id === Number(el.dataset.id)); if (!t) return;
+    el.disabled = true;
+    try {
+      const description = `${t.body}${t.body ? '\n\n' : ''}— Signalement n° ${t.id} d'un utilisateur${t.email ? ` (${t.email})` : ''}`.slice(0, 5000);
+      const newId = await db.addTask(state.pid, { title: t.title, type: TICKET_TO_TASK[t.kind], assigneeId: null, status: 'todo', description }, state.data.tasks);
+      if (t.imagePath) { try { const blob = await (await fetch(await db.ticketImageUrl(t.imagePath))).blob(); await db.addTaskImage(state.pid, newId, await prepareImage(new File([blob], 'capture.jpg', { type: blob.type }))); } catch { /* la tâche est créée même si la capture ne suit pas */ } }
+      await db.updateTicket(t.id, { status: 'accepted', taskId: newId });
+      toast('Ajouté aux tâches'); fx.focus([], { enter: true }); await reloadProject(); ticketsSheet();
+    } catch (e) { toast(e.message, true); el.disabled = false; }
   },
   'toggle-activity': () => { state.activityOpen = !state.activityOpen; store.set('activityOpen', state.activityOpen ? '1' : '0'); renderProject(); },
   'pick-seg': (el) => {

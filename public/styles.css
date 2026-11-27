@@ -1393,3 +1393,19 @@ dialog#sheet:focus, dialog#sheet:focus-visible { outline: none; }
 
 /* BÊTA : numéro de la tâche tout en bas de sa fiche (pour s'y référer) */
 .task-id { margin: 14px 0 0; text-align: center; font-size: .75rem; letter-spacing: .04em; color: var(--muted); user-select: text; -webkit-user-select: text; }
+
+/* BÊTA : formulaire public et boîte « Signalements » */
+.intake-card .btn { margin-top: 4px; }
+.ticket-card { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); }
+.ticket-card h4 { margin: 0; font-size: 1.02rem; overflow-wrap: anywhere; }
+.ticket-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .95rem; }
+.ticket-shot { display: inline-block; justify-self: start; }
+.ticket-shot img { display: block; max-width: 100%; max-height: 220px; border: 1px solid var(--line); }
+.ticket-old summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+.ticket-old .stack { gap: 10px; }
+.intake-switch { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.intake-qr { width: min(220px, 70%); margin: 0 auto; padding: 10px; background: #fff; border-radius: 6px; }
+.intake-qr svg { display: block; width: 100%; height: auto; }
+.intake-how summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+.intake-how .stack { gap: 10px; padding-top: 6px; }
+.code-box { margin: 0; padding: 10px 12px; overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); font: .78rem/1.45 ui-monospace, Menlo, Consolas, monospace; white-space: pre; -webkit-user-select: text; user-select: text; }

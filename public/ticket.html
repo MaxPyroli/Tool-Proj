@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>Envoyer un ticket</title>
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<style>
+  /* Page publique « ticket de caisse » : un utilisateur d'une app envoie un bug, une idée, une suggestion ou une question.
+     Autonome (aucune ressource externe), clair et sombre, intégrable dans une page ou une WebView (?embed=1). */
+  :root {
+    --bg: #e9e4d8; --paper: #fffef9; --ink: #1d2430; --muted: #6b6f78; --line: #b9b4a6; --accent: #0d7c72; --accent-ink: #fff; --danger: #b42318; --shadow: rgb(40 30 10 / .22);
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #12161d; --paper: #f4f0e4; --ink: #1d2430; --muted: #5d616a; --line: #a8a392; --shadow: rgb(0 0 0 / .55); } }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { min-height: 100dvh; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--mono); padding: max(18px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); display: flex; justify-content: center; }
+  body.embed { background: transparent; padding: 8px; }
+  .wrap { width: 100%; max-width: 430px; }
+  .ticket { position: relative; background: var(--paper); padding: 26px 22px 30px; filter: drop-shadow(0 10px 14px var(--shadow)); animation: print .7s cubic-bezier(.2, .8, .3, 1) both; }
+  /* bords en dents de scie, en haut et en bas */
+  .ticket::before, .ticket::after { content: ""; position: absolute; left: 0; right: 0; height: 8px; background-size: 16px 100%; }
+  .ticket::before { top: -7px; background-image: conic-gradient(from 135deg at top, #0000, var(--paper) 1deg 90deg, #0000 91deg); }
+  .ticket::after { bottom: -7px; background-image: conic-gradient(from -45deg at bottom, #0000, var(--paper) 1deg 90deg, #0000 91deg); }
+  @keyframes print { from { transform: translateY(-24px); clip-path: inset(0 0 100% 0); opacity: .4; } to { transform: none; clip-path: inset(0 0 0 0); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .ticket { animation: none; } }
+  .head { text-align: center; }
+  .head .emoji { font-size: 2rem; line-height: 1; }
+  .head h1 { margin: 6px 0 2px; font-size: 1.15rem; letter-spacing: .12em; text-transform: uppercase; overflow-wrap: anywhere; }
+  .head p { margin: 0; color: var(--muted); font-size: .85rem; }
+  .sep { border: 0; border-top: 2px dashed var(--line); margin: 16px 0; }
+  label, legend { display: block; font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; padding: 0; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kind { position: relative; }
+  .kind input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .kind span { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px; border: 2px solid var(--ink); background: transparent; font-weight: 700; font-size: .85rem; }
+  .kind span { white-space: nowrap; }
+  .kind span::before { content: "[ ]"; font-weight: 800; }
+  .kind input:checked + span { background: var(--ink); color: var(--paper); }
+  .kind input:checked + span::before { content: "[x]"; }
+  .kind input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .field { margin-top: 14px; }
+  input[type=text], input[type=email], textarea { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: 0; border-bottom: 2px solid var(--ink); border-radius: 0; padding: 8px 2px; outline: none; }
+  textarea { min-height: 112px; resize: vertical; background-image: repeating-linear-gradient(transparent 0 27px, var(--line) 27px 28px); line-height: 28px; padding-top: 0; border-bottom: 0; }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  ::placeholder { color: var(--muted); opacity: .8; }
+  .hint { margin: 4px 0 0; font-size: .75rem; color: var(--muted); }
+  .file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .file button { font: inherit; font-size: .85rem; font-weight: 700; padding: 10px 14px; min-height: 44px; border: 2px dashed var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+  .shot { position: relative; display: none; }
+  .shot img { display: block; width: 72px; height: 72px; object-fit: cover; border: 2px solid var(--ink); }
+  .shot button { position: absolute; top: -10px; right: -10px; width: 28px; height: 28px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); font-weight: 800; line-height: 1; }
+  .send { width: 100%; margin-top: 20px; min-height: 52px; font: inherit; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent); border: 0; cursor: pointer; }
+  .send:disabled { opacity: .6; cursor: progress; }
+  .err { margin: 12px 0 0; color: var(--danger); font-weight: 700; font-size: .9rem; }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+  .done { text-align: center; }
+  .done .big { font-size: 1.4rem; font-weight: 800; letter-spacing: .08em; margin: 0 0 6px; }
+  .done .num { display: inline-block; margin: 10px 0 4px; padding: 6px 14px; border: 2px solid var(--ink); font-size: 1.3rem; font-weight: 800; letter-spacing: .12em; }
+  .done .rec { text-align: left; margin: 14px 0 0; font-size: .9rem; }
+  .done .rec div { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px dotted var(--line); }
+  .done .rec b { text-align: right; overflow-wrap: anywhere; }
+  .link { background: none; border: 0; padding: 12px 4px; font: inherit; font-size: .85rem; font-weight: 700; color: var(--ink); text-decoration: underline; cursor: pointer; }
+  .closed { text-align: center; }
+  .foot { margin: 22px 0 0; text-align: center; font-size: .7rem; color: var(--muted); }
+  .foot a { color: inherit; }
+  body.embed .foot { display: none; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <main class="ticket" id="card">
+    <div id="loading" class="closed"><p>Chargement…</p></div>
+
+    <div id="closed" class="closed" hidden>
+      <p class="big" style="font-size:1.2rem;font-weight:800;letter-spacing:.08em">FORMULAIRE FERMÉ</p>
+      <p class="hint">Ce lien n'est plus actif. Demande-en un nouveau à l'équipe de l'application.</p>
+    </div>
+
+    <form id="form" hidden novalidate>
+      <div class="head">
+        <div class="emoji" id="emoji" aria-hidden="true"></div>
+        <h1 id="pname"></h1>
+        <p id="intro">Un bug, une idée, une question ? Dis-nous tout.</p>
+      </div>
+      <hr class="sep">
+      <fieldset>
+        <legend>Ça concerne</legend>
+        <div class="kinds">
+          <label class="kind"><input type="radio" name="kind" value="bug" checked><span>Bug</span></label>
+          <label class="kind"><input type="radio" name="kind" value="idea"><span>Idée</span></label>
+          <label class="kind"><input type="radio" name="kind" value="suggestion"><span>Suggestion</span></label>
+          <label class="kind"><input type="radio" name="kind" value="question"><span>Question</span></label>
+        </div>
+      </fieldset>
+      <div class="field"><label for="title">En bref</label><input id="title" name="title" type="text" maxlength="200" required autocomplete="off" placeholder="Ex. L'appli plante au lancement"></div>
+      <div class="field"><label for="body">Détails</label><textarea id="body" name="body" maxlength="5000" placeholder="Comment ça arrive, ce que tu voudrais…"></textarea></div>
+      <div class="field">
+        <label>Capture d'écran <span style="font-weight:400;text-transform:none;letter-spacing:0">(facultatif)</span></label>
+        <div class="file"><button type="button" id="pick">Ajouter une image</button><div class="shot" id="shot"><img alt="" id="shotimg"><button type="button" id="shotdel" aria-label="Retirer l'image">×</button></div></div>
+        <input id="file" type="file" accept="image/*" hidden>
+      </div>
+      <div class="field"><label for="email">Ton e-mail <span style="font-weight:400;text-transform:none;letter-spacing:0">(facultatif)</span></label><input id="email" name="email" type="email" maxlength="200" autocomplete="email" inputmode="email" placeholder="pour te répondre"><p class="hint">Seulement pour te répondre. Jamais de pub.</p></div>
+      <input class="hp" id="site" name="site" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="err" id="err" role="alert" hidden></p>
+      <button class="send" id="send" type="submit">Envoyer le ticket</button>
+    </form>
+
+    <div id="done" class="done" hidden>
+      <div class="head"><div class="emoji" id="emoji2" aria-hidden="true"></div><h1 id="pname2"></h1></div>
+      <hr class="sep">
+      <p class="big">MERCI !</p>
+      <p class="hint" style="font-size:.9rem">Ton ticket est bien arrivé.</p>
+      <div class="num" id="num"></div>
+      <div class="rec" id="rec"></div>
+      <hr class="sep">
+      <button class="link" id="again" type="button">Envoyer un autre ticket</button>
+    </div>
+  </main>
+  <p class="foot">Pensé par Paname Dev et codé par Claude · <a href="confidentialite.html">Confidentialité</a></p>
+</div>
+<script src="config.js"></script>
+<script>
+(() => {
+  'use strict';
+  const cfg = window.TOOL_PROJ_CONFIG || {};
+  const q = new URLSearchParams(location.search);
+  const token = (q.get('p') || location.hash.replace(/^#\/?/, '')).trim();
+  if (q.has('embed')) document.body.classList.add('embed');
+  const theme = q.get('theme'); if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+  const $ = (id) => document.getElementById(id);
+  const KIND = { bug: 'Bug', idea: 'Idée', suggestion: 'Suggestion', question: 'Question' };
+  const H = { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}` };
+  let image = null; // { blob, url }
+
+  const rpc = async (name, args) => {
+    const r = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/${name}`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+    const j = await r.json().catch(() => null);
+    if (!r.ok) throw new Error((j && j.message) || 'Envoi impossible pour le moment.');
+    return j;
+  };
+  const show = (id) => { for (const k of ['loading', 'closed', 'form', 'done']) $(k).hidden = k !== id; };
+  const say = (m) => { const e = $('err'); e.textContent = m || ''; e.hidden = !m; };
+  // le parent (page ou appli qui intègre ce formulaire) peut suivre : window.addEventListener('message', e => e.data.source === 'toolproj-ticket')
+  const tell = (type, extra) => { try { parent !== window && parent.postMessage({ source: 'toolproj-ticket', type, ...extra }, '*'); } catch { /* ignoré */ } };
+
+  async function shrink(file) { // image réduite dans le navigateur (1280 px, JPEG, sans métadonnées)
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height); bmp.close?.();
+    for (const qual of [0.82, 0.7, 0.55]) { const b = await new Promise((res) => c.toBlob(res, 'image/jpeg', qual)); if (b && b.size < 1.9 * 1024 * 1024) return b; }
+    throw new Error('Cette image est trop lourde.');
+  }
+  $('pick').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', async () => {
+    const f = $('file').files[0]; $('file').value = ''; if (!f) return;
+    try { const blob = await shrink(f); if (image) URL.revokeObjectURL(image.url); image = { blob, url: URL.createObjectURL(blob) }; $('shotimg').src = image.url; $('shot').style.display = 'block'; $('pick').textContent = 'Changer l\'image'; say(''); }
+    catch (e) { say(e.message || 'Cette image ne peut pas être lue.'); }
+  });
+  $('shotdel').addEventListener('click', () => { if (image) URL.revokeObjectURL(image.url); image = null; $('shot').style.display = 'none'; $('pick').textContent = 'Ajouter une image'; });
+
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault(); say('');
+    if ($('site').value) { done(0, 'bug', ''); return; } // piège à robots : on fait comme si
+    const title = $('title').value.trim(); if (!title) { say('Dis-nous en deux mots de quoi il s\'agit.'); $('title').focus(); return; }
+    const kind = document.querySelector('input[name=kind]:checked').value, email = $('email').value.trim();
+    const btn = $('send'); btn.disabled = true; btn.textContent = 'Impression…';
+    try {
+      let path = null;
+      if (image) {
+        path = `${token}/${(crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(16).slice(2))}.jpg`;
+        const up = await fetch(`${cfg.supabaseUrl}/storage/v1/object/ticket-images/${path}`, { method: 'POST', headers: { ...H, 'Content-Type': 'image/jpeg', 'x-upsert': 'false' }, body: image.blob });
+        if (!up.ok) throw new Error('L\'image n\'a pas pu être envoyée. Réessaie, ou envoie sans image.');
+      }
+      const id = await rpc('submit_ticket', { p_token: token, p_kind: kind, p_title: title, p_body: $('body').value.trim(), p_email: email, p_image: path });
+      done(id, kind, title);
+    } catch (err) { say(err.message); }
+    finally { btn.disabled = false; btn.textContent = 'Envoyer le ticket'; }
+  });
+  function done(id, kind, title) {
+    const now = new Date();
+    $('num').textContent = id ? `N° ${String(id).padStart(4, '0')}` : 'N° ····';
+    $('rec').innerHTML = '';
+    for (const [k, v] of [['Type', KIND[kind]], ['Objet', title], ['Date', now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })]]) {
+      const row = document.createElement('div'); const a = document.createElement('span'); a.textContent = k; const b = document.createElement('b'); b.textContent = v; row.append(a, b); $('rec').append(row);
+    }
+    show('done'); const c = $('card'); c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; window.scrollTo(0, 0);
+    tell('sent', { id });
+  }
+  $('again').addEventListener('click', () => { $('form').reset(); $('shotdel').click(); show('form'); });
+
+  (async () => {
+    if (!token || !cfg.supabaseUrl) { show('closed'); return; }
+    try {
+      const info = await rpc('intake_info', { p_token: token });
+      if (!info) { show('closed'); return; }
+      document.title = `Envoyer un ticket · ${info.name}`;
+      for (const id of ['pname', 'pname2']) $(id).textContent = info.name;
+      for (const id of ['emoji', 'emoji2']) $(id).textContent = info.emoji || '';
+      if (info.intro) $('intro').textContent = info.intro;
+      const t = q.get('type'); if (KIND[t]) document.querySelector(`input[name=kind][value=${t}]`).checked = true;
+      show('form'); tell('ready', {});
+    } catch { show('closed'); }
+  })();
+})();
+</script>
+</body>
+</html>
