@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Numéros de version : posés par la mise en ligne (GitHub Actions) ; valeurs de repli pour un essai en local.
+def tpVersionName = System.getenv('TP_VERSION_NAME') ?: '0.0.0-local'
+def tpVersionCode = (System.getenv('TP_VERSION_CODE') ?: '1').toInteger()
+
+android {
+    namespace 'fr.panamedev.toolproj'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'fr.panamedev.toolproj'
+        minSdk 23
+        targetSdk 35
+        versionCode tpVersionCode
+        versionName tpVersionName
+    }
+
+    // Signature : la clé d'envoi vient de variables secrètes (jamais dans le dépôt). Sans elles, seul le build « debug » est possible.
+    signingConfigs {
+        release {
+            def ks = System.getenv('TP_KEYSTORE_FILE')
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv('TP_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('TP_KEY_ALIAS')
+                keyPassword System.getenv('TP_KEY_PASSWORD') ?: System.getenv('TP_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (System.getenv('TP_KEYSTORE_FILE')) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.0'
+}

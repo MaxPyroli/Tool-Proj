@@ -1,0 +1,83 @@
+name: App Android
+
+# Construit l'app Android (une Trusted Web Activity : l'app web affichée plein écran).
+# - Sans clé de signature : un fichier APK d'essai (« debug »), à installer sur ton téléphone.
+# - Avec les 4 secrets ci-dessous : l'APK et le bundle AAB signés, prêts pour le Play Store.
+#   ANDROID_KEYSTORE_BASE64 (le fichier .jks en base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, et facultativement ANDROID_KEY_PASSWORD.
+# Le résultat est déposé dans une « Release » du dépôt (onglet Releases) : on le télécharge depuis le téléphone.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/app-project-tracker-0h71xn]
+    paths: ['android/**', '.github/workflows/android.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Numéros de version
+        run: |
+          echo "TP_VERSION_NAME=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+          echo "TP_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Clé de signature (si elle est fournie)
+        id: key
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KSPASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KSALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS" ] && [ -n "$KSPASS" ] && [ -n "$KSALIAS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "TP_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "TP_KEYSTORE_PASSWORD=$KSPASS" >> "$GITHUB_ENV"
+            echo "TP_KEY_ALIAS=$KSALIAS" >> "$GITHUB_ENV"
+            [ -n "$KEYPASS" ] && echo "TP_KEY_PASSWORD=$KEYPASS" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Construire l'APK d'essai
+        if: steps.key.outputs.signed != 'true'
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Construire l'APK et le bundle signés
+        if: steps.key.outputs.signed == 'true'
+        working-directory: android
+        run: ./gradlew --no-daemon assembleRelease bundleRelease
+
+      - name: Empreinte de la clé de signature (pour assetlinks.json)
+        if: steps.key.outputs.signed == 'true'
+        run: keytool -list -v -keystore "$TP_KEYSTORE_FILE" -alias "$TP_KEY_ALIAS" -storepass "$TP_KEYSTORE_PASSWORD" | grep -E "SHA256" | tee fingerprint.txt
+
+      - name: Déposer dans une Release
+        run: |
+          mkdir -p out
+          V="${TP_VERSION_NAME}-build${TP_VERSION_CODE}"
+          if [ "${{ steps.key.outputs.signed }}" = "true" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "out/ToolProj-$V.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/ToolProj-$V.aab"
+            cp fingerprint.txt "out/empreinte-cle-$V.txt"
+            NOTE="App Android signée (APK + AAB pour le Play Store). Version $TP_VERSION_NAME, build $TP_VERSION_CODE."
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "out/ToolProj-$V-essai.apk"
+            NOTE="APK d'essai non signé pour le Play Store (version $TP_VERSION_NAME, build $TP_VERSION_CODE). Désinstalle l'ancienne version avant d'installer."
+          fi
+          gh release create "android-build$TP_VERSION_CODE" out/* --prerelease --title "App Android $V" --notes "$NOTE" --target "${{ github.sha }}"
