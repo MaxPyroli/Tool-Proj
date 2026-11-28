@@ -42,6 +42,11 @@ android {
     }
 }
 
+// La bibliothèque tire une version « alpha » d'androidx.browser qui exige l'API 36 : on garde la version stable.
+configurations.configureEach {
+    resolutionStrategy.force 'androidx.browser:browser:1.8.0'
+}
+
 dependencies {
     implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.0'
 }
